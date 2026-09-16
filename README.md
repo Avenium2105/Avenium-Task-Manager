@@ -1,4 +1,4 @@
-# Daily Board
+# Avenium Task Manager
 
 A small, shared, real-time daily task board — like a mini Monday.com — built to
 run as your own standalone app. It has no dependency on any third-party
@@ -52,7 +52,26 @@ npm start   # or run it under pm2 / a systemd service so it survives reboots
 ```
 Put it behind a reverse proxy (Caddy or nginx) if you want a real domain name and HTTPS — Caddy makes this a one-line config.
 
+## Accounts and logins
+
+The app now requires signing in. The first time it starts, it creates one **admin** account automatically and prints the username and a random temporary password to the server logs (in Render, check the **Logs** tab; locally, check your terminal). It looks like:
+
+```
+ First run: created an admin account.
+   username: admin
+   password: 8c89f27a
+```
+
+Sign in with that, then go to **Manage users** (linked in the top bar) to add your other 2 people and change your own password. Each account can:
+- change its own password (top bar → "Change password")
+- an **admin** account can also add, edit, or remove other accounts from the Manage users page
+
+Every task and group shows who last added or updated it, and the Manage users page has a running activity log of every change with a timestamp.
+
+**Important:** `users.json` (accounts) and `data.json` (tasks) are excluded from git on purpose since they hold real passwords and data — don't remove them from `.gitignore`. This also means, on a free Render instance with no persistent disk, **both your tasks and your accounts will reset if the service restarts.** If you're using this for real, set up a persistent disk (see the deployment section above) so accounts and tasks survive restarts — otherwise you'll need to re-create the admin account (and re-add the other 2 users) after every restart.
+
+It's also worth setting a fixed `SESSION_SECRET` environment variable in Render (Settings → Environment) to a long random string — otherwise a restart also signs everyone out even if the disk is persistent.
+
 ## Notes
 
-- There's no login system — anyone with the link can view and edit the board. That's by design for a small trusted group of 3; if you outgrow that, the next step would be adding basic authentication.
 - All 3 people can be editing at the same time; the last change to a given task wins, same as most lightweight shared tools.

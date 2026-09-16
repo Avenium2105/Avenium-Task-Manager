@@ -1,14 +1,17 @@
 {
-  "name": "daily-board",
+  "name": "avenium-task-manager",
   "version": "1.0.0",
-  "description": "A small shared, real-time daily task board (Monday.com-style) for a few people.",
+  "description": "Avenium Task Manager — a small shared, real-time daily task board (Monday.com-style) for a few people.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "express": "^4.19.2",
-    "socket.io": "^4.7.5"
+    "express-session": "^1.19.0",
+    "socket.io": "^4.7.5",
+    "socket.io-client": "^4.8.3"
   },
   "engines": {
     "node": ">=18"

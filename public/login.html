@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in · Avenium Task Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F3F3EE;
+    --bg-raised: #FBFBF8;
+    --ink: #22261F;
+    --ink-soft: #63685C;
+    --ink-faint: #9A9C8F;
+    --line: #E2E1D5;
+    --pine: #3C5A46;
+    --brick: #B24A3C;
+    --brick-soft: #F5E1DC;
+    --shadow: 0 1px 2px rgba(34,38,31,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1B1D18; --bg-raised: #232620; --ink: #ECEBE3; --ink-soft: #A9AB9C;
+      --ink-faint: #74766A; --line: #34372E; --pine: #7FAF8E; --brick: #E08A79;
+      --brick-soft: #382320; --shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); min-height: 100vh; }
+  body {
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px;
+  }
+  .card {
+    width: 100%; max-width: 360px; background: var(--bg-raised); border: 1px solid var(--line);
+    border-radius: 12px; padding: 32px 28px; box-shadow: var(--shadow);
+  }
+  .brand { font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; color: var(--pine); margin: 0 0 10px; }
+  h1 {
+    font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 26px;
+    margin: 0 0 24px; letter-spacing: -0.01em;
+  }
+  label { display: block; font-size: 12.5px; color: var(--ink-soft); margin: 0 0 6px; }
+  input {
+    width: 100%; font-family: inherit; font-size: 14px; padding: 9px 11px; margin-bottom: 16px;
+    border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none;
+  }
+  input:focus { border-color: var(--pine); }
+  button {
+    width: 100%; font-family: inherit; font-size: 14px; font-weight: 500; padding: 10px;
+    border: none; border-radius: 7px; background: var(--pine); color: var(--bg-raised); cursor: pointer;
+  }
+  button:disabled { opacity: 0.6; cursor: default; }
+  .error {
+    display: none; background: var(--brick-soft); color: var(--brick); font-size: 12.5px;
+    padding: 8px 10px; border-radius: 7px; margin-bottom: 16px;
+  }
+  .error.show { display: block; }
+</style>
+</head>
+<body>
+  <form class="card" id="loginForm" autocomplete="on">
+    <p class="brand">Avenium Task Manager</p>
+    <h1>Sign in</h1>
+    <div class="error" id="errorBox"></div>
+    <label for="username">Username</label>
+    <input id="username" name="username" type="text" autocomplete="username" required autofocus>
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required>
+    <button id="submitBtn" type="submit">Sign in</button>
+  </form>
+
+<script>
+  var form = document.getElementById("loginForm");
+  var errorBox = document.getElementById("errorBox");
+  var submitBtn = document.getElementById("submitBtn");
+
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    errorBox.classList.remove("show");
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Signing in…";
+    try {
+      var res = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: document.getElementById("username").value.trim(),
+          password: document.getElementById("password").value
+        })
+      });
+      if (res.ok) {
+        window.location.href = "/";
+        return;
+      }
+      var data = await res.json().catch(function () { return {}; });
+      errorBox.textContent = data.error === "invalid_credentials"
+        ? "That username or password isn't right."
+        : "Couldn't sign in. Please try again.";
+      errorBox.classList.add("show");
+    } catch (err) {
+      errorBox.textContent = "Couldn't reach the server. Please try again.";
+      errorBox.classList.add("show");
+    }
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Sign in";
+  });
+</script>
+</body>
+</html>

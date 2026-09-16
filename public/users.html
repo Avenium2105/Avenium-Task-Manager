@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage users · Avenium Task Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F3F3EE; --bg-raised: #FBFBF8; --ink: #22261F; --ink-soft: #63685C; --ink-faint: #9A9C8F;
+    --line: #E2E1D5; --line-soft: #EAE9DE; --pine: #3C5A46; --pine-soft: #E4ECE4;
+    --ochre: #C68A2E; --ochre-soft: #F5E8D2; --brick: #B24A3C; --brick-soft: #F5E1DC;
+    --shadow: 0 1px 2px rgba(34,38,31,0.06); --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1B1D18; --bg-raised: #232620; --ink: #ECEBE3; --ink-soft: #A9AB9C; --ink-faint: #74766A;
+      --line: #34372E; --line-soft: #2B2D26; --pine: #7FAF8E; --pine-soft: #253227;
+      --ochre: #E0AC57; --ochre-soft: #33291A; --brick: #E08A79; --brick-soft: #382320;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  body { font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.5; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 16px 20px 100px; }
+
+  .topbar { display: flex; align-items: center; gap: 14px; font-size: 12.5px; color: var(--ink-soft); padding: 4px 0 0; }
+  .topbar a, .topbar button.link { color: var(--ink-soft); text-decoration: none; background: none; border: none; font-family: inherit; font-size: 12.5px; cursor: pointer; padding: 0; }
+  .topbar a:hover, .topbar button.link:hover { color: var(--pine); }
+  .topbar .dot { color: var(--line); }
+
+  .brand { font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; color: var(--pine); margin: 26px 0 8px; }
+  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 30px; margin: 0 0 8px; letter-spacing: -0.01em; }
+  h2 { font-size: 15px; font-weight: 600; margin: 40px 0 12px; }
+  p.lead { color: var(--ink-soft); font-size: 13.5px; margin: 0 0 28px; }
+
+  table { width: 100%; border-collapse: collapse; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+  th, td { text-align: left; padding: 10px 12px; font-size: 13.5px; border-top: 1px solid var(--line-soft); }
+  th { color: var(--ink-soft); font-weight: 500; font-size: 12px; border-top: none; }
+  tr:first-child td { border-top: none; }
+  .role-badge { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; background: var(--pine-soft); color: var(--pine); }
+  .role-badge.member { background: var(--line-soft); color: var(--ink-soft); }
+  .row-actions { display: flex; gap: 10px; }
+  .row-actions button { font-family: inherit; font-size: 12.5px; color: var(--ink-soft); background: none; border: none; cursor: pointer; padding: 0; }
+  .row-actions button:hover { color: var(--pine); }
+  .row-actions button.danger:hover { color: var(--brick); }
+
+  .edit-panel { display: none; background: var(--bg); border-top: 1px solid var(--line-soft); padding: 12px; }
+  .edit-panel.open { display: block; }
+  .edit-panel .fields { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .edit-panel input, .edit-panel select {
+    font-family: inherit; font-size: 12.5px; padding: 6px 8px; border: 1px solid var(--line);
+    border-radius: 6px; background: var(--bg-raised); color: var(--ink); outline: none;
+  }
+  .edit-panel button { font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 6px 12px; border: none; border-radius: 6px; background: var(--pine); color: var(--bg-raised); cursor: pointer; }
+  .edit-panel .msg { font-size: 12px; color: var(--brick); margin-top: 8px; }
+
+  .add-form { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); margin-top: 16px; }
+  .add-form .fields { display: flex; gap: 8px; flex-wrap: wrap; }
+  .add-form input, .add-form select {
+    font-family: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--line);
+    border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; flex: 1; min-width: 120px;
+  }
+  .add-form button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 16px; border: none; border-radius: 7px; background: var(--pine); color: var(--bg-raised); cursor: pointer; }
+  .add-form .msg { font-size: 12.5px; margin-top: 10px; color: var(--brick); }
+  .add-form .msg.ok { color: var(--pine); }
+
+  .activity-list { list-style: none; margin: 0; padding: 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .activity-list li { padding: 10px 14px; border-top: 1px solid var(--line-soft); font-size: 13px; display: flex; justify-content: space-between; gap: 16px; }
+  .activity-list li:first-child { border-top: none; }
+  .activity-list .when { color: var(--ink-faint); font-size: 12px; white-space: nowrap; }
+  .empty { color: var(--ink-faint); font-size: 13px; padding: 14px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a href="/">← Back to board</a>
+    <span class="dot">·</span>
+    <button class="link" id="logoutBtn" type="button">Log out</button>
+  </div>
+
+  <p class="brand">Avenium Task Manager</p>
+  <h1>Manage users</h1>
+  <p class="lead">Add, edit, or remove the accounts that can sign in to the board.</p>
+
+  <table id="usersTable">
+    <thead><tr><th>User</th><th>Role</th><th>Added</th><th></th></tr></thead>
+    <tbody id="usersBody"></tbody>
+  </table>
+
+  <div class="add-form">
+    <div class="fields">
+      <input id="newUsername" placeholder="Username" autocomplete="off">
+      <input id="newDisplayName" placeholder="Display name (optional)" autocomplete="off">
+      <input id="newPassword" placeholder="Temporary password" type="text" autocomplete="off">
+      <select id="newRole">
+        <option value="member">Member</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button id="addUserBtn" type="button">Add user</button>
+    </div>
+    <div class="msg" id="addMsg"></div>
+  </div>
+
+  <h2>Recent activity</h2>
+  <ul class="activity-list" id="activityList"></ul>
+</div>
+
+<script>
+  function relTime(iso) {
+    if (!iso) return "";
+    var diff = Date.now() - new Date(iso).getTime();
+    var mins = Math.round(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return mins + (mins === 1 ? " minute ago" : " minutes ago");
+    var hrs = Math.round(mins / 60);
+    if (hrs < 24) return hrs + (hrs === 1 ? " hour ago" : " hours ago");
+    var days = Math.round(hrs / 24);
+    if (days < 30) return days + (days === 1 ? " day ago" : " days ago");
+    return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  var currentUserId = null;
+
+  function el(tag, cls, attrs) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (attrs) for (var k in attrs) { if (k === "text") e.textContent = attrs[k]; else e.setAttribute(k, attrs[k]); }
+    return e;
+  }
+
+  function loadUsers() {
+    fetch("/api/me").then(function (r) { return r.json(); }).then(function (d) {
+      currentUserId = d.user.id;
+      return fetch("/api/users");
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      renderUsers(d.users);
+    });
+  }
+
+  function renderUsers(users) {
+    var body = document.getElementById("usersBody");
+    body.innerHTML = "";
+    users.forEach(function (u) {
+      var tr = el("tr");
+      var nameTd = el("td");
+      nameTd.innerHTML = "<strong>" + escapeHtml(u.displayName) + "</strong><br><span style='color:var(--ink-faint);font-size:12px;'>" + escapeHtml(u.username) + "</span>";
+      tr.appendChild(nameTd);
+
+      var roleTd = el("td");
+      roleTd.appendChild(el("span", "role-badge" + (u.role === "member" ? " member" : ""), { text: u.role === "admin" ? "Admin" : "Member" }));
+      tr.appendChild(roleTd);
+
+      tr.appendChild(el("td", "", { text: relTime(u.createdAt) }));
+
+      var actionsTd = el("td");
+      var actions = el("div", "row-actions");
+      var editBtn = el("button", "", { type: "button", text: "Edit" });
+      actions.appendChild(editBtn);
+      if (u.id !== currentUserId) {
+        var delBtn = el("button", "danger", { type: "button", text: "Remove" });
+        delBtn.addEventListener("click", function () { removeUser(u.id, u.username); });
+        actions.appendChild(delBtn);
+      }
+      actionsTd.appendChild(actions);
+      tr.appendChild(actionsTd);
+
+      var panelRow = el("tr");
+      var panelTd = el("td", "", { colspan: "4" });
+      panelTd.style.padding = "0";
+      var panel = el("div", "edit-panel");
+      var fields = el("div", "fields");
+      var nameInput = el("input", "", { type: "text", placeholder: "Display name" });
+      nameInput.value = u.displayName;
+      fields.appendChild(nameInput);
+
+      var roleSel = el("select");
+      roleSel.innerHTML = '<option value="member">Member</option><option value="admin">Admin</option>';
+      roleSel.value = u.role;
+      fields.appendChild(roleSel);
+
+      var pwInput = el("input", "", { type: "text", placeholder: "New password (leave blank to keep)" });
+      fields.appendChild(pwInput);
+
+      var saveBtn = el("button", "", { type: "button", text: "Save" });
+      fields.appendChild(saveBtn);
+      panel.appendChild(fields);
+      var panelMsg = el("div", "msg");
+      panel.appendChild(panelMsg);
+      panelTd.appendChild(panel);
+      panelRow.appendChild(panelTd);
+
+      editBtn.addEventListener("click", function () { panel.classList.toggle("open"); });
+      saveBtn.addEventListener("click", function () {
+        var body = { displayName: nameInput.value.trim(), role: roleSel.value };
+        if (pwInput.value.trim()) body.password = pwInput.value.trim();
+        fetch("/api/users/" + u.id, {
+          method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+        }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+          .then(function (res) {
+            if (res.ok) { loadUsers(); }
+            else {
+              panelMsg.textContent = res.data.error === "last_admin"
+                ? "Can't remove admin rights from the only admin." : "Couldn't save changes.";
+            }
+          });
+      });
+
+      body.appendChild(tr);
+      body.appendChild(panelRow);
+    });
+  }
+
+  function removeUser(id, username) {
+    if (!window.confirm("Remove the account \"" + username + "\"? They won't be able to sign in anymore.")) return;
+    fetch("/api/users/" + id, { method: "DELETE" }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (res.ok) loadUsers();
+        else window.alert(res.data.error === "last_admin" ? "Can't remove the only admin account." : "Couldn't remove that account.");
+      });
+  }
+
+  document.getElementById("addUserBtn").addEventListener("click", function () {
+    var msg = document.getElementById("addMsg");
+    msg.className = "msg";
+    var body = {
+      username: document.getElementById("newUsername").value.trim(),
+      displayName: document.getElementById("newDisplayName").value.trim(),
+      password: document.getElementById("newPassword").value.trim(),
+      role: document.getElementById("newRole").value
+    };
+    if (!body.username || !body.password) { msg.textContent = "Username and a temporary password are required."; return; }
+    if (body.password.length < 6) { msg.textContent = "Password needs to be at least 6 characters."; return; }
+    fetch("/api/users", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
+    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (res.ok) {
+          msg.textContent = "Added " + body.username + ". Share the temporary password with them so they can sign in.";
+          msg.className = "msg ok";
+          document.getElementById("newUsername").value = "";
+          document.getElementById("newDisplayName").value = "";
+          document.getElementById("newPassword").value = "";
+          loadUsers();
+        } else {
+          msg.textContent = res.data.error === "username_taken" ? "That username is already taken." : "Couldn't add that user.";
+        }
+      });
+  });
+
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  function loadActivity() {
+    fetch("/api/activity").then(function (r) { return r.json(); }).then(function (d) {
+      var list = document.getElementById("activityList");
+      list.innerHTML = "";
+      if (!d.activity.length) { list.appendChild(el("li", "empty", { text: "No changes yet." })); return; }
+      d.activity.forEach(function (a) {
+        var li = el("li");
+        li.appendChild(el("span", "", { text: a.text }));
+        li.appendChild(el("span", "when", { text: relTime(a.at) }));
+        list.appendChild(li);
+      });
+    });
+  }
+
+  document.getElementById("logoutBtn").addEventListener("click", function () {
+    fetch("/api/logout", { method: "POST" }).then(function () { window.location.href = "/login.html"; });
+  });
+
+  loadUsers();
+  loadActivity();
+</script>
+</body>
+</html>

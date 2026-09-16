@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Daily Board</title>
+<title>Avenium Task Manager</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -71,7 +71,61 @@
     padding: 40px 20px 100px;
   }
 
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 14px;
+    padding: 16px 0 0;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    flex-wrap: wrap;
+  }
+  .topbar .who { color: var(--ink); font-weight: 500; }
+  .topbar a, .topbar button.link {
+    color: var(--ink-soft);
+    text-decoration: none;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 12.5px;
+    cursor: pointer;
+    padding: 0;
+  }
+  .topbar a:hover, .topbar button.link:hover { color: var(--pine); }
+  .topbar .dot { color: var(--line); }
+
+  .pw-form {
+    display: none;
+    gap: 8px;
+    align-items: center;
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin: 10px 0 0;
+    flex-wrap: wrap;
+  }
+  .pw-form.open { display: flex; }
+  .pw-form input {
+    font-family: inherit; font-size: 12.5px; padding: 6px 8px;
+    border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); outline: none;
+  }
+  .pw-form button {
+    font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 6px 12px;
+    border: none; border-radius: 6px; background: var(--pine); color: var(--bg-raised); cursor: pointer;
+  }
+  .pw-form .pw-msg { font-size: 12px; color: var(--brick); }
+  .pw-form .pw-msg.ok { color: var(--pine); }
+
   header.board-head { margin-bottom: 34px; }
+  .board-head .brand {
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    color: var(--pine);
+    margin: 0 0 14px;
+  }
   .board-head h1 {
     font-family: "Fraunces", Georgia, serif;
     font-optical-sizing: auto;
@@ -138,8 +192,10 @@
   .group-body { display: block; }
   .group.collapsed .group-body { display: none; }
 
-  .item { display: flex; align-items: center; gap: 10px; padding: 9px 14px 9px 18px; border-top: 1px solid var(--line-soft); }
+  .item { display: flex; flex-direction: column; padding: 9px 14px 7px 18px; border-top: 1px solid var(--line-soft); }
   .item:hover { background: var(--line-soft); }
+  .item-main { display: flex; align-items: center; gap: 10px; }
+  .item-meta { font-size: 11px; color: var(--ink-faint); padding: 2px 0 0 30px; }
   .status-btn {
     flex-shrink: 0; width: 20px; height: 20px; border-radius: 6px;
     border: 1.5px solid var(--ink-faint); background: transparent; cursor: pointer;
@@ -220,7 +276,24 @@
 </head>
 <body>
 <div class="wrap">
+  <div class="topbar" id="topbar">
+    <span class="who" id="whoLabel"></span>
+    <span class="dot">·</span>
+    <button class="link" id="changePwBtn" type="button">Change password</button>
+    <span class="dot" id="adminDot" style="display:none;">·</span>
+    <a href="/users.html" id="manageUsersLink" style="display:none;">Manage users</a>
+    <span class="dot">·</span>
+    <button class="link" id="logoutBtn" type="button">Log out</button>
+  </div>
+  <form class="pw-form" id="pwForm">
+    <input type="password" id="pwCurrent" placeholder="Current password" autocomplete="current-password">
+    <input type="password" id="pwNew" placeholder="New password (6+ characters)" autocomplete="new-password">
+    <button type="submit">Update</button>
+    <span class="pw-msg" id="pwMsg"></span>
+  </form>
+
   <header class="board-head">
+    <p class="brand">Avenium Task Manager</p>
     <h1 id="greeting">Daily board</h1>
     <p class="date-line" id="dateLine"></p>
     <div class="conn-status offline" id="connStatus"><span class="conn-dot"></span><span id="connLabel">Connecting…</span></div>
@@ -325,6 +398,8 @@
 
       var nameInput = el("input", "group-name");
       nameInput.value = g.name || "";
+      if (g.updatedBy) nameInput.title = "Renamed by " + g.updatedBy + " \u00b7 " + relTime(g.updatedAt);
+      else if (g.createdBy) nameInput.title = "Added by " + g.createdBy;
       nameInput.addEventListener("click", function (e) { e.stopPropagation(); });
       nameInput.addEventListener("change", function () { updateGroup(g.id, { name: nameInput.value.trim() || "Untitled" }); });
       head.appendChild(nameInput);
@@ -403,8 +478,22 @@
     }
   }
 
+  function relTime(iso) {
+    if (!iso) return "";
+    var diff = Date.now() - new Date(iso).getTime();
+    var mins = Math.round(diff / 60000);
+    if (mins < 1) return "just now";
+    if (mins < 60) return mins + (mins === 1 ? " minute ago" : " minutes ago");
+    var hrs = Math.round(mins / 60);
+    if (hrs < 24) return hrs + (hrs === 1 ? " hour ago" : " hours ago");
+    var days = Math.round(hrs / 24);
+    if (days < 30) return days + (days === 1 ? " day ago" : " days ago");
+    return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+
   function renderItem(item) {
     var row = el("div", "item" + (item.status === "done" ? " is-done" : ""));
+    var main = el("div", "item-main");
 
     var statusBtn = el("button", "status-btn " + item.status, { type: "button", "aria-label": "Task status" });
     statusBtn.innerHTML = checkSvg();
@@ -412,12 +501,12 @@
       var next = item.status === "not_started" ? "in_progress" : item.status === "in_progress" ? "done" : "not_started";
       updateItem(item.id, { status: next });
     });
-    row.appendChild(statusBtn);
+    main.appendChild(statusBtn);
 
     var titleInput = el("input", "item-title");
     titleInput.value = item.title || "";
     titleInput.addEventListener("change", function () { updateItem(item.id, { title: titleInput.value.trim() || "Untitled task" }); });
-    row.appendChild(titleInput);
+    main.appendChild(titleInput);
 
     var priorityLabels = { low: "Low", medium: "Medium", high: "High" };
     var priBtn = el("button", "priority-tag " + item.priority, { type: "button", text: priorityLabels[item.priority] || "Low" });
@@ -425,7 +514,7 @@
       var next = item.priority === "low" ? "medium" : item.priority === "medium" ? "high" : "low";
       updateItem(item.id, { priority: next });
     });
-    row.appendChild(priBtn);
+    main.appendChild(priBtn);
 
     var dueBtn = el("button", "due-btn " + dueClass(item.dueDate), { type: "button", text: item.dueDate ? dueLabel(item.dueDate) : "+ date" });
     dueBtn.addEventListener("click", function () {
@@ -436,15 +525,73 @@
       dateInput.addEventListener("change", function () { updateItem(item.id, { dueDate: dateInput.value || "" }); });
       dateInput.addEventListener("blur", function () { render(); });
     });
-    row.appendChild(dueBtn);
+    main.appendChild(dueBtn);
 
     var delBtn = el("button", "item-del", { type: "button", "aria-label": "Delete task" });
     delBtn.innerHTML = xSvg();
     delBtn.addEventListener("click", function () { deleteItem(item.id); });
-    row.appendChild(delBtn);
+    main.appendChild(delBtn);
+
+    row.appendChild(main);
+
+    if (item.updatedBy) {
+      var everEdited = item.updatedBy !== item.createdBy;
+      var label = everEdited ? "Updated by " + item.updatedBy : "Added by " + (item.createdBy || item.updatedBy);
+      row.appendChild(el("div", "item-meta", { text: label + " \u00b7 " + relTime(item.updatedAt) }));
+    }
 
     return row;
   }
+
+  // ---------------- auth / topbar wiring ----------------
+
+  function applyMe(user) {
+    document.getElementById("whoLabel").textContent = "Signed in as " + (user.displayName || user.username);
+    var isAdmin = user.role === "admin";
+    document.getElementById("manageUsersLink").style.display = isAdmin ? "" : "none";
+    document.getElementById("adminDot").style.display = isAdmin ? "" : "none";
+  }
+
+  fetch("/api/me").then(function (r) {
+    if (r.status === 401) { window.location.href = "/login.html"; return null; }
+    return r.json();
+  }).then(function (data) {
+    if (data && data.user) applyMe(data.user);
+  }).catch(function () {});
+
+  document.getElementById("logoutBtn").addEventListener("click", function () {
+    fetch("/api/logout", { method: "POST" }).then(function () { window.location.href = "/login.html"; });
+  });
+
+  var pwForm = document.getElementById("pwForm");
+  document.getElementById("changePwBtn").addEventListener("click", function () {
+    pwForm.classList.toggle("open");
+  });
+  pwForm.addEventListener("submit", function (e) {
+    e.preventDefault();
+    var msg = document.getElementById("pwMsg");
+    msg.className = "pw-msg";
+    var current = document.getElementById("pwCurrent").value;
+    var next = document.getElementById("pwNew").value;
+    fetch("/api/change-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword: current, newPassword: next })
+    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (res.ok) {
+          msg.textContent = "Password updated.";
+          msg.className = "pw-msg ok";
+          document.getElementById("pwCurrent").value = "";
+          document.getElementById("pwNew").value = "";
+        } else {
+          msg.textContent = res.data.error === "wrong_current_password" ? "Current password is wrong."
+            : res.data.error === "weak_password" ? "New password needs 6+ characters."
+            : "Couldn't update password.";
+        }
+      })
+      .catch(function () { msg.textContent = "Couldn't reach the server."; });
+  });
 
   // ---------------- socket wiring ----------------
 
@@ -460,6 +607,10 @@
     statusEl.className = "conn-status offline";
     statusLabel.textContent = "Reconnecting…";
   });
+  socket.on("auth_error", function () {
+    window.location.href = "/login.html";
+  });
+  socket.on("me", function (user) { applyMe(user); });
   socket.on("state", function (s) {
     state.groups = s.groups || [];
     state.items = s.items || [];
