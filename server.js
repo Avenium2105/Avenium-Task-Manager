@@ -299,6 +299,9 @@ function requireAdmin(req, res, next) {
   return res.redirect("/");
 }
 
+// ---- static brand assets (logo etc. — public, needed on pre-auth pages too) ----
+app.use("/assets", express.static(path.join(__dirname, "public", "assets")));
+
 // ---- pages ----
 app.get("/login.html", (req, res) => res.sendFile(path.join(__dirname, "public", "login.html")));
 app.get(["/", "/index.html"], requireAuth, (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
