@@ -1,0 +1,16 @@
+{
+  "name": "daily-board",
+  "version": "1.0.0",
+  "description": "A small shared, real-time daily task board (Monday.com-style) for a few people.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

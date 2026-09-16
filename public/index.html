@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F3F3EE;
+    --bg-raised: #FBFBF8;
+    --ink: #22261F;
+    --ink-soft: #63685C;
+    --ink-faint: #9A9C8F;
+    --line: #E2E1D5;
+    --line-soft: #EAE9DE;
+    --pine: #3C5A46;
+    --pine-soft: #E4ECE4;
+    --ochre: #C68A2E;
+    --ochre-soft: #F5E8D2;
+    --brick: #B24A3C;
+    --brick-soft: #F5E1DC;
+    --grey-pill: #E6E5DA;
+    --grey-pill-ink: #6C6F62;
+    --shadow: 0 1px 2px rgba(34,38,31,0.06);
+    --radius: 10px;
+    font-synthesis: none;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1B1D18;
+      --bg-raised: #232620;
+      --ink: #ECEBE3;
+      --ink-soft: #A9AB9C;
+      --ink-faint: #74766A;
+      --line: #34372E;
+      --line-soft: #2B2D26;
+      --pine: #7FAF8E;
+      --pine-soft: #253227;
+      --ochre: #E0AC57;
+      --ochre-soft: #33291A;
+      --brick: #E08A79;
+      --brick-soft: #382320;
+      --grey-pill: #2C2E27;
+      --grey-pill-ink: #A9AB9C;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  body {
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px 20px 100px;
+  }
+
+  header.board-head { margin-bottom: 34px; }
+  .board-head h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-optical-sizing: auto;
+    font-weight: 500;
+    font-size: 34px;
+    letter-spacing: -0.01em;
+    margin: 0 0 4px;
+    color: var(--ink);
+  }
+  .board-head .date-line { color: var(--ink-soft); font-size: 14px; margin: 0; }
+
+  .conn-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--ink-faint);
+    margin-top: 8px;
+  }
+  .conn-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--ink-faint);
+  }
+  .conn-status.online .conn-dot { background: var(--pine); }
+  .conn-status.offline .conn-dot { background: var(--brick); }
+
+  .progress-row { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
+  .progress-track { flex: 1; height: 6px; border-radius: 4px; background: var(--line-soft); overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--pine); border-radius: 4px; transition: width 0.4s cubic-bezier(.4,0,.2,1); width: 0%; }
+  .progress-label { font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  .group {
+    margin-bottom: 26px;
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .group-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 13px 14px 13px 0;
+    cursor: pointer; user-select: none;
+    border-left: 4px solid var(--accent, var(--pine));
+  }
+  .group-head .chevron { width: 14px; height: 14px; margin-left: 12px; flex-shrink: 0; color: var(--ink-faint); transition: transform 0.18s ease; }
+  .group.collapsed .group-head .chevron { transform: rotate(-90deg); }
+  .group-name {
+    font-weight: 600; font-size: 15px; color: var(--ink);
+    background: transparent; border: none; outline: none;
+    padding: 3px 2px; border-radius: 5px; flex: 1; min-width: 0;
+    font-family: inherit;
+  }
+  .group-name:hover, .group-name:focus { background: var(--line-soft); }
+  .group-count { font-size: 12.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .group-del {
+    flex-shrink: 0; width: 22px; height: 22px; border: none; background: transparent;
+    color: var(--ink-faint); cursor: pointer; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.15s, background 0.15s, color 0.15s;
+  }
+  .group-head:hover .group-del { opacity: 1; }
+  .group-del:hover { background: var(--brick-soft); color: var(--brick); }
+  .group-body { display: block; }
+  .group.collapsed .group-body { display: none; }
+
+  .item { display: flex; align-items: center; gap: 10px; padding: 9px 14px 9px 18px; border-top: 1px solid var(--line-soft); }
+  .item:hover { background: var(--line-soft); }
+  .status-btn {
+    flex-shrink: 0; width: 20px; height: 20px; border-radius: 6px;
+    border: 1.5px solid var(--ink-faint); background: transparent; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; padding: 0;
+    transition: all 0.15s ease;
+  }
+  .status-btn svg { width: 12px; height: 12px; opacity: 0; transition: opacity 0.15s; }
+  .status-btn.in_progress { border-color: var(--ochre); background: var(--ochre-soft); }
+  .status-btn.done { border-color: var(--pine); background: var(--pine); }
+  .status-btn.done svg { opacity: 1; stroke: var(--bg-raised); }
+
+  .item-title {
+    flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+    color: var(--ink); font-size: 14px; padding: 3px 4px; border-radius: 5px; font-family: inherit;
+  }
+  .item-title:hover, .item-title:focus { background: var(--bg); }
+  .item.is-done .item-title { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: var(--ink-faint); }
+
+  .priority-tag {
+    flex-shrink: 0; font-size: 11.5px; font-weight: 500; padding: 3px 9px; border-radius: 20px;
+    border: none; cursor: pointer; background: var(--grey-pill); color: var(--grey-pill-ink);
+    font-family: inherit; white-space: nowrap;
+  }
+  .priority-tag.high { background: var(--brick-soft); color: var(--brick); }
+  .priority-tag.medium { background: var(--ochre-soft); color: var(--ochre); }
+
+  .due-btn {
+    flex-shrink: 0; font-size: 12px; color: var(--ink-faint); background: transparent; border: none;
+    cursor: pointer; padding: 3px 6px; border-radius: 5px; font-family: inherit;
+    white-space: nowrap; min-width: 58px; text-align: right;
+  }
+  .due-btn:hover { background: var(--bg); color: var(--ink-soft); }
+  .due-btn.overdue { color: var(--brick); font-weight: 500; }
+  .due-btn.today { color: var(--pine); font-weight: 500; }
+  .due-input {
+    flex-shrink: 0; font-size: 12px; font-family: inherit; border: 1px solid var(--line); border-radius: 5px;
+    background: var(--bg-raised); color: var(--ink); padding: 2px 4px; width: 118px;
+  }
+
+  .item-del {
+    flex-shrink: 0; width: 20px; height: 20px; border: none; background: transparent;
+    color: var(--ink-faint); cursor: pointer; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.15s, background 0.15s, color 0.15s;
+  }
+  .item:hover .item-del { opacity: 1; }
+  .item-del:hover { background: var(--brick-soft); color: var(--brick); }
+
+  .add-row { display: flex; align-items: center; gap: 9px; padding: 10px 14px 12px 18px; border-top: 1px solid var(--line-soft); }
+  .add-row .plus { width: 20px; height: 20px; flex-shrink: 0; color: var(--ink-faint); display: flex; align-items: center; justify-content: center; }
+  .add-input { flex: 1; border: none; background: transparent; outline: none; font-size: 14px; color: var(--ink); padding: 4px 2px; font-family: inherit; }
+  .add-input::placeholder { color: var(--ink-faint); }
+
+  .add-group-btn {
+    display: flex; align-items: center; gap: 8px; background: transparent; border: 1px dashed var(--line);
+    color: var(--ink-soft); font-family: inherit; font-size: 13.5px; padding: 12px 16px; border-radius: var(--radius);
+    cursor: pointer; width: 100%; transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .add-group-btn:hover { border-color: var(--ink-faint); color: var(--ink); background: var(--bg-raised); }
+
+  .new-group-form {
+    background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 12px 14px; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow);
+  }
+  .new-group-form input { flex: 1; border: none; background: var(--bg); border-radius: 6px; padding: 7px 10px; font-size: 14px; color: var(--ink); outline: none; font-family: inherit; }
+  .new-group-form button { border: none; background: var(--pine); color: var(--bg-raised); font-family: inherit; font-size: 13px; font-weight: 500; padding: 7px 14px; border-radius: 6px; cursor: pointer; }
+  .new-group-form button.cancel { background: transparent; color: var(--ink-soft); }
+
+  .foot-note { text-align: center; color: var(--ink-faint); font-size: 12px; margin-top: 30px; }
+
+  @media (max-width: 480px) {
+    .wrap { padding: 28px 14px 90px; }
+    .board-head h1 { font-size: 27px; }
+    .priority-tag { display: none; }
+  }
+  ::selection { background: var(--pine-soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="board-head">
+    <h1 id="greeting">Daily board</h1>
+    <p class="date-line" id="dateLine"></p>
+    <div class="conn-status offline" id="connStatus"><span class="conn-dot"></span><span id="connLabel">Connecting…</span></div>
+    <div class="progress-row">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <span class="progress-label" id="progressLabel">0 of 0 done</span>
+    </div>
+  </header>
+
+  <main id="groupsMount"></main>
+  <div id="addGroupMount"></div>
+
+  <p class="foot-note">Click a checkbox to mark a task done · click the date or priority to change it · changes sync live to everyone with this page open</p>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var state = { groups: [], items: [] };
+  var collapsedKey = "daily-board-collapsed";
+
+  function getCollapsed() {
+    try { var raw = localStorage.getItem(collapsedKey); return raw ? JSON.parse(raw) : {}; }
+    catch (e) { return {}; }
+  }
+  function setCollapsed(map) {
+    try { localStorage.setItem(collapsedKey, JSON.stringify(map)); } catch (e) {}
+  }
+
+  function fmtDate(now) { return now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }); }
+  function greetingWord(now) {
+    var h = now.getHours();
+    if (h < 12) return "Good morning";
+    if (h < 18) return "Good afternoon";
+    return "Good evening";
+  }
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function dueLabel(iso) {
+    if (!iso) return "";
+    var today = todayISO();
+    if (iso === today) return "Today";
+    var d = new Date(iso + "T00:00:00");
+    var t = new Date(today + "T00:00:00");
+    var diffDays = Math.round((d - t) / 86400000);
+    if (diffDays === 1) return "Tomorrow";
+    if (diffDays === -1) return "Yesterday";
+    if (diffDays < 0) return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    if (diffDays < 6) return d.toLocaleDateString(undefined, { weekday: "short" });
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+  function dueClass(iso) {
+    if (!iso) return "";
+    var today = todayISO();
+    if (iso < today) return "overdue";
+    if (iso === today) return "today";
+    return "";
+  }
+
+  function el(tag, cls, attrs) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (attrs) for (var k in attrs) { if (k === "text") e.textContent = attrs[k]; else e.setAttribute(k, attrs[k]); }
+    return e;
+  }
+  function checkSvg() { return '<svg viewBox="0 0 12 12" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6.5L4.8 9L10 3"/></svg>'; }
+  function chevronSvg() { return '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5L7 8.5L10 5.5"/></svg>'; }
+  function xSvg() { return '<svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3.5 3.5L10.5 10.5M10.5 3.5L3.5 10.5"/></svg>'; }
+  function plusSvg() { return '<svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M7 2.5V11.5M2.5 7H11.5"/></svg>'; }
+
+  function render() {
+    var now = new Date();
+    document.getElementById("greeting").textContent = greetingWord(now);
+    document.getElementById("dateLine").textContent = fmtDate(now);
+
+    var totalItems = state.items.length;
+    var doneItems = state.items.filter(function (i) { return i.status === "done"; }).length;
+    var pct = totalItems ? Math.round((doneItems / totalItems) * 100) : 0;
+    document.getElementById("progressFill").style.width = pct + "%";
+    document.getElementById("progressLabel").textContent = doneItems + " of " + totalItems + " done";
+
+    var collapsed = getCollapsed();
+    var mount = document.getElementById("groupsMount");
+    mount.innerHTML = "";
+
+    var sortedGroups = state.groups.slice().sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+
+    sortedGroups.forEach(function (g) {
+      var groupItems = state.items.filter(function (i) { return i.groupId === g.id; })
+        .sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+      var isCollapsed = !!collapsed[g.id];
+
+      var groupEl = el("section", "group" + (isCollapsed ? " collapsed" : ""));
+      groupEl.style.setProperty("--accent", g.color || "#3C5A46");
+
+      var head = el("div", "group-head");
+      var chev = el("div", "chevron"); chev.innerHTML = chevronSvg(); head.appendChild(chev);
+
+      var nameInput = el("input", "group-name");
+      nameInput.value = g.name || "";
+      nameInput.addEventListener("click", function (e) { e.stopPropagation(); });
+      nameInput.addEventListener("change", function () { updateGroup(g.id, { name: nameInput.value.trim() || "Untitled" }); });
+      head.appendChild(nameInput);
+
+      var doneCount = groupItems.filter(function (i) { return i.status === "done"; }).length;
+      head.appendChild(el("span", "group-count", { text: groupItems.length ? (doneCount + "/" + groupItems.length) : "" }));
+
+      var delBtn = el("button", "group-del", { "aria-label": "Delete group", type: "button" });
+      delBtn.innerHTML = xSvg();
+      delBtn.addEventListener("click", function (e) { e.stopPropagation(); deleteGroup(g.id); });
+      head.appendChild(delBtn);
+
+      head.addEventListener("click", function () {
+        var c = getCollapsed(); c[g.id] = !c[g.id]; setCollapsed(c); render();
+      });
+
+      groupEl.appendChild(head);
+
+      var body = el("div", "group-body");
+      groupItems.forEach(function (item) { body.appendChild(renderItem(item)); });
+
+      var addRow = el("div", "add-row");
+      var plus = el("div", "plus"); plus.innerHTML = plusSvg(); addRow.appendChild(plus);
+      var addInput = el("input", "add-input", { placeholder: "Add a task", type: "text" });
+      addInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && addInput.value.trim()) {
+          addItem(g.id, addInput.value.trim(), groupItems.length);
+          addInput.value = "";
+        }
+      });
+      addRow.appendChild(addInput);
+      body.appendChild(addRow);
+
+      groupEl.appendChild(body);
+      mount.appendChild(groupEl);
+    });
+
+    var addMount = document.getElementById("addGroupMount");
+    if (!addMount.dataset.formOpen) {
+      addMount.innerHTML = "";
+      var addGroupBtn = el("button", "add-group-btn", { type: "button" });
+      var pl = el("span"); pl.innerHTML = plusSvg();
+      addGroupBtn.appendChild(pl);
+      addGroupBtn.appendChild(document.createTextNode("Add group"));
+      addGroupBtn.addEventListener("click", function () {
+        addMount.dataset.formOpen = "1";
+        renderAddGroupForm();
+      });
+      addMount.appendChild(addGroupBtn);
+    }
+  }
+
+  function renderAddGroupForm() {
+    var addMount = document.getElementById("addGroupMount");
+    addMount.innerHTML = "";
+    var form = el("div", "new-group-form");
+    var input = el("input", "", { placeholder: "Group name", type: "text" });
+    form.appendChild(input);
+    var saveBtn = el("button", "", { type: "button", text: "Add" });
+    saveBtn.addEventListener("click", commit);
+    form.appendChild(saveBtn);
+    var cancelBtn = el("button", "cancel", { type: "button", text: "Cancel" });
+    cancelBtn.addEventListener("click", function () { delete addMount.dataset.formOpen; render(); });
+    form.appendChild(cancelBtn);
+    addMount.appendChild(form);
+    input.focus();
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") commit();
+      if (e.key === "Escape") { delete addMount.dataset.formOpen; render(); }
+    });
+    function commit() {
+      var name = input.value.trim();
+      if (!name) { delete addMount.dataset.formOpen; render(); return; }
+      addGroup(name);
+      delete addMount.dataset.formOpen;
+    }
+  }
+
+  function renderItem(item) {
+    var row = el("div", "item" + (item.status === "done" ? " is-done" : ""));
+
+    var statusBtn = el("button", "status-btn " + item.status, { type: "button", "aria-label": "Task status" });
+    statusBtn.innerHTML = checkSvg();
+    statusBtn.addEventListener("click", function () {
+      var next = item.status === "not_started" ? "in_progress" : item.status === "in_progress" ? "done" : "not_started";
+      updateItem(item.id, { status: next });
+    });
+    row.appendChild(statusBtn);
+
+    var titleInput = el("input", "item-title");
+    titleInput.value = item.title || "";
+    titleInput.addEventListener("change", function () { updateItem(item.id, { title: titleInput.value.trim() || "Untitled task" }); });
+    row.appendChild(titleInput);
+
+    var priorityLabels = { low: "Low", medium: "Medium", high: "High" };
+    var priBtn = el("button", "priority-tag " + item.priority, { type: "button", text: priorityLabels[item.priority] || "Low" });
+    priBtn.addEventListener("click", function () {
+      var next = item.priority === "low" ? "medium" : item.priority === "medium" ? "high" : "low";
+      updateItem(item.id, { priority: next });
+    });
+    row.appendChild(priBtn);
+
+    var dueBtn = el("button", "due-btn " + dueClass(item.dueDate), { type: "button", text: item.dueDate ? dueLabel(item.dueDate) : "+ date" });
+    dueBtn.addEventListener("click", function () {
+      var dateInput = el("input", "due-input", { type: "date" });
+      dateInput.value = item.dueDate || "";
+      dueBtn.replaceWith(dateInput);
+      dateInput.focus();
+      dateInput.addEventListener("change", function () { updateItem(item.id, { dueDate: dateInput.value || "" }); });
+      dateInput.addEventListener("blur", function () { render(); });
+    });
+    row.appendChild(dueBtn);
+
+    var delBtn = el("button", "item-del", { type: "button", "aria-label": "Delete task" });
+    delBtn.innerHTML = xSvg();
+    delBtn.addEventListener("click", function () { deleteItem(item.id); });
+    row.appendChild(delBtn);
+
+    return row;
+  }
+
+  // ---------------- socket wiring ----------------
+
+  var socket = io();
+  var statusEl = document.getElementById("connStatus");
+  var statusLabel = document.getElementById("connLabel");
+
+  socket.on("connect", function () {
+    statusEl.className = "conn-status online";
+    statusLabel.textContent = "Live";
+  });
+  socket.on("disconnect", function () {
+    statusEl.className = "conn-status offline";
+    statusLabel.textContent = "Reconnecting…";
+  });
+  socket.on("state", function (s) {
+    state.groups = s.groups || [];
+    state.items = s.items || [];
+    render();
+  });
+
+  function addGroup(name) { socket.emit("addGroup", { name: name }); }
+  function updateGroup(id, patch) { socket.emit("updateGroup", { id: id, patch: patch }); }
+  function deleteGroup(id) { socket.emit("deleteGroup", { id: id }); }
+  function addItem(groupId, title, order) { socket.emit("addItem", { groupId: groupId, title: title, order: order }); }
+  function updateItem(id, patch) { socket.emit("updateItem", { id: id, patch: patch }); }
+  function deleteItem(id) { socket.emit("deleteItem", { id: id }); }
+
+  render();
+})();
+</script>
+</body>
+</html>
