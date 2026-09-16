@@ -285,7 +285,7 @@
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) { msg.textContent = "A valid email is required."; return; }
     fetch("/api/users", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
-    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }).catch(function () { return { ok: false, data: { error: "bad_response", status: r.status } }; }); })
       .then(function (res) {
         if (res.ok) {
           msg.textContent = res.data.emailed ? ("Invited " + body.displayName + " — they'll get an email to set their password.") : ("Invited " + body.displayName + ", but the email couldn't be sent — share the link below with them.");
@@ -300,8 +300,12 @@
             : res.data.error === "email_taken" ? "That email is already in use."
             : res.data.error === "invalid_email" ? "That email doesn't look valid."
             : res.data.error === "display_name_required" ? "Display name is required."
-            : "Couldn't send that invite.";
+            : res.data.error === "forbidden" ? "Your session isn't recognized as admin — try logging out and back in."
+            : res.data.error === "not_authenticated" ? "You've been signed out — log in again."
+            : "Couldn't send that invite (server said: " + (res.data.error || ("HTTP " + (res.data.status || "unknown"))) + ").";
         }
+      }).catch(function (e) {
+        msg.textContent = "Couldn't reach the server: " + e.message;
       });
   });
 
