@@ -574,6 +574,19 @@ io.on("connection", (socket) => {
     broadcastState();
   });
 
+  socket.on("deleteBoard", ({ id }) => {
+    if (user.role !== "admin") return;
+    const board = state.boards.find((b) => b.id === id);
+    if (!board) return;
+    if (state.boards.length <= 1) return; // always keep at least one board
+    const hasGroups = state.groups.some((g) => g.boardId === id);
+    if (hasGroups) return; // only empty boards can be deleted
+    state.boards = state.boards.filter((b) => b.id !== id);
+    logActivity(`${actorName()} deleted the board "${board.name}"`);
+    persist();
+    broadcastState();
+  });
+
   // ---- groups ----
   socket.on("addGroup", ({ name, boardId, visibility }) => {
     if (!name || typeof name !== "string") return;

@@ -15,15 +15,7 @@
     --brick: #B24A3C; --brick-soft: #F5E1DC; --grey-pill: #E6E5DA; --grey-pill-ink: #6C6F62;
     --shadow: 0 1px 2px rgba(34,38,31,0.06); --radius: 10px;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #1B1D18; --bg-raised: #232620; --ink: #ECEBE3; --ink-soft: #A9AB9C; --ink-faint: #74766A;
-      --line: #34372E; --line-soft: #2B2D26; --pine: #7FAF8E; --pine-soft: #253227;
-      --ochre: #E0AC57; --ochre-soft: #33291A; --slate: #85AFD1; --slate-soft: #1F2C34;
-      --brick: #E08A79; --brick-soft: #382320; --grey-pill: #2C2E27; --grey-pill-ink: #A9AB9C;
-      --shadow: 0 1px 2px rgba(0,0,0,0.3);
-    }
-  }
+  /* Always light — intentionally ignores the device's dark-mode setting so the app looks the same on mobile as on desktop. */
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
   body { font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; min-height: 100vh; }
@@ -54,6 +46,9 @@
   .board-tab-rename { font-family: inherit; font-size: 11px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 4px 6px 4px 0; opacity: 0; transition: opacity 0.15s, color 0.15s; }
   .board-tab-wrap:hover .board-tab-rename { opacity: 1; }
   .board-tab-rename:hover { color: var(--pine); }
+  .board-tab-delete { font-family: inherit; font-size: 11px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 4px 6px 4px 0; opacity: 0; transition: opacity 0.15s, color 0.15s; }
+  .board-tab-wrap:hover .board-tab-delete { opacity: 1; }
+  .board-tab-delete:hover { color: var(--brick); }
   .board-badge {
     display: inline-block; font-size: 10.5px; font-weight: 500; color: var(--ink-soft);
     background: var(--line-soft); padding: 1px 7px; border-radius: 10px; margin-left: 10px; vertical-align: middle;
@@ -271,6 +266,18 @@
           if (name && name.trim() && name.trim() !== b.name) socket.emit("updateBoard", { id: b.id, name: name.trim() });
         });
         wrap.appendChild(renameBtn);
+
+        var isEmpty = !state.groups.some(function (g) { return g.boardId === b.id; });
+        if (isEmpty && boardsToShow().length > 1) {
+          var deleteBtn = el("button", "board-tab-delete", { type: "button", text: "✕", title: "Delete empty board" });
+          deleteBtn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            if (window.confirm("Delete the empty board \"" + b.name + "\"? This can't be undone.")) {
+              socket.emit("deleteBoard", { id: b.id });
+            }
+          });
+          wrap.appendChild(deleteBtn);
+        }
       }
       mount.appendChild(wrap);
     });

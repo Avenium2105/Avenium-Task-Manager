@@ -13,13 +13,7 @@
     --line: #E2E1D5; --pine: #3C5A46; --brick: #B24A3C; --brick-soft: #F5E1DC;
     --shadow: 0 1px 2px rgba(34,38,31,0.06);
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #1B1D18; --bg-raised: #232620; --ink: #ECEBE3; --ink-soft: #A9AB9C;
-      --ink-faint: #74766A; --line: #34372E; --pine: #7FAF8E; --brick: #E08A79;
-      --brick-soft: #382320; --shadow: 0 1px 2px rgba(0,0,0,0.3);
-    }
-  }
+  /* Always light — intentionally ignores the device's dark-mode setting so the app looks the same on mobile as on desktop. */
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); min-height: 100vh; }
   body { font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
