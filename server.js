@@ -14,9 +14,11 @@ const { Server } = require("socket.io");
 const nodemailer = require("nodemailer");
 
 const PORT = process.env.PORT || 3000;
-const DATA_FILE = path.join(__dirname, "data.json");
-const USERS_FILE = path.join(__dirname, "users.json");
-const SECRET_FILE = path.join(__dirname, ".session-secret");
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+const DATA_FILE = path.join(DATA_DIR, "data.json");
+const USERS_FILE = path.join(DATA_DIR, "users.json");
+const SECRET_FILE = path.join(DATA_DIR, ".session-secret");
+fs.mkdirSync(DATA_DIR, { recursive: true });
 const PUBLIC_URL = process.env.PUBLIC_URL || "";
 
 const GROUP_COLORS = ["#3C5A46", "#C68A2E", "#7D6BAE", "#4C7A9E", "#B24A3C"];
@@ -106,7 +108,9 @@ function loadUsers() {
   if (fs.existsSync(USERS_FILE)) {
     try {
       const parsed = JSON.parse(fs.readFileSync(USERS_FILE, "utf8"));
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed.map((u) => ({ email: "", ...u }));
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((u) => ({ email: "", status: u.passwordHash ? "active" : "pending", ...u }));
+      }
     } catch (e) {
       console.error("Could not read users.json:", e.message);
     }
@@ -125,6 +129,7 @@ if (!users) {
     username: "admin",
     displayName: "Admin",
     email: "",
+    status: "active",
     passwordHash: bcrypt.hashSync(tempPassword, 10),
     role: "admin",
     createdAt: nowIso()
@@ -134,17 +139,22 @@ if (!users) {
   console.log(" First run: created an admin account.");
   console.log("   username: admin");
   console.log("   password: " + tempPassword);
-  console.log(" Log in with this, then add your other users from");
-  console.log(" the \"Manage users\" page, and change this password.");
+  console.log(" Log in with this, then set your own email address");
+  console.log(" from \"Manage users\", and invite your other users.");
   console.log("=================================================");
 }
 
 function findUserById(id) { return users.find((u) => u.id === id); }
+function findUserByToken(token) { return token && users.find((u) => u.actionToken === token && u.actionTokenExpiresAt && new Date(u.actionTokenExpiresAt) > new Date()); }
 function publicUser(u) {
-  return { id: u.id, username: u.username, displayName: u.displayName, email: u.email || "", role: u.role, createdAt: u.createdAt };
+  return { id: u.id, username: u.username, displayName: u.displayName, email: u.email || "", role: u.role, status: u.status || "active", createdAt: u.createdAt };
 }
 function teamMember(u) { return { id: u.id, displayName: u.displayName }; }
 function broadcastTeam() { io.emit("team", users.map(teamMember)); }
+
+function makeToken() { return crypto.randomBytes(24).toString("hex"); }
+function makeCode() { return String(crypto.randomInt(100000, 999999)); }
+function inviteLink(token) { return (PUBLIC_URL || "") + "/accept-invite.html?token=" + token; }
 
 // ---------- email (optional — configured via environment variables) ----------
 
@@ -269,19 +279,24 @@ function requireAdmin(req, res, next) {
 app.get("/login.html", (req, res) => res.sendFile(path.join(__dirname, "public", "login.html")));
 app.get(["/", "/index.html"], requireAuth, (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 app.get("/users.html", requireAuth, requireAdmin, (req, res) => res.sendFile(path.join(__dirname, "public", "users.html")));
+app.get("/accept-invite.html", (req, res) => res.sendFile(path.join(__dirname, "public", "accept-invite.html")));
+
+function isValidEmail(s) { return typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim()); }
 
 // ---- auth API ----
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: "missing_fields" });
   const u = users.find((x) => x.username.toLowerCase() === String(username).toLowerCase());
-  if (!u || !bcrypt.compareSync(password, u.passwordHash)) return res.status(401).json({ error: "invalid_credentials" });
+  if (!u || u.status === "pending" || !u.passwordHash || !bcrypt.compareSync(password, u.passwordHash)) {
+    return res.status(401).json({ error: "invalid_credentials" });
+  }
   req.session.userId = u.id;
   res.json({ ok: true, user: publicUser(u) });
 });
 app.post("/api/logout", (req, res) => { req.session.destroy(() => res.json({ ok: true })); });
 app.get("/api/me", requireAuth, (req, res) => res.json({ user: publicUser(findUserById(req.session.userId)) }));
-app.get("/api/team", requireAuth, (req, res) => res.json({ team: users.map(teamMember) }));
+app.get("/api/team", requireAuth, (req, res) => res.json({ team: users.filter((u) => u.status !== "pending").map(teamMember) }));
 
 app.post("/api/change-password", requireAuth, (req, res) => {
   const { currentPassword, newPassword } = req.body || {};
@@ -293,36 +308,143 @@ app.post("/api/change-password", requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ---- invite / first-login MFA / password-reset API (public — protected by the token itself) ----
+
+app.post("/api/invite/token-info", (req, res) => {
+  const u = findUserByToken((req.body || {}).token);
+  if (!u) return res.status(400).json({ error: "invalid_or_expired" });
+  res.json({ ok: true, displayName: u.displayName, isNewAccount: u.status === "pending" });
+});
+
+app.post("/api/invite/set-password", async (req, res) => {
+  const { token, password } = req.body || {};
+  const u = findUserByToken(token);
+  if (!u) return res.status(400).json({ error: "invalid_or_expired" });
+  if (!password || String(password).length < 6) return res.status(400).json({ error: "weak_password" });
+  u.pendingPasswordHash = bcrypt.hashSync(String(password), 10);
+
+  if (EMAIL_SEND_ENABLED) {
+    u.mfaCode = makeCode();
+    u.mfaCodeExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    saveUsers();
+    const sent = await sendMail(u.email, "Your verification code", `Your Avenium Task Manager verification code is ${u.mfaCode}. It expires in 10 minutes.`);
+    // If actual delivery failed (e.g. the mailbox rejects SMTP auth), don't strand the
+    // person with a code they can never receive — surface it directly as a fallback.
+    return res.json({ ok: true, mfaRequired: true, emailed: sent, codeFallback: sent ? undefined : u.mfaCode });
+  }
+
+  // No email configured on the server — activate directly, no MFA possible.
+  u.passwordHash = u.pendingPasswordHash;
+  const wasPending = u.status === "pending";
+  u.status = "active";
+  delete u.pendingPasswordHash; delete u.actionToken; delete u.actionTokenExpiresAt; delete u.mfaCode; delete u.mfaCodeExpiresAt;
+  saveUsers();
+  req.session.userId = u.id;
+  if (wasPending) logActivity(`${u.displayName} joined`);
+  persist();
+  res.json({ ok: true, mfaRequired: false });
+});
+
+app.post("/api/invite/verify-code", (req, res) => {
+  const { token, code } = req.body || {};
+  const u = findUserByToken(token);
+  if (!u || !u.pendingPasswordHash) return res.status(400).json({ error: "invalid_or_expired" });
+  if (!u.mfaCode || !u.mfaCodeExpiresAt || new Date(u.mfaCodeExpiresAt) < new Date()) return res.status(400).json({ error: "code_expired" });
+  if (String(code || "").trim() !== u.mfaCode) return res.status(401).json({ error: "wrong_code" });
+
+  u.passwordHash = u.pendingPasswordHash;
+  const wasPending = u.status === "pending";
+  u.status = "active";
+  delete u.pendingPasswordHash; delete u.actionToken; delete u.actionTokenExpiresAt; delete u.mfaCode; delete u.mfaCodeExpiresAt;
+  saveUsers();
+  req.session.userId = u.id;
+  if (wasPending) logActivity(`${u.displayName} joined`);
+  persist();
+  res.json({ ok: true });
+});
+
+app.post("/api/invite/resend-code", async (req, res) => {
+  const { token } = req.body || {};
+  const u = findUserByToken(token);
+  if (!u || !u.pendingPasswordHash) return res.status(400).json({ error: "invalid_or_expired" });
+  if (!EMAIL_SEND_ENABLED) return res.status(400).json({ error: "email_not_configured" });
+  u.mfaCode = makeCode();
+  u.mfaCodeExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+  saveUsers();
+  const sent = await sendMail(u.email, "Your verification code", `Your Avenium Task Manager verification code is ${u.mfaCode}. It expires in 10 minutes.`);
+  res.json({ ok: true, emailed: sent, codeFallback: sent ? undefined : u.mfaCode });
+});
+
 // ---- user management API (admin only) ----
 app.get("/api/users", requireAuth, requireAdmin, (req, res) => res.json({ users: users.map(publicUser) }));
 
-app.post("/api/users", requireAuth, requireAdmin, (req, res) => {
-  const { username, displayName, email, password, role } = req.body || {};
-  if (!username || !password || String(password).length < 6) return res.status(400).json({ error: "invalid_fields" });
+app.post("/api/users", requireAuth, requireAdmin, async (req, res) => {
+  const { username, displayName, email, role } = req.body || {};
+  if (!username || !String(username).trim()) return res.status(400).json({ error: "invalid_fields" });
+  if (!displayName || !String(displayName).trim()) return res.status(400).json({ error: "display_name_required" });
+  if (!isValidEmail(email)) return res.status(400).json({ error: "invalid_email" });
   if (users.some((u) => u.username.toLowerCase() === String(username).toLowerCase())) return res.status(409).json({ error: "username_taken" });
+  if (users.some((u) => (u.email || "").toLowerCase() === String(email).trim().toLowerCase())) return res.status(409).json({ error: "email_taken" });
+
+  const token = makeToken();
   const newUser = {
     id: uid("u"),
     username: String(username).trim().slice(0, 60),
-    displayName: (displayName && String(displayName).trim().slice(0, 100)) || String(username).trim(),
-    email: (email && String(email).trim().slice(0, 200)) || "",
-    passwordHash: bcrypt.hashSync(String(password), 10),
+    displayName: String(displayName).trim().slice(0, 100),
+    email: String(email).trim().slice(0, 200),
     role: role === "admin" ? "admin" : "member",
+    status: "pending",
+    passwordHash: null,
+    actionToken: token,
+    actionTokenExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
     createdAt: nowIso()
   };
   users.push(newUser);
   saveUsers();
-  logActivity(`${findUserById(req.session.userId).displayName} created the account "${newUser.username}"`);
+  logActivity(`${findUserById(req.session.userId).displayName} invited "${newUser.displayName}"`);
   persist();
   broadcastTeam();
-  res.json({ ok: true, user: publicUser(newUser) });
+  const link = inviteLink(token);
+  const emailed = await sendMail(newUser.email, "You've been invited to Avenium Task Manager", `You've been invited to join Avenium Task Manager. Set up your account here:\n\n${link}\n\nThis link expires in 7 days.`);
+  res.json({ ok: true, user: publicUser(newUser), inviteLink: link, emailed });
+});
+
+app.post("/api/users/:id/resend-invite", requireAuth, requireAdmin, async (req, res) => {
+  const u = findUserById(req.params.id);
+  if (!u) return res.status(404).json({ error: "not_found" });
+  const token = makeToken();
+  u.actionToken = token;
+  u.actionTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  saveUsers();
+  const link = inviteLink(token);
+  const emailed = await sendMail(u.email, "You've been invited to Avenium Task Manager", `You've been invited to join Avenium Task Manager. Set up your account here:\n\n${link}\n\nThis link expires in 7 days.`);
+  res.json({ ok: true, inviteLink: link, emailed });
+});
+
+app.post("/api/users/:id/reset-password", requireAuth, requireAdmin, async (req, res) => {
+  const u = findUserById(req.params.id);
+  if (!u) return res.status(404).json({ error: "not_found" });
+  const token = makeToken();
+  u.actionToken = token;
+  u.actionTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  saveUsers();
+  const link = inviteLink(token);
+  const emailed = await sendMail(u.email, "Reset your Avenium Task Manager password", `Set a new password here:\n\n${link}\n\nThis link expires in 24 hours.`);
+  res.json({ ok: true, inviteLink: link, emailed });
 });
 
 app.put("/api/users/:id", requireAuth, requireAdmin, (req, res) => {
   const u = findUserById(req.params.id);
   if (!u) return res.status(404).json({ error: "not_found" });
-  const { displayName, email, role, password } = req.body || {};
-  if (typeof displayName === "string" && displayName.trim()) u.displayName = displayName.trim().slice(0, 100);
-  if (typeof email === "string") u.email = email.trim().slice(0, 200);
+  const { displayName, email, role } = req.body || {};
+  if (typeof displayName === "string") {
+    if (!displayName.trim()) return res.status(400).json({ error: "display_name_required" });
+    u.displayName = displayName.trim().slice(0, 100);
+  }
+  if (typeof email === "string") {
+    if (!isValidEmail(email)) return res.status(400).json({ error: "invalid_email" });
+    u.email = email.trim().slice(0, 200);
+  }
   if (role === "admin" || role === "member") {
     if (u.role === "admin" && role !== "admin") {
       const adminCount = users.filter((x) => x.role === "admin").length;
@@ -330,7 +452,6 @@ app.put("/api/users/:id", requireAuth, requireAdmin, (req, res) => {
     }
     u.role = role;
   }
-  if (typeof password === "string" && password.length >= 6) u.passwordHash = bcrypt.hashSync(password, 10);
   saveUsers();
   broadcastTeam();
   res.json({ ok: true, user: publicUser(u) });
@@ -351,6 +472,7 @@ app.delete("/api/users/:id", requireAuth, requireAdmin, (req, res) => {
   broadcastTeam();
   res.json({ ok: true });
 });
+
 
 // ---- activity API ----
 app.get("/api/activity", requireAuth, (req, res) => res.json({ activity: state.activity.slice(-60).reverse() }));

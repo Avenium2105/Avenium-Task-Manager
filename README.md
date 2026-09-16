@@ -44,7 +44,7 @@ The simplest free options, in order of how easy they are to set up:
 2. On [render.com](https://render.com), click **New → Web Service**, connect the repo.
 3. Build command: `npm install`. Start command: `npm start`.
 4. Deploy. Render gives you a public URL like `https://daily-board.onrender.com` — share that with your 3 users.
-5. **Important:** Render's free tier has an *ephemeral* filesystem — `data.json` will reset if the service restarts or spins down from inactivity. For a free tier you're testing with, that's fine; if you want the data to actually stick, add a persistent disk (Render's paid "Disks" add-on, a few dollars/month) mounted at `/opt/render/project/src`, or swap in a small hosted database later.
+5. **Important:** Render's free tier has an *ephemeral* filesystem — `data.json` will reset if the service restarts or spins down from inactivity. If you want the data to actually stick, add a persistent disk (Render's paid "Disks" add-on, a few dollars/month). Render won't let you mount a disk directly at your project's source folder (`/opt/render/project/src` is a reserved path), so mount it at `/var/data` instead, and set the environment variable `DATA_DIR=/var/data` so the app writes `data.json`, `users.json`, and its session secret there instead of alongside the code.
 
 ### Option B — Railway.app or Fly.io
 Similar flow to Render: connect the repo (or `fly launch` / `railway up` from this folder), both have small free/trial tiers, and both offer persistent volumes if you want the data to survive restarts.
@@ -61,7 +61,7 @@ Put it behind a reverse proxy (Caddy or nginx) if you want a real domain name an
 
 ## Accounts and logins
 
-The app now requires signing in. The first time it starts, it creates one **admin** account automatically and prints the username and a random temporary password to the server logs (in Render, check the **Logs** tab; locally, check your terminal). It looks like:
+The app requires signing in. The first time it starts, it creates one **admin** account automatically and prints the username and a random temporary password to the server logs (in Render, check the **Logs** tab; locally, check your terminal). It looks like:
 
 ```
  First run: created an admin account.
@@ -69,9 +69,15 @@ The app now requires signing in. The first time it starts, it creates one **admi
    password: 8c89f27a
 ```
 
-Sign in with that, then go to **Manage users** (linked in the top bar) to add your other 2 people and change your own password. Each account can:
-- change its own password (top bar → "Change password")
-- an **admin** account can also add, edit, or remove other accounts from the Manage users page
+Sign in with that. This bootstrap admin is the one exception to everything below — it's the only account with a password set directly, since something has to exist before anyone can invite anyone. Go set your own email on it from **Manage users**, then invite everyone else properly.
+
+**Every other account is invite-only:**
+- An admin adds someone from Manage users with a username, **required** display name, and **required** email — there's no password field, because admins never set passwords for people.
+- That person gets an email with a link to set their own password.
+- If email is configured (see below), setting a password triggers a 6-digit verification code sent to that same email, which they must enter before the account activates — this is the "first login MFA": it proves they actually control the inbox on that one required step, not on every future login.
+- If email isn't configured on the server, the account activates as soon as they set a password (no code, since there's nowhere to send one) — the invite link itself is still the thing that gates access.
+- If an email fails to actually send (wrong credentials, blocked by the mailbox, etc.), the admin sees a "couldn't email it — share this link" message with the raw link, and the same fallback shows on the person's own screen for the verification code, so nobody gets stuck even if delivery is broken.
+- Forgot a password? Admin clicks "Reset password" next to that person in Manage users — same link + verification flow, not a temp password.
 
 Every task and group shows who last added or updated it, and the Manage users page has a running activity log of every change with a timestamp.
 
@@ -91,7 +97,8 @@ EMAIL_PASS=your-app-password
 That's it for defaults — the app already points at `smtp.office365.com` (sending) and `outlook.office365.com` (receiving). Override with `SMTP_HOST`, `SMTP_PORT`, `IMAP_HOST`, `IMAP_PORT` if your setup differs. Set `PUBLIC_URL=https://your-app.onrender.com` too, so notification emails include a working link back to the board.
 
 **What it does once configured:**
-- Sending: hitting the 🔔 on a task emails the assignee (if they have an email set on their account in Manage Users).
+- Sending: hitting the 🔔 on a task emails the assignee. Invite and password-reset links are emailed too.
+- First-login verification: with email on, setting a password (from an invite or a reset) also emails a 6-digit code that must be entered before the account activates.
 - Receiving: every 2 minutes the app checks the inbox for unread mail. Each new email becomes a task — subject as the title, body as notes, dropped into a "From email" group. If the sender's address matches one of your users' emails, it's auto-assigned to them.
 
 **Important Microsoft 365 caveat:** many M365 tenants now block basic username/password SMTP and IMAP login by default (Microsoft has been phasing this out in favor of OAuth2/modern auth). If login fails, you (or your IT admin) likely need to either: enable "Authenticated SMTP" and IMAP for that mailbox in the Microsoft 365 admin center, or set up an **app password** if the mailbox has MFA enabled. If your tenant enforces modern auth with no way around it, this simple setup won't connect — that would need an OAuth2-based integration instead, which is a bigger project; let me know if you hit that wall and want help with it.

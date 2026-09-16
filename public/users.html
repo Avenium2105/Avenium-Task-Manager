@@ -73,6 +73,9 @@
   .activity-list li:first-child { border-top: none; }
   .activity-list .when { color: var(--ink-faint); font-size: 12px; white-space: nowrap; }
   .empty { color: var(--ink-faint); font-size: 13px; padding: 14px; }
+  .status-badge { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; background: var(--ochre-soft); color: var(--ochre); }
+  .status-badge.active { background: var(--pine-soft); color: var(--pine); }
+  .invite-link-box { font-size: 11.5px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin-top: 8px; word-break: break-all; color: var(--ink-soft); }
 </style>
 </head>
 <body>
@@ -85,26 +88,26 @@
 
   <p class="brand">Avenium Task Manager</p>
   <h1>Manage users</h1>
-  <p class="lead">Add, edit, or remove the accounts that can sign in to the board.</p>
+  <p class="lead">Invite, edit, or remove the accounts that can sign in to the board. New accounts set their own password by email — you don't set one for them.</p>
 
   <table id="usersTable">
-    <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Added</th><th></th></tr></thead>
+    <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
     <tbody id="usersBody"></tbody>
   </table>
 
   <div class="add-form">
     <div class="fields">
       <input id="newUsername" placeholder="Username" autocomplete="off">
-      <input id="newDisplayName" placeholder="Display name (optional)" autocomplete="off">
-      <input id="newEmail" placeholder="Email (for notifications)" type="email" autocomplete="off">
-      <input id="newPassword" placeholder="Temporary password" type="text" autocomplete="off">
+      <input id="newDisplayName" placeholder="Display name" autocomplete="off">
+      <input id="newEmail" placeholder="Email (required)" type="email" autocomplete="off">
       <select id="newRole">
         <option value="member">Member</option>
         <option value="admin">Admin</option>
       </select>
-      <button id="addUserBtn" type="button">Add user</button>
+      <button id="addUserBtn" type="button">Send invite</button>
     </div>
     <div class="msg" id="addMsg"></div>
+    <div class="invite-link-box" id="inviteLinkBox" style="display:none;"></div>
   </div>
 
   <h2>Recent activity</h2>
@@ -158,12 +161,25 @@
       roleTd.appendChild(el("span", "role-badge" + (u.role === "member" ? " member" : ""), { text: u.role === "admin" ? "Admin" : "Member" }));
       tr.appendChild(roleTd);
 
-      tr.appendChild(el("td", "", { text: relTime(u.createdAt) }));
+      var statusTd = el("td");
+      statusTd.appendChild(el("span", "status-badge" + (u.status === "active" ? " active" : ""), { text: u.status === "active" ? "Active" : "Pending" }));
+      tr.appendChild(statusTd);
 
       var actionsTd = el("td");
       var actions = el("div", "row-actions");
       var editBtn = el("button", "", { type: "button", text: "Edit" });
       actions.appendChild(editBtn);
+
+      if (u.status === "pending") {
+        var resendBtn = el("button", "", { type: "button", text: "Resend invite" });
+        resendBtn.addEventListener("click", function () { resendInvite(u.id); });
+        actions.appendChild(resendBtn);
+      } else {
+        var resetBtn = el("button", "", { type: "button", text: "Reset password" });
+        resetBtn.addEventListener("click", function () { resetPassword(u.id); });
+        actions.appendChild(resetBtn);
+      }
+
       if (u.id !== currentUserId) {
         var delBtn = el("button", "danger", { type: "button", text: "Remove" });
         delBtn.addEventListener("click", function () { removeUser(u.id, u.username); });
@@ -190,9 +206,6 @@
       roleSel.value = u.role;
       fields.appendChild(roleSel);
 
-      var pwInput = el("input", "", { type: "text", placeholder: "New password (leave blank to keep)" });
-      fields.appendChild(pwInput);
-
       var saveBtn = el("button", "", { type: "button", text: "Save" });
       fields.appendChild(saveBtn);
       panel.appendChild(fields);
@@ -203,22 +216,47 @@
 
       editBtn.addEventListener("click", function () { panel.classList.toggle("open"); });
       saveBtn.addEventListener("click", function () {
-        var body = { displayName: nameInput.value.trim(), email: emailInput.value.trim(), role: roleSel.value };
-        if (pwInput.value.trim()) body.password = pwInput.value.trim();
+        var name = nameInput.value.trim();
+        var email = emailInput.value.trim();
+        if (!name) { panelMsg.textContent = "Display name is required."; return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { panelMsg.textContent = "A valid email is required."; return; }
+        var body = { displayName: name, email: email, role: roleSel.value };
         fetch("/api/users/" + u.id, {
           method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
         }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
           .then(function (res) {
             if (res.ok) { loadUsers(); }
             else {
-              panelMsg.textContent = res.data.error === "last_admin"
-                ? "Can't remove admin rights from the only admin." : "Couldn't save changes.";
+              panelMsg.textContent = res.data.error === "last_admin" ? "Can't remove admin rights from the only admin."
+                : res.data.error === "invalid_email" ? "That email doesn't look valid."
+                : "Couldn't save changes.";
             }
           });
       });
 
       body.appendChild(tr);
       body.appendChild(panelRow);
+    });
+  }
+
+  function resendInvite(id) {
+    fetch("/api/users/" + id + "/resend-invite", { method: "POST" }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d.ok) {
+        var box = document.getElementById("inviteLinkBox");
+        box.style.display = "block";
+        box.textContent = d.emailed ? "Invite re-sent." : "Couldn't email it — share this link directly: " + d.inviteLink;
+      }
+    });
+  }
+
+  function resetPassword(id) {
+    if (!window.confirm("Send a password reset link to this person's email?")) return;
+    fetch("/api/users/" + id + "/reset-password", { method: "POST" }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d.ok) {
+        var box = document.getElementById("inviteLinkBox");
+        box.style.display = "block";
+        box.textContent = d.emailed ? "Reset link emailed to them." : "Couldn't email it — share this link directly: " + d.inviteLink;
+      }
     });
   }
 
@@ -234,29 +272,35 @@
   document.getElementById("addUserBtn").addEventListener("click", function () {
     var msg = document.getElementById("addMsg");
     msg.className = "msg";
+    var linkBox = document.getElementById("inviteLinkBox");
+    linkBox.style.display = "none";
     var body = {
       username: document.getElementById("newUsername").value.trim(),
       displayName: document.getElementById("newDisplayName").value.trim(),
       email: document.getElementById("newEmail").value.trim(),
-      password: document.getElementById("newPassword").value.trim(),
       role: document.getElementById("newRole").value
     };
-    if (!body.username || !body.password) { msg.textContent = "Username and a temporary password are required."; return; }
-    if (body.password.length < 6) { msg.textContent = "Password needs to be at least 6 characters."; return; }
+    if (!body.username) { msg.textContent = "Username is required."; return; }
+    if (!body.displayName) { msg.textContent = "Display name is required."; return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) { msg.textContent = "A valid email is required."; return; }
     fetch("/api/users", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
     }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
       .then(function (res) {
         if (res.ok) {
-          msg.textContent = "Added " + body.username + ". Share the temporary password with them so they can sign in.";
+          msg.textContent = res.data.emailed ? ("Invited " + body.displayName + " — they'll get an email to set their password.") : ("Invited " + body.displayName + ", but the email couldn't be sent — share the link below with them.");
           msg.className = "msg ok";
+          if (!res.data.emailed) { linkBox.style.display = "block"; linkBox.textContent = res.data.inviteLink; }
           document.getElementById("newUsername").value = "";
           document.getElementById("newDisplayName").value = "";
           document.getElementById("newEmail").value = "";
-          document.getElementById("newPassword").value = "";
           loadUsers();
         } else {
-          msg.textContent = res.data.error === "username_taken" ? "That username is already taken." : "Couldn't add that user.";
+          msg.textContent = res.data.error === "username_taken" ? "That username is already taken."
+            : res.data.error === "email_taken" ? "That email is already in use."
+            : res.data.error === "invalid_email" ? "That email doesn't look valid."
+            : res.data.error === "display_name_required" ? "Display name is required."
+            : "Couldn't send that invite.";
         }
       });
   });

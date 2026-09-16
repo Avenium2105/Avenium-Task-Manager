@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Set up your account · Avenium Task Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F3F3EE; --bg-raised: #FBFBF8; --ink: #22261F; --ink-soft: #63685C; --ink-faint: #9A9C8F;
+    --line: #E2E1D5; --pine: #3C5A46; --brick: #B24A3C; --brick-soft: #F5E1DC;
+    --shadow: 0 1px 2px rgba(34,38,31,0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1B1D18; --bg-raised: #232620; --ink: #ECEBE3; --ink-soft: #A9AB9C;
+      --ink-faint: #74766A; --line: #34372E; --pine: #7FAF8E; --brick: #E08A79;
+      --brick-soft: #382320; --shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); min-height: 100vh; }
+  body { font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+  .card { width: 100%; max-width: 380px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 12px; padding: 32px 28px; box-shadow: var(--shadow); }
+  .brand { font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; color: var(--pine); margin: 0 0 10px; }
+  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 24px; margin: 0 0 8px; letter-spacing: -0.01em; }
+  p.sub { color: var(--ink-soft); font-size: 13.5px; margin: 0 0 22px; }
+  label { display: block; font-size: 12.5px; color: var(--ink-soft); margin: 0 0 6px; }
+  input { width: 100%; font-family: inherit; font-size: 14px; padding: 9px 11px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; letter-spacing: 0; }
+  input:focus { border-color: var(--pine); }
+  input#code { letter-spacing: 4px; font-size: 18px; text-align: center; }
+  button { width: 100%; font-family: inherit; font-size: 14px; font-weight: 500; padding: 10px; border: none; border-radius: 7px; background: var(--pine); color: var(--bg-raised); cursor: pointer; }
+  button:disabled { opacity: 0.6; cursor: default; }
+  button.link { width: auto; background: none; color: var(--ink-soft); padding: 0; margin-top: 12px; font-weight: 400; font-size: 12.5px; text-decoration: underline; }
+  .error, .ok { display: none; font-size: 12.5px; padding: 8px 10px; border-radius: 7px; margin-bottom: 16px; }
+  .error { background: var(--brick-soft); color: var(--brick); }
+  .ok { background: rgba(60,90,70,0.12); color: var(--pine); }
+  .error.show, .ok.show { display: block; }
+  .step { display: none; }
+  .step.active { display: block; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <p class="brand">Avenium Task Manager</p>
+
+    <div class="step active" id="loadingStep">
+      <h1>Checking your link…</h1>
+    </div>
+
+    <div class="step" id="invalidStep">
+      <h1>Link expired or invalid</h1>
+      <p class="sub">Ask your admin to send a new invite or reset link.</p>
+    </div>
+
+    <form class="step" id="pwStep">
+      <h1 id="pwHeading">Set your password</h1>
+      <p class="sub" id="pwSub"></p>
+      <div class="error" id="pwError"></div>
+      <label for="pw1">New password</label>
+      <input id="pw1" type="password" autocomplete="new-password" required>
+      <label for="pw2">Confirm password</label>
+      <input id="pw2" type="password" autocomplete="new-password" required>
+      <button id="pwSubmit" type="submit">Continue</button>
+    </form>
+
+    <form class="step" id="codeStep">
+      <h1>Check your email</h1>
+      <p class="sub">We sent a 6-digit code to your email. Enter it below to finish.</p>
+      <div class="error" id="codeError"></div>
+      <div class="ok" id="codeOk"></div>
+      <label for="code">Verification code</label>
+      <input id="code" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" required>
+      <button id="codeSubmit" type="submit">Verify and finish</button>
+      <button class="link" id="resendBtn" type="button">Resend code</button>
+    </form>
+
+    <div class="step" id="doneStep">
+      <h1>You're all set</h1>
+      <p class="sub">Taking you to the board…</p>
+    </div>
+  </div>
+
+<script>
+  var token = new URLSearchParams(window.location.search).get("token");
+  var steps = ["loadingStep", "invalidStep", "pwStep", "codeStep", "doneStep"];
+  function showStep(id) { steps.forEach(function (s) { document.getElementById(s).classList.toggle("active", s === id); }); }
+
+  if (!token) {
+    showStep("invalidStep");
+  } else {
+    fetch("/api/invite/token-info", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: token }) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (!res.ok) { showStep("invalidStep"); return; }
+        document.getElementById("pwHeading").textContent = res.data.isNewAccount ? "Welcome, " + res.data.displayName : "Reset your password";
+        document.getElementById("pwSub").textContent = res.data.isNewAccount ? "Set a password to activate your account." : "Choose a new password for your account.";
+        showStep("pwStep");
+      })
+      .catch(function () { showStep("invalidStep"); });
+  }
+
+  document.getElementById("pwStep").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var err = document.getElementById("pwError");
+    err.classList.remove("show");
+    var pw1 = document.getElementById("pw1").value;
+    var pw2 = document.getElementById("pw2").value;
+    if (pw1.length < 6) { err.textContent = "Password needs to be at least 6 characters."; err.classList.add("show"); return; }
+    if (pw1 !== pw2) { err.textContent = "Passwords don't match."; err.classList.add("show"); return; }
+    var btn = document.getElementById("pwSubmit");
+    btn.disabled = true; btn.textContent = "Please wait…";
+    fetch("/api/invite/set-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: token, password: pw1 }) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        btn.disabled = false; btn.textContent = "Continue";
+        if (!res.ok) { err.textContent = "That link isn't valid anymore. Ask for a new one."; err.classList.add("show"); return; }
+        if (res.data.mfaRequired) {
+          showStep("codeStep");
+          if (res.data.codeFallback) {
+            var ok = document.getElementById("codeOk");
+            ok.textContent = "The email couldn't be delivered — your code is " + res.data.codeFallback;
+            ok.classList.add("show");
+          }
+        }
+        else { showStep("doneStep"); setTimeout(function () { window.location.href = "/"; }, 900); }
+      })
+      .catch(function () { btn.disabled = false; btn.textContent = "Continue"; err.textContent = "Couldn't reach the server."; err.classList.add("show"); });
+  });
+
+  document.getElementById("codeStep").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var err = document.getElementById("codeError");
+    err.classList.remove("show");
+    var code = document.getElementById("code").value.trim();
+    var btn = document.getElementById("codeSubmit");
+    btn.disabled = true; btn.textContent = "Verifying…";
+    fetch("/api/invite/verify-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: token, code: code }) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        btn.disabled = false; btn.textContent = "Verify and finish";
+        if (!res.ok) {
+          err.textContent = res.data.error === "wrong_code" ? "That code isn't right." : res.data.error === "code_expired" ? "That code expired — resend a new one." : "Something went wrong.";
+          err.classList.add("show");
+          return;
+        }
+        showStep("doneStep");
+        setTimeout(function () { window.location.href = "/"; }, 900);
+      })
+      .catch(function () { btn.disabled = false; btn.textContent = "Verify and finish"; err.textContent = "Couldn't reach the server."; err.classList.add("show"); });
+  });
+
+  document.getElementById("resendBtn").addEventListener("click", function () {
+    var ok = document.getElementById("codeOk");
+    var err = document.getElementById("codeError");
+    err.classList.remove("show"); ok.classList.remove("show");
+    fetch("/api/invite/resend-code", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: token }) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (res.ok) {
+          ok.textContent = res.data.codeFallback ? ("Couldn't email it — your code is " + res.data.codeFallback) : "New code sent.";
+          ok.classList.add("show");
+        }
+        else { err.textContent = "Couldn't resend right now."; err.classList.add("show"); }
+      });
+  });
+</script>
+</body>
+</html>
