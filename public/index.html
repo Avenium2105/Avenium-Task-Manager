@@ -35,9 +35,8 @@
   .topbar .dot { color: var(--line); }
 
   header.board-head { margin: 22px 0 20px; }
-  .brand-mark { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; }
-  .brand-icon { width: 22px; height: 22px; flex-shrink: 0; }
-  .brand-word { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 15px; letter-spacing: 0.01em; color: var(--pine); }
+  .brand-mark { display: inline-flex; align-items: center; margin: 0 0 16px; }
+  .brand-logo { height: 24px; width: auto; display: block; }
   .board-head h1 { font-family: "Fraunces", Georgia, serif; font-optical-sizing: auto; font-weight: 500; font-size: 32px; letter-spacing: -0.01em; margin: 0 0 4px; color: var(--ink); }
   .board-head .date-line { color: var(--ink-soft); font-size: 14px; margin: 0; }
   .board-head .quote-line { color: var(--ink-faint); font-size: 13px; font-style: italic; margin: 6px 0 0; }
@@ -147,14 +146,8 @@
   </div>
 
   <header class="board-head">
-    <!-- Placeholder monogram + wordmark — swap for the real Avenium logo file whenever it's ready. -->
     <div class="brand-mark">
-      <svg class="brand-icon" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="1" y="1" width="26" height="26" rx="7" fill="var(--pine)"/>
-        <path d="M8 19L14 8L20 19" stroke="var(--bg-raised)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M10.5 15H17.5" stroke="var(--bg-raised)" stroke-width="2.2" stroke-linecap="round"/>
-      </svg>
-      <span class="brand-word">Avenium</span>
+      <img src="/assets/avenium-logo.png" alt="Avenium" class="brand-logo">
     </div>
     <h1 id="greeting">Daily board</h1>
     <p class="date-line" id="dateLine"></p>

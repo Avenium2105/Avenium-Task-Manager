@@ -32,18 +32,10 @@
   .topbar a:hover, .topbar button.link:hover { color: var(--pine); }
   .topbar .dot { color: var(--line); }
 
-  .brand-mark { display: flex; align-items: center; gap: 8px; margin: 26px 0 12px; }
-  .brand-icon { width: 22px; height: 22px; flex-shrink: 0; }
-  .brand-word { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 15px; letter-spacing: 0.01em; color: var(--pine); }
-  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 30px; margin: 0 0 8px; letter-spacing: -0.01em; }
-  h2 { font-size: 15px; font-weight: 600; margin: 40px 0 12px; }
-  p.lead { color: var(--ink-soft); font-size: 13.5px; margin: 0 0 28px; }
-
-  .pw-form { display: flex; gap: 8px; align-items: center; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); flex-wrap: wrap; }
-  .pw-form input { font-family: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; flex: 1; min-width: 160px; }
-  .pw-form button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 16px; border: none; border-radius: 7px; background: var(--pine); color: var(--bg-raised); cursor: pointer; }
-  .pw-form .msg { font-size: 12.5px; color: var(--brick); width: 100%; }
-  .pw-form .msg.ok { color: var(--pine); }
+  .brand-mark { display: inline-flex; align-items: center; margin: 26px 0 18px; }
+  .brand-logo { height: 22px; width: auto; display: block; }
+  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 30px; margin: 0 0 24px; letter-spacing: -0.01em; }
+  h2 { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
 
   table { width: 100%; border-collapse: collapse; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
   th, td { text-align: left; padding: 10px 12px; font-size: 13.5px; border-top: 1px solid var(--line-soft); }
@@ -65,18 +57,27 @@
   }
   .edit-panel button { font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 6px 12px; border: none; border-radius: 6px; background: var(--pine); color: var(--bg-raised); cursor: pointer; }
   .edit-panel .msg { font-size: 12px; color: var(--brick); margin-top: 8px; }
+  .edit-panel .msg.ok { color: var(--pine); }
 
-  .add-form { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); margin-top: 16px; }
+  .add-user-row { margin-top: 14px; }
+  .add-user-btn { font-family: inherit; font-size: 13px; font-weight: 500; color: var(--pine); background: none; border: 1px dashed var(--line); border-radius: var(--radius); padding: 9px 16px; cursor: pointer; }
+  .add-user-btn:hover { border-color: var(--pine); background: var(--pine-soft); }
+
+  .add-form { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); margin-top: 14px; }
   .add-form .fields { display: flex; gap: 8px; flex-wrap: wrap; }
   .add-form input, .add-form select {
     font-family: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--line);
     border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; flex: 1; min-width: 120px;
   }
   .add-form button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 16px; border: none; border-radius: 7px; background: var(--pine); color: var(--bg-raised); cursor: pointer; }
+  .add-form button.cancel { background: none; color: var(--ink-soft); font-weight: 400; }
   .add-form .msg { font-size: 12.5px; margin-top: 10px; color: var(--brick); }
   .add-form .msg.ok { color: var(--pine); }
 
-  .activity-list { list-style: none; margin: 0; padding: 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .activity-toggle { margin-top: 40px; }
+  .activity-toggle button { font-family: inherit; font-size: 12.5px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 0; }
+  .activity-toggle button:hover { color: var(--pine); }
+  .activity-list { display: none; list-style: none; margin: 10px 0 0; padding: 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
   .activity-list li { padding: 10px 14px; border-top: 1px solid var(--line-soft); font-size: 13px; display: flex; justify-content: space-between; gap: 16px; }
   .activity-list li:first-child { border-top: none; }
   .activity-list .when { color: var(--ink-faint); font-size: 12px; white-space: nowrap; }
@@ -94,34 +95,22 @@
     <button class="link" id="logoutBtn" type="button">Log out</button>
   </div>
 
-  <!-- Placeholder monogram + wordmark — swap for the real Avenium logo file whenever it's ready. -->
+  <!-- Avenium logo -->
   <div class="brand-mark">
-    <svg class="brand-icon" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="1" y="1" width="26" height="26" rx="7" fill="var(--pine)"/>
-      <path d="M8 19L14 8L20 19" stroke="var(--bg-raised)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M10.5 15H17.5" stroke="var(--bg-raised)" stroke-width="2.2" stroke-linecap="round"/>
-    </svg>
-    <span class="brand-word">Avenium</span>
+    <img src="/assets/avenium-logo.png" alt="Avenium" class="brand-logo">
   </div>
   <h1>Admin</h1>
-  <p class="lead">Invite, edit, or remove the accounts that can sign in to the board, and manage your own account.</p>
-
-  <h2>Change your password</h2>
-  <form class="pw-form" id="pwForm">
-    <input type="password" id="pwCurrent" placeholder="Current password" autocomplete="current-password">
-    <input type="password" id="pwNew" placeholder="New password (6+ characters)" autocomplete="new-password">
-    <button type="submit">Update</button>
-    <span class="msg" id="pwMsg"></span>
-  </form>
 
   <h2>Manage users</h2>
-  <p class="lead" style="margin:-8px 0 16px;">New accounts choose their own username, display name, and password when they open the invite link.</p>
   <table id="usersTable">
     <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
     <tbody id="usersBody"></tbody>
   </table>
 
-  <div class="add-form">
+  <div class="add-user-row">
+    <button id="showAddUserBtn" class="add-user-btn" type="button">+ Add user</button>
+  </div>
+  <div class="add-form" id="addForm" style="display:none;">
     <div class="fields">
       <input id="newEmail" placeholder="Email (required)" type="email" autocomplete="off">
       <select id="newRole">
@@ -129,12 +118,15 @@
         <option value="admin">Admin</option>
       </select>
       <button id="addUserBtn" type="button">Send invite</button>
+      <button id="cancelAddBtn" class="cancel" type="button">Cancel</button>
     </div>
     <div class="msg" id="addMsg"></div>
     <div class="invite-link-box" id="inviteLinkBox" style="display:none;"></div>
   </div>
 
-  <h2>Recent activity</h2>
+  <div class="activity-toggle">
+    <button id="activityToggleBtn" type="button">Show recent activity</button>
+  </div>
   <ul class="activity-list" id="activityList"></ul>
 </div>
 
@@ -198,6 +190,9 @@
         var resendBtn = el("button", "", { type: "button", text: "Resend invite" });
         resendBtn.addEventListener("click", function () { resendInvite(u.id); });
         actions.appendChild(resendBtn);
+      } else if (u.id === currentUserId) {
+        var changePwBtn = el("button", "", { type: "button", text: "Change password" });
+        actions.appendChild(changePwBtn);
       } else {
         var resetBtn = el("button", "", { type: "button", text: "Reset password" });
         resetBtn.addEventListener("click", function () { resetPassword(u.id); });
@@ -260,6 +255,45 @@
 
       body.appendChild(tr);
       body.appendChild(panelRow);
+
+      if (u.id === currentUserId) {
+        var pwPanelRow = el("tr");
+        var pwPanelTd = el("td", "", { colspan: "5" });
+        pwPanelTd.style.padding = "0";
+        var pwPanel = el("div", "edit-panel");
+        var pwFields = el("div", "fields");
+        var pwCurrentInput = el("input", "", { type: "password", placeholder: "Current password", autocomplete: "current-password" });
+        pwFields.appendChild(pwCurrentInput);
+        var pwNewInput = el("input", "", { type: "password", placeholder: "New password (6+ characters)", autocomplete: "new-password" });
+        pwFields.appendChild(pwNewInput);
+        var pwSaveBtn = el("button", "", { type: "button", text: "Update" });
+        pwFields.appendChild(pwSaveBtn);
+        pwPanel.appendChild(pwFields);
+        var pwPanelMsg = el("div", "msg");
+        pwPanel.appendChild(pwPanelMsg);
+        pwPanelTd.appendChild(pwPanel);
+        pwPanelRow.appendChild(pwPanelTd);
+
+        changePwBtn.addEventListener("click", function () { pwPanel.classList.toggle("open"); });
+        pwSaveBtn.addEventListener("click", function () {
+          var current = pwCurrentInput.value;
+          var next = pwNewInput.value;
+          fetch("/api/change-password", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword: current, newPassword: next })
+          }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+            .then(function (res) {
+              if (res.ok) { pwPanelMsg.className = "msg ok"; pwPanelMsg.textContent = "Password updated."; pwCurrentInput.value = ""; pwNewInput.value = ""; }
+              else {
+                pwPanelMsg.className = "msg";
+                pwPanelMsg.textContent = res.data.error === "wrong_current_password" ? "Current password is wrong."
+                  : res.data.error === "weak_password" ? "New password needs 6+ characters."
+                  : "Couldn't update password.";
+              }
+            });
+        });
+
+        body.appendChild(pwPanelRow);
+      }
     });
   }
 
@@ -325,18 +359,26 @@
       });
   });
 
-  document.getElementById("pwForm").addEventListener("submit", function (e) {
-    e.preventDefault();
-    var msg = document.getElementById("pwMsg");
-    msg.className = "msg";
-    var current = document.getElementById("pwCurrent").value;
-    var next = document.getElementById("pwNew").value;
-    fetch("/api/change-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword: current, newPassword: next }) })
-      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
-      .then(function (res) {
-        if (res.ok) { msg.textContent = "Password updated."; msg.className = "msg ok"; document.getElementById("pwCurrent").value = ""; document.getElementById("pwNew").value = ""; }
-        else { msg.textContent = res.data.error === "wrong_current_password" ? "Current password is wrong." : res.data.error === "weak_password" ? "New password needs 6+ characters." : "Couldn't update password."; }
-      }).catch(function () { msg.textContent = "Couldn't reach the server."; });
+  document.getElementById("showAddUserBtn").addEventListener("click", function () {
+    document.getElementById("addForm").style.display = "block";
+    document.getElementById("showAddUserBtn").style.display = "none";
+    document.getElementById("newEmail").focus();
+  });
+
+  document.getElementById("cancelAddBtn").addEventListener("click", function () {
+    document.getElementById("addForm").style.display = "none";
+    document.getElementById("showAddUserBtn").style.display = "";
+    document.getElementById("newEmail").value = "";
+    document.getElementById("addMsg").textContent = "";
+    document.getElementById("addMsg").className = "msg";
+    document.getElementById("inviteLinkBox").style.display = "none";
+  });
+
+  document.getElementById("activityToggleBtn").addEventListener("click", function () {
+    var list = document.getElementById("activityList");
+    var isOpen = list.style.display === "block";
+    list.style.display = isOpen ? "none" : "block";
+    this.textContent = isOpen ? "Show recent activity" : "Hide recent activity";
   });
 
   function escapeHtml(s) {
