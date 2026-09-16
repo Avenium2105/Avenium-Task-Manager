@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Avenium Task Manager</title>
+<title>Avenium</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -30,35 +30,21 @@
   .wrap { max-width: 800px; margin: 0 auto; padding: 16px 20px 100px; }
 
   .topbar { display: flex; align-items: center; justify-content: flex-end; gap: 14px; font-size: 12.5px; color: var(--ink-soft); flex-wrap: wrap; }
-  .topbar .who { color: var(--ink); font-weight: 500; }
   .topbar a, .topbar button.link { color: var(--ink-soft); text-decoration: none; background: none; border: none; font-family: inherit; font-size: 12.5px; cursor: pointer; padding: 0; }
   .topbar a:hover, .topbar button.link:hover { color: var(--pine); }
   .topbar .dot { color: var(--line); }
 
-  .pw-form { display: none; gap: 8px; align-items: center; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 10px 0 0; flex-wrap: wrap; }
-  .pw-form.open { display: flex; }
-  .pw-form input { font-family: inherit; font-size: 12.5px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); outline: none; }
-  .pw-form button { font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 6px 12px; border: none; border-radius: 6px; background: var(--pine); color: var(--bg-raised); cursor: pointer; }
-  .pw-form .pw-msg { font-size: 12px; color: var(--brick); }
-  .pw-form .pw-msg.ok { color: var(--pine); }
-
   header.board-head { margin: 22px 0 20px; }
-  .board-head .brand { font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; color: var(--pine); margin: 0 0 14px; }
+  .brand-mark { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; }
+  .brand-icon { width: 22px; height: 22px; flex-shrink: 0; }
+  .brand-word { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 15px; letter-spacing: 0.01em; color: var(--pine); }
   .board-head h1 { font-family: "Fraunces", Georgia, serif; font-optical-sizing: auto; font-weight: 500; font-size: 32px; letter-spacing: -0.01em; margin: 0 0 4px; color: var(--ink); }
   .board-head .date-line { color: var(--ink-soft); font-size: 14px; margin: 0; }
-
-  .conn-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-faint); margin-top: 8px; }
-  .conn-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-faint); }
-  .conn-status.online .conn-dot { background: var(--pine); }
-  .conn-status.offline .conn-dot { background: var(--brick); }
-
-  .progress-row { display: flex; align-items: center; gap: 12px; margin-top: 16px; }
-  .progress-track { flex: 1; height: 6px; border-radius: 4px; background: var(--line-soft); overflow: hidden; }
-  .progress-fill { height: 100%; background: var(--pine); border-radius: 4px; transition: width 0.4s cubic-bezier(.4,0,.2,1); width: 0%; }
-  .progress-label { font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .board-head .quote-line { color: var(--ink-faint); font-size: 13px; font-style: italic; margin: 6px 0 0; }
 
   /* board tabs */
   .board-tabs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin: 22px 0 22px; border-bottom: 1px solid var(--line); }
+  .board-tab-wrap { display: inline-flex; align-items: center; }
   .board-tab {
     font-family: inherit; font-size: 13px; color: var(--ink-soft); background: none; border: none;
     padding: 8px 12px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
@@ -66,6 +52,9 @@
   .board-tab:hover { color: var(--ink); }
   .board-tab.active { color: var(--pine); border-bottom-color: var(--pine); font-weight: 500; }
   .board-tab.add-board { color: var(--ink-faint); }
+  .board-tab-rename { font-family: inherit; font-size: 11px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 4px 6px 4px 0; opacity: 0; transition: opacity 0.15s, color 0.15s; }
+  .board-tab-wrap:hover .board-tab-rename { opacity: 1; }
+  .board-tab-rename:hover { color: var(--pine); }
   .board-badge {
     display: inline-block; font-size: 10.5px; font-weight: 500; color: var(--ink-soft);
     background: var(--line-soft); padding: 1px 7px; border-radius: 10px; margin-left: 10px; vertical-align: middle;
@@ -152,30 +141,24 @@
 <body>
 <div class="wrap">
   <div class="topbar" id="topbar">
-    <span class="who" id="whoLabel"></span>
-    <span class="dot">·</span>
-    <button class="link" id="changePwBtn" type="button">Change password</button>
+    <a href="/users.html" id="manageUsersLink" style="display:none;">Admin</a>
     <span class="dot" id="adminDot" style="display:none;">·</span>
-    <a href="/users.html" id="manageUsersLink" style="display:none;">Manage users</a>
-    <span class="dot">·</span>
     <button class="link" id="logoutBtn" type="button">Log out</button>
   </div>
-  <form class="pw-form" id="pwForm">
-    <input type="password" id="pwCurrent" placeholder="Current password" autocomplete="current-password">
-    <input type="password" id="pwNew" placeholder="New password (6+ characters)" autocomplete="new-password">
-    <button type="submit">Update</button>
-    <span class="pw-msg" id="pwMsg"></span>
-  </form>
 
   <header class="board-head">
-    <p class="brand">Avenium Task Manager</p>
+    <!-- Placeholder monogram + wordmark — swap for the real Avenium logo file whenever it's ready. -->
+    <div class="brand-mark">
+      <svg class="brand-icon" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="26" height="26" rx="7" fill="var(--pine)"/>
+        <path d="M8 19L14 8L20 19" stroke="var(--bg-raised)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M10.5 15H17.5" stroke="var(--bg-raised)" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-word">Avenium</span>
+    </div>
     <h1 id="greeting">Daily board</h1>
     <p class="date-line" id="dateLine"></p>
-    <div class="conn-status offline" id="connStatus"><span class="conn-dot"></span><span id="connLabel">Connecting…</span></div>
-    <div class="progress-row">
-      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
-      <span class="progress-label" id="progressLabel">0 of 0 done</span>
-    </div>
+    <p class="quote-line" id="quoteLine"></p>
   </header>
 
   <div class="board-tabs" id="boardTabs"></div>
@@ -196,9 +179,28 @@
 
   var state = { boards: [], groups: [], items: [] };
   var team = [];
+  var currentUser = null;
   var selectedBoardId = localStorage.getItem("daily-board-selected-board") || "__all__";
   var collapsedKey = "daily-board-collapsed";
   var notifiedRecently = {};
+
+  var QUOTES = [
+    "Small steps, done consistently, win.",
+    "Progress, not perfection.",
+    "Clear tasks make for a clear mind.",
+    "Focus on one thing at a time.",
+    "Done is better than perfect.",
+    "Great teams move one task at a time.",
+    "Today's effort is tomorrow's momentum.",
+    "Keep it simple, keep it moving.",
+    "A little progress each day adds up.",
+    "Good work starts with a clear list."
+  ];
+  function quoteOfDay(now) {
+    var start = new Date(now.getFullYear(), 0, 0);
+    var dayOfYear = Math.floor((now - start) / 86400000);
+    return QUOTES[dayOfYear % QUOTES.length];
+  }
 
   function getCollapsed() { try { var raw = localStorage.getItem(collapsedKey); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; } }
   function setCollapsed(map) { try { localStorage.setItem(collapsedKey, JSON.stringify(map)); } catch (e) {} }
@@ -262,10 +264,22 @@
     allTab.addEventListener("click", function () { selectedBoardId = "__all__"; localStorage.setItem("daily-board-selected-board", selectedBoardId); render(); });
     mount.appendChild(allTab);
 
+    var isAdmin = currentUser && currentUser.role === "admin";
     boardsToShow().forEach(function (b) {
+      var wrap = el("span", "board-tab-wrap");
       var tab = el("button", "board-tab" + (selectedBoardId === b.id ? " active" : ""), { type: "button", text: b.name });
       tab.addEventListener("click", function () { selectedBoardId = b.id; localStorage.setItem("daily-board-selected-board", selectedBoardId); render(); });
-      mount.appendChild(tab);
+      wrap.appendChild(tab);
+      if (isAdmin) {
+        var renameBtn = el("button", "board-tab-rename", { type: "button", text: "✎", title: "Rename board" });
+        renameBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          var name = window.prompt("Rename this board:", b.name);
+          if (name && name.trim() && name.trim() !== b.name) socket.emit("updateBoard", { id: b.id, name: name.trim() });
+        });
+        wrap.appendChild(renameBtn);
+      }
+      mount.appendChild(wrap);
     });
 
     var addTab = el("button", "board-tab add-board", { type: "button", text: "+ New board" });
@@ -278,8 +292,10 @@
 
   function render() {
     var now = new Date();
-    document.getElementById("greeting").textContent = greetingWord(now);
+    var name = currentUser && (currentUser.displayName || currentUser.username);
+    document.getElementById("greeting").textContent = greetingWord(now) + (name ? ", " + name : "");
     document.getElementById("dateLine").textContent = fmtDate(now);
+    document.getElementById("quoteLine").textContent = quoteOfDay(now);
     renderTabs();
 
     var showingAll = selectedBoardId === "__all__";
@@ -287,12 +303,6 @@
     var visibleGroupIds = {};
     visibleGroups.forEach(function (g) { visibleGroupIds[g.id] = true; });
     var visibleItems = state.items.filter(function (i) { return visibleGroupIds[i.groupId]; });
-
-    var totalItems = visibleItems.length;
-    var doneItems = visibleItems.filter(function (i) { return i.status === "done"; }).length;
-    var pct = totalItems ? Math.round((doneItems / totalItems) * 100) : 0;
-    document.getElementById("progressFill").style.width = pct + "%";
-    document.getElementById("progressLabel").textContent = doneItems + " of " + totalItems + " done";
 
     var collapsed = getCollapsed();
     var mount = document.getElementById("groupsMount");
@@ -487,10 +497,11 @@
   // ---------------- auth / topbar wiring ----------------
 
   function applyMe(user) {
-    document.getElementById("whoLabel").textContent = "Signed in as " + (user.displayName || user.username);
+    currentUser = user;
     var isAdmin = user.role === "admin";
     document.getElementById("manageUsersLink").style.display = isAdmin ? "" : "none";
     document.getElementById("adminDot").style.display = isAdmin ? "" : "none";
+    render();
   }
 
   fetch("/api/me").then(function (r) {
@@ -502,30 +513,10 @@
     fetch("/api/logout", { method: "POST" }).then(function () { window.location.href = "/login.html"; });
   });
 
-  var pwForm = document.getElementById("pwForm");
-  document.getElementById("changePwBtn").addEventListener("click", function () { pwForm.classList.toggle("open"); });
-  pwForm.addEventListener("submit", function (e) {
-    e.preventDefault();
-    var msg = document.getElementById("pwMsg");
-    msg.className = "pw-msg";
-    var current = document.getElementById("pwCurrent").value;
-    var next = document.getElementById("pwNew").value;
-    fetch("/api/change-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword: current, newPassword: next }) })
-      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
-      .then(function (res) {
-        if (res.ok) { msg.textContent = "Password updated."; msg.className = "pw-msg ok"; document.getElementById("pwCurrent").value = ""; document.getElementById("pwNew").value = ""; }
-        else { msg.textContent = res.data.error === "wrong_current_password" ? "Current password is wrong." : res.data.error === "weak_password" ? "New password needs 6+ characters." : "Couldn't update password."; }
-      }).catch(function () { msg.textContent = "Couldn't reach the server."; });
-  });
-
   // ---------------- socket wiring ----------------
 
   var socket = io();
-  var statusEl = document.getElementById("connStatus");
-  var statusLabel = document.getElementById("connLabel");
 
-  socket.on("connect", function () { statusEl.className = "conn-status online"; statusLabel.textContent = "Live"; });
-  socket.on("disconnect", function () { statusEl.className = "conn-status offline"; statusLabel.textContent = "Reconnecting…"; });
   socket.on("auth_error", function () { window.location.href = "/login.html"; });
   socket.on("me", function (user) { applyMe(user); });
   socket.on("team", function (t) { team = t || []; render(); });

@@ -147,10 +147,25 @@ if (!users) {
 function findUserById(id) { return users.find((u) => u.id === id); }
 function findUserByToken(token) { return token && users.find((u) => u.actionToken === token && u.actionTokenExpiresAt && new Date(u.actionTokenExpiresAt) > new Date()); }
 function publicUser(u) {
-  return { id: u.id, username: u.username, displayName: u.displayName, email: u.email || "", role: u.role, status: u.status || "active", createdAt: u.createdAt };
+  return { id: u.id, username: u.username || "", displayName: u.displayName || "", email: u.email || "", role: u.role, status: u.status || "active", createdAt: u.createdAt };
 }
 function teamMember(u) { return { id: u.id, displayName: u.displayName }; }
-function broadcastTeam() { io.emit("team", users.map(teamMember)); }
+function activeUsers() { return users.filter((u) => u.status !== "pending"); }
+function broadcastTeam() { io.emit("team", activeUsers().map(teamMember)); }
+
+// Finish activating a pending (or password-resetting) account: apply the
+// password they just set, and — for brand-new accounts — the username and
+// display name they chose during setup (invites only collect an email now).
+function activateUser(u) {
+  const wasPending = u.status === "pending";
+  u.passwordHash = u.pendingPasswordHash;
+  if (u.pendingUsername) u.username = u.pendingUsername;
+  if (u.pendingDisplayName) u.displayName = u.pendingDisplayName;
+  u.status = "active";
+  delete u.pendingPasswordHash; delete u.pendingUsername; delete u.pendingDisplayName;
+  delete u.actionToken; delete u.actionTokenExpiresAt; delete u.mfaCode; delete u.mfaCodeExpiresAt;
+  if (wasPending) logActivity(`${u.displayName || u.username || u.email} joined`);
+}
 
 function makeToken() { return crypto.randomBytes(24).toString("hex"); }
 function makeCode() { return String(crypto.randomInt(100000, 999999)); }
@@ -322,14 +337,28 @@ app.post("/api/change-password", requireAuth, (req, res) => {
 app.post("/api/invite/token-info", (req, res) => {
   const u = findUserByToken((req.body || {}).token);
   if (!u) return res.status(400).json({ error: "invalid_or_expired" });
-  res.json({ ok: true, displayName: u.displayName, isNewAccount: u.status === "pending" });
+  res.json({ ok: true, displayName: u.displayName || "", email: u.email || "", isNewAccount: u.status === "pending" });
 });
 
 app.post("/api/invite/set-password", async (req, res) => {
-  const { token, password } = req.body || {};
+  const { token, password, username, displayName } = req.body || {};
   const u = findUserByToken(token);
   if (!u) return res.status(400).json({ error: "invalid_or_expired" });
   if (!password || String(password).length < 6) return res.status(400).json({ error: "weak_password" });
+
+  const isNewAccount = u.status === "pending";
+  if (isNewAccount) {
+    // Invites now only collect an email — the person picks their own
+    // username and display name here, as part of account setup.
+    if (!username || !String(username).trim()) return res.status(400).json({ error: "username_required" });
+    if (!displayName || !String(displayName).trim()) return res.status(400).json({ error: "display_name_required" });
+    const uname = String(username).trim().slice(0, 60);
+    if (users.some((x) => x.id !== u.id && (x.username || "").toLowerCase() === uname.toLowerCase())) {
+      return res.status(409).json({ error: "username_taken" });
+    }
+    u.pendingUsername = uname;
+    u.pendingDisplayName = String(displayName).trim().slice(0, 100);
+  }
   u.pendingPasswordHash = bcrypt.hashSync(String(password), 10);
 
   if (EMAIL_SEND_ENABLED) {
@@ -343,14 +372,11 @@ app.post("/api/invite/set-password", async (req, res) => {
   }
 
   // No email configured on the server — activate directly, no MFA possible.
-  u.passwordHash = u.pendingPasswordHash;
-  const wasPending = u.status === "pending";
-  u.status = "active";
-  delete u.pendingPasswordHash; delete u.actionToken; delete u.actionTokenExpiresAt; delete u.mfaCode; delete u.mfaCodeExpiresAt;
+  activateUser(u);
   saveUsers();
   req.session.userId = u.id;
-  if (wasPending) logActivity(`${u.displayName} joined`);
   persist();
+  broadcastTeam();
   res.json({ ok: true, mfaRequired: false });
 });
 
@@ -361,14 +387,11 @@ app.post("/api/invite/verify-code", (req, res) => {
   if (!u.mfaCode || !u.mfaCodeExpiresAt || new Date(u.mfaCodeExpiresAt) < new Date()) return res.status(400).json({ error: "code_expired" });
   if (String(code || "").trim() !== u.mfaCode) return res.status(401).json({ error: "wrong_code" });
 
-  u.passwordHash = u.pendingPasswordHash;
-  const wasPending = u.status === "pending";
-  u.status = "active";
-  delete u.pendingPasswordHash; delete u.actionToken; delete u.actionTokenExpiresAt; delete u.mfaCode; delete u.mfaCodeExpiresAt;
+  activateUser(u);
   saveUsers();
   req.session.userId = u.id;
-  if (wasPending) logActivity(`${u.displayName} joined`);
   persist();
+  broadcastTeam();
   res.json({ ok: true });
 });
 
@@ -388,18 +411,17 @@ app.post("/api/invite/resend-code", async (req, res) => {
 app.get("/api/users", requireAuth, requireAdmin, (req, res) => res.json({ users: users.map(publicUser) }));
 
 app.post("/api/users", requireAuth, requireAdmin, async (req, res) => {
-  const { username, displayName, email, role } = req.body || {};
-  if (!username || !String(username).trim()) return res.status(400).json({ error: "invalid_fields" });
-  if (!displayName || !String(displayName).trim()) return res.status(400).json({ error: "display_name_required" });
+  const { email, role } = req.body || {};
   if (!isValidEmail(email)) return res.status(400).json({ error: "invalid_email" });
-  if (users.some((u) => u.username.toLowerCase() === String(username).toLowerCase())) return res.status(409).json({ error: "username_taken" });
   if (users.some((u) => (u.email || "").toLowerCase() === String(email).trim().toLowerCase())) return res.status(409).json({ error: "email_taken" });
 
+  // Invites only collect an email now — the invited person picks their own
+  // username and display name when they open the link and set a password.
   const token = makeToken();
   const newUser = {
     id: uid("u"),
-    username: String(username).trim().slice(0, 60),
-    displayName: String(displayName).trim().slice(0, 100),
+    username: "",
+    displayName: "",
     email: String(email).trim().slice(0, 200),
     role: role === "admin" ? "admin" : "member",
     status: "pending",
@@ -410,7 +432,7 @@ app.post("/api/users", requireAuth, requireAdmin, async (req, res) => {
   };
   users.push(newUser);
   saveUsers();
-  logActivity(`${findUserById(req.session.userId).displayName} invited "${newUser.displayName}"`);
+  logActivity(`${findUserById(req.session.userId).displayName} invited ${newUser.email}`);
   persist();
   broadcastTeam();
   const link = inviteLink(token);
@@ -526,7 +548,7 @@ io.on("connection", (socket) => {
 
   socket.emit("state", stateForUser(user.id));
   socket.emit("me", publicUser(user));
-  socket.emit("team", users.map(teamMember));
+  socket.emit("team", activeUsers().map(teamMember));
 
   // ---- boards ----
   socket.on("addBoard", ({ name }) => {
@@ -534,6 +556,17 @@ io.on("connection", (socket) => {
     const board = { id: uid("b"), name: name.trim().slice(0, 100) || "Untitled board", order: state.boards.length, createdAt: Date.now(), createdBy: actorName() };
     state.boards.push(board);
     logActivity(`${actorName()} created the board "${board.name}"`);
+    persist();
+    broadcastState();
+  });
+
+  socket.on("updateBoard", ({ id, name }) => {
+    if (user.role !== "admin") return;
+    const board = state.boards.find((b) => b.id === id);
+    if (!board || !name || typeof name !== "string" || !name.trim()) return;
+    const oldName = board.name;
+    board.name = name.trim().slice(0, 100);
+    if (board.name !== oldName) logActivity(`${actorName()} renamed the board "${oldName}" to "${board.name}"`);
     persist();
     broadcastState();
   });

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Manage users · Avenium Task Manager</title>
+<title>Admin · Avenium</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -32,10 +32,18 @@
   .topbar a:hover, .topbar button.link:hover { color: var(--pine); }
   .topbar .dot { color: var(--line); }
 
-  .brand { font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; color: var(--pine); margin: 26px 0 8px; }
+  .brand-mark { display: flex; align-items: center; gap: 8px; margin: 26px 0 12px; }
+  .brand-icon { width: 22px; height: 22px; flex-shrink: 0; }
+  .brand-word { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 15px; letter-spacing: 0.01em; color: var(--pine); }
   h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 30px; margin: 0 0 8px; letter-spacing: -0.01em; }
   h2 { font-size: 15px; font-weight: 600; margin: 40px 0 12px; }
   p.lead { color: var(--ink-soft); font-size: 13.5px; margin: 0 0 28px; }
+
+  .pw-form { display: flex; gap: 8px; align-items: center; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); flex-wrap: wrap; }
+  .pw-form input { font-family: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; flex: 1; min-width: 160px; }
+  .pw-form button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 16px; border: none; border-radius: 7px; background: var(--pine); color: var(--bg-raised); cursor: pointer; }
+  .pw-form .msg { font-size: 12.5px; color: var(--brick); width: 100%; }
+  .pw-form .msg.ok { color: var(--pine); }
 
   table { width: 100%; border-collapse: collapse; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
   th, td { text-align: left; padding: 10px 12px; font-size: 13.5px; border-top: 1px solid var(--line-soft); }
@@ -86,10 +94,28 @@
     <button class="link" id="logoutBtn" type="button">Log out</button>
   </div>
 
-  <p class="brand">Avenium Task Manager</p>
-  <h1>Manage users</h1>
-  <p class="lead">Invite, edit, or remove the accounts that can sign in to the board. New accounts set their own password by email — you don't set one for them.</p>
+  <!-- Placeholder monogram + wordmark — swap for the real Avenium logo file whenever it's ready. -->
+  <div class="brand-mark">
+    <svg class="brand-icon" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="1" y="1" width="26" height="26" rx="7" fill="var(--pine)"/>
+      <path d="M8 19L14 8L20 19" stroke="var(--bg-raised)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M10.5 15H17.5" stroke="var(--bg-raised)" stroke-width="2.2" stroke-linecap="round"/>
+    </svg>
+    <span class="brand-word">Avenium</span>
+  </div>
+  <h1>Admin</h1>
+  <p class="lead">Invite, edit, or remove the accounts that can sign in to the board, and manage your own account.</p>
 
+  <h2>Change your password</h2>
+  <form class="pw-form" id="pwForm">
+    <input type="password" id="pwCurrent" placeholder="Current password" autocomplete="current-password">
+    <input type="password" id="pwNew" placeholder="New password (6+ characters)" autocomplete="new-password">
+    <button type="submit">Update</button>
+    <span class="msg" id="pwMsg"></span>
+  </form>
+
+  <h2>Manage users</h2>
+  <p class="lead" style="margin:-8px 0 16px;">New accounts choose their own username, display name, and password when they open the invite link.</p>
   <table id="usersTable">
     <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
     <tbody id="usersBody"></tbody>
@@ -97,8 +123,6 @@
 
   <div class="add-form">
     <div class="fields">
-      <input id="newUsername" placeholder="Username" autocomplete="off">
-      <input id="newDisplayName" placeholder="Display name" autocomplete="off">
       <input id="newEmail" placeholder="Email (required)" type="email" autocomplete="off">
       <select id="newRole">
         <option value="member">Member</option>
@@ -152,7 +176,7 @@
     users.forEach(function (u) {
       var tr = el("tr");
       var nameTd = el("td");
-      nameTd.innerHTML = "<strong>" + escapeHtml(u.displayName) + "</strong><br><span style='color:var(--ink-faint);font-size:12px;'>" + escapeHtml(u.username) + "</span>";
+      nameTd.innerHTML = "<strong>" + escapeHtml(u.displayName || "(pending)") + "</strong><br><span style='color:var(--ink-faint);font-size:12px;'>" + escapeHtml(u.username || "—") + "</span>";
       tr.appendChild(nameTd);
 
       tr.appendChild(el("td", "", { text: u.email || "—" }));
@@ -182,7 +206,7 @@
 
       if (u.id !== currentUserId) {
         var delBtn = el("button", "danger", { type: "button", text: "Remove" });
-        delBtn.addEventListener("click", function () { removeUser(u.id, u.username); });
+        delBtn.addEventListener("click", function () { removeUser(u.id, u.username || u.email); });
         actions.appendChild(delBtn);
       }
       actionsTd.appendChild(actions);
@@ -194,7 +218,7 @@
       var panel = el("div", "edit-panel");
       var fields = el("div", "fields");
       var nameInput = el("input", "", { type: "text", placeholder: "Display name" });
-      nameInput.value = u.displayName;
+      nameInput.value = u.displayName || "";
       fields.appendChild(nameInput);
 
       var emailInput = el("input", "", { type: "email", placeholder: "Email" });
@@ -275,31 +299,23 @@
     var linkBox = document.getElementById("inviteLinkBox");
     linkBox.style.display = "none";
     var body = {
-      username: document.getElementById("newUsername").value.trim(),
-      displayName: document.getElementById("newDisplayName").value.trim(),
       email: document.getElementById("newEmail").value.trim(),
       role: document.getElementById("newRole").value
     };
-    if (!body.username) { msg.textContent = "Username is required."; return; }
-    if (!body.displayName) { msg.textContent = "Display name is required."; return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) { msg.textContent = "A valid email is required."; return; }
     fetch("/api/users", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
     }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }).catch(function () { return { ok: false, data: { error: "bad_response", status: r.status } }; }); })
       .then(function (res) {
         if (res.ok) {
-          msg.textContent = res.data.emailed ? ("Invited " + body.displayName + " — they'll get an email to set their password.") : ("Invited " + body.displayName + ", but the email couldn't be sent — share the link below with them.");
+          msg.textContent = res.data.emailed ? ("Invited " + body.email + " — they'll get an email to set up their account.") : ("Invited " + body.email + ", but the email couldn't be sent — share the link below with them.");
           msg.className = "msg ok";
           if (!res.data.emailed) { linkBox.style.display = "block"; linkBox.textContent = res.data.inviteLink; }
-          document.getElementById("newUsername").value = "";
-          document.getElementById("newDisplayName").value = "";
           document.getElementById("newEmail").value = "";
           loadUsers();
         } else {
-          msg.textContent = res.data.error === "username_taken" ? "That username is already taken."
-            : res.data.error === "email_taken" ? "That email is already in use."
+          msg.textContent = res.data.error === "email_taken" ? "That email is already in use."
             : res.data.error === "invalid_email" ? "That email doesn't look valid."
-            : res.data.error === "display_name_required" ? "Display name is required."
             : res.data.error === "forbidden" ? "Your session isn't recognized as admin — try logging out and back in."
             : res.data.error === "not_authenticated" ? "You've been signed out — log in again."
             : "Couldn't send that invite (server said: " + (res.data.error || ("HTTP " + (res.data.status || "unknown"))) + ").";
@@ -307,6 +323,20 @@
       }).catch(function (e) {
         msg.textContent = "Couldn't reach the server: " + e.message;
       });
+  });
+
+  document.getElementById("pwForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var msg = document.getElementById("pwMsg");
+    msg.className = "msg";
+    var current = document.getElementById("pwCurrent").value;
+    var next = document.getElementById("pwNew").value;
+    fetch("/api/change-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword: current, newPassword: next }) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+      .then(function (res) {
+        if (res.ok) { msg.textContent = "Password updated."; msg.className = "msg ok"; document.getElementById("pwCurrent").value = ""; document.getElementById("pwNew").value = ""; }
+        else { msg.textContent = res.data.error === "wrong_current_password" ? "Current password is wrong." : res.data.error === "weak_password" ? "New password needs 6+ characters." : "Couldn't update password."; }
+      }).catch(function () { msg.textContent = "Couldn't reach the server."; });
   });
 
   function escapeHtml(s) {

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign in · Avenium Task Manager</title>
+<title>Sign in · Avenium</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -37,7 +37,9 @@
     width: 100%; max-width: 360px; background: var(--bg-raised); border: 1px solid var(--line);
     border-radius: 12px; padding: 32px 28px; box-shadow: var(--shadow);
   }
-  .brand { font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; color: var(--pine); margin: 0 0 10px; }
+  .brand-mark { display: flex; align-items: center; gap: 8px; margin: 0 0 18px; }
+  .brand-icon { width: 22px; height: 22px; flex-shrink: 0; }
+  .brand-word { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 15px; letter-spacing: 0.01em; color: var(--pine); }
   h1 {
     font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 26px;
     margin: 0 0 24px; letter-spacing: -0.01em;
@@ -62,7 +64,15 @@
 </head>
 <body>
   <form class="card" id="loginForm" autocomplete="on">
-    <p class="brand">Avenium Task Manager</p>
+    <!-- Placeholder monogram + wordmark — swap for the real Avenium logo file whenever it's ready. -->
+    <div class="brand-mark">
+      <svg class="brand-icon" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="26" height="26" rx="7" fill="var(--pine)"/>
+        <path d="M8 19L14 8L20 19" stroke="var(--bg-raised)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M10.5 15H17.5" stroke="var(--bg-raised)" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-word">Avenium</span>
+    </div>
     <h1>Sign in</h1>
     <div class="error" id="errorBox"></div>
     <label for="username">Username</label>

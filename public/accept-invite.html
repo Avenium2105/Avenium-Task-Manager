@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Set up your account · Avenium Task Manager</title>
+<title>Set up your account · Avenium</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
@@ -24,7 +24,9 @@
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); min-height: 100vh; }
   body { font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
   .card { width: 100%; max-width: 380px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 12px; padding: 32px 28px; box-shadow: var(--shadow); }
-  .brand { font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; color: var(--pine); margin: 0 0 10px; }
+  .brand-mark { display: flex; align-items: center; gap: 8px; margin: 0 0 18px; }
+  .brand-icon { width: 22px; height: 22px; flex-shrink: 0; }
+  .brand-word { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 15px; letter-spacing: 0.01em; color: var(--pine); }
   h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 24px; margin: 0 0 8px; letter-spacing: -0.01em; }
   p.sub { color: var(--ink-soft); font-size: 13.5px; margin: 0 0 22px; }
   label { display: block; font-size: 12.5px; color: var(--ink-soft); margin: 0 0 6px; }
@@ -44,7 +46,15 @@
 </head>
 <body>
   <div class="card">
-    <p class="brand">Avenium Task Manager</p>
+    <!-- Placeholder monogram + wordmark — swap for the real Avenium logo file whenever it's ready. -->
+    <div class="brand-mark">
+      <svg class="brand-icon" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="1" y="1" width="26" height="26" rx="7" fill="var(--pine)"/>
+        <path d="M8 19L14 8L20 19" stroke="var(--bg-raised)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M10.5 15H17.5" stroke="var(--bg-raised)" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-word">Avenium</span>
+    </div>
 
     <div class="step active" id="loadingStep">
       <h1>Checking your link…</h1>
@@ -59,6 +69,12 @@
       <h1 id="pwHeading">Set your password</h1>
       <p class="sub" id="pwSub"></p>
       <div class="error" id="pwError"></div>
+      <div id="profileFields" style="display:none;">
+        <label for="usernameField">Username</label>
+        <input id="usernameField" type="text" autocomplete="username">
+        <label for="displayNameField">Display name</label>
+        <input id="displayNameField" type="text" autocomplete="name">
+      </div>
       <label for="pw1">New password</label>
       <input id="pw1" type="password" autocomplete="new-password" required>
       <label for="pw2">Confirm password</label>
@@ -88,6 +104,8 @@
   var steps = ["loadingStep", "invalidStep", "pwStep", "codeStep", "doneStep"];
   function showStep(id) { steps.forEach(function (s) { document.getElementById(s).classList.toggle("active", s === id); }); }
 
+  var isNewAccount = false;
+
   if (!token) {
     showStep("invalidStep");
   } else {
@@ -95,8 +113,12 @@
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
       .then(function (res) {
         if (!res.ok) { showStep("invalidStep"); return; }
-        document.getElementById("pwHeading").textContent = res.data.isNewAccount ? "Welcome, " + res.data.displayName : "Reset your password";
-        document.getElementById("pwSub").textContent = res.data.isNewAccount ? "Set a password to activate your account." : "Choose a new password for your account.";
+        isNewAccount = !!res.data.isNewAccount;
+        document.getElementById("pwHeading").textContent = isNewAccount ? "Welcome!" : "Reset your password";
+        document.getElementById("pwSub").textContent = isNewAccount ? "Choose a username, display name, and password to activate your account." : "Choose a new password for your account.";
+        document.getElementById("profileFields").style.display = isNewAccount ? "block" : "none";
+        document.getElementById("usernameField").required = isNewAccount;
+        document.getElementById("displayNameField").required = isNewAccount;
         showStep("pwStep");
       })
       .catch(function () { showStep("invalidStep"); });
@@ -108,15 +130,23 @@
     err.classList.remove("show");
     var pw1 = document.getElementById("pw1").value;
     var pw2 = document.getElementById("pw2").value;
+    var username = document.getElementById("usernameField").value.trim();
+    var displayName = document.getElementById("displayNameField").value.trim();
+    if (isNewAccount && !username) { err.textContent = "Choose a username."; err.classList.add("show"); return; }
+    if (isNewAccount && !displayName) { err.textContent = "Choose a display name."; err.classList.add("show"); return; }
     if (pw1.length < 6) { err.textContent = "Password needs to be at least 6 characters."; err.classList.add("show"); return; }
     if (pw1 !== pw2) { err.textContent = "Passwords don't match."; err.classList.add("show"); return; }
     var btn = document.getElementById("pwSubmit");
     btn.disabled = true; btn.textContent = "Please wait…";
-    fetch("/api/invite/set-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: token, password: pw1 }) })
+    fetch("/api/invite/set-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: token, password: pw1, username: username, displayName: displayName }) })
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
       .then(function (res) {
         btn.disabled = false; btn.textContent = "Continue";
-        if (!res.ok) { err.textContent = "That link isn't valid anymore. Ask for a new one."; err.classList.add("show"); return; }
+        if (!res.ok) {
+          err.textContent = res.data.error === "username_taken" ? "That username is already taken." : "That link isn't valid anymore. Ask for a new one.";
+          err.classList.add("show");
+          return;
+        }
         if (res.data.mfaRequired) {
           showStep("codeStep");
           if (res.data.codeFallback) {
