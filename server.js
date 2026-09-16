@@ -157,32 +157,39 @@ function makeCode() { return String(crypto.randomInt(100000, 999999)); }
 function inviteLink(token) { return (PUBLIC_URL || "") + "/accept-invite.html?token=" + token; }
 
 // ---------- email (optional — configured via environment variables) ----------
+// Sending and receiving are independent: a relay like SMTP2GO only handles
+// SENDING, so IMAP (for turning incoming mail into tasks) still needs its own
+// direct login to the actual mailbox if you want that feature.
 
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.office365.com";
 const SMTP_PORT = Number(process.env.SMTP_PORT || 587);
+const SMTP_USER = process.env.SMTP_USER || process.env.EMAIL_USER || "";
+const SMTP_PASS = process.env.SMTP_PASS || process.env.EMAIL_PASS || "";
+const MAIL_FROM = process.env.MAIL_FROM || process.env.EMAIL_USER || SMTP_USER;
+const EMAIL_SEND_ENABLED = !!(SMTP_USER && SMTP_PASS && MAIL_FROM);
+
 const IMAP_HOST = process.env.IMAP_HOST || "outlook.office365.com";
 const IMAP_PORT = Number(process.env.IMAP_PORT || 993);
-const EMAIL_USER = process.env.EMAIL_USER || "";
-const EMAIL_PASS = process.env.EMAIL_PASS || "";
-const EMAIL_SEND_ENABLED = !!(EMAIL_USER && EMAIL_PASS);
-const EMAIL_RECEIVE_ENABLED = EMAIL_SEND_ENABLED && process.env.EMAIL_RECEIVE !== "off";
+const IMAP_USER = process.env.IMAP_USER || process.env.EMAIL_USER || "";
+const IMAP_PASS = process.env.IMAP_PASS || process.env.EMAIL_PASS || "";
+const EMAIL_RECEIVE_ENABLED = !!(IMAP_USER && IMAP_PASS) && process.env.EMAIL_RECEIVE !== "off";
 
 let mailer = null;
 if (EMAIL_SEND_ENABLED) {
   mailer = nodemailer.createTransport({
     host: SMTP_HOST,
     port: SMTP_PORT,
-    secure: false,
-    auth: { user: EMAIL_USER, pass: EMAIL_PASS }
+    secure: SMTP_PORT === 465,
+    auth: { user: SMTP_USER, pass: SMTP_PASS }
   });
-  console.log("Email sending is ON via " + SMTP_HOST + " as " + EMAIL_USER);
+  console.log("Email sending is ON via " + SMTP_HOST + " as " + SMTP_USER + " (From: " + MAIL_FROM + ")");
 } else {
-  console.log("Email sending is OFF — set EMAIL_USER and EMAIL_PASS to enable it.");
+  console.log("Email sending is OFF — set SMTP_USER/SMTP_PASS (or EMAIL_USER/EMAIL_PASS) to enable it.");
 }
 
 function sendMail(to, subject, text) {
   if (!mailer || !to) return Promise.resolve(false);
-  return mailer.sendMail({ from: EMAIL_USER, to, subject, text })
+  return mailer.sendMail({ from: MAIL_FROM, to, subject, text })
     .then(() => true)
     .catch((e) => { console.error("Email send failed:", e.message); return false; });
 }
@@ -222,7 +229,7 @@ if (EMAIL_RECEIVE_ENABLED) {
   async function pollInbox() {
     const client = new ImapFlow({
       host: IMAP_HOST, port: IMAP_PORT, secure: true,
-      auth: { user: EMAIL_USER, pass: EMAIL_PASS }, logger: false
+      auth: { user: IMAP_USER, pass: IMAP_PASS }, logger: false
     });
     try {
       await client.connect();
@@ -247,7 +254,9 @@ if (EMAIL_RECEIVE_ENABLED) {
   }
   setInterval(pollInbox, 2 * 60 * 1000);
   pollInbox();
-  console.log("Email receiving is ON via " + IMAP_HOST + " (checked every 2 minutes)");
+  console.log("Email receiving is ON via " + IMAP_HOST + " as " + IMAP_USER + " (checked every 2 minutes)");
+} else {
+  console.log("Email receiving is OFF — set IMAP_USER/IMAP_PASS to enable turning incoming mail into tasks.");
 }
 
 // ---------- app ----------

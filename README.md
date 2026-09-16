@@ -85,25 +85,55 @@ Every task and group shows who last added or updated it, and the Manage users pa
 
 It's also worth setting a fixed `SESSION_SECRET` environment variable in Render (Settings → Environment) to a long random string — otherwise a restart also signs everyone out even if the disk is persistent.
 
-## Email setup (optional — Outlook / Microsoft 365)
+## Email setup (optional)
 
-Set these environment variables (in Render: Settings → Environment) to turn email on:
+Sending and receiving are configured **independently**, because they're different problems: sending just needs an SMTP relay, while receiving (turning incoming mail into tasks) needs an actual login to a real mailbox's IMAP.
+
+### Sending — recommended: a relay like SMTP2GO
+
+This is the easiest path and sidesteps Microsoft's basic-auth restrictions entirely. In Render → Settings → Environment:
 
 ```
-EMAIL_USER=your-shared-mailbox@yourcompany.com
+SMTP_HOST=mail.smtp2go.com
+SMTP_PORT=2525
+SMTP_USER=your-smtp2go-username
+SMTP_PASS=your-smtp2go-password
+MAIL_FROM=tasks@yourcompany.com
+PUBLIC_URL=https://your-app.onrender.com
+```
+
+`SMTP_USER`/`SMTP_PASS` come from SMTP2GO's own dashboard (Sending → SMTP Users) — not your Microsoft 365 login. `MAIL_FROM` is the address people see mail arrive from; SMTP2GO needs that address (or its domain) verified as a sender in their dashboard first, or your emails will get rejected or land as spam. `SMTP_PORT` can also be 587, 8025, 80, or 25 if 2525 is blocked on your network.
+
+### Sending — alternative: directly through Microsoft 365
+
+```
+EMAIL_USER=your-mailbox@yourcompany.com
 EMAIL_PASS=your-app-password
 ```
 
-That's it for defaults — the app already points at `smtp.office365.com` (sending) and `outlook.office365.com` (receiving). Override with `SMTP_HOST`, `SMTP_PORT`, `IMAP_HOST`, `IMAP_PORT` if your setup differs. Set `PUBLIC_URL=https://your-app.onrender.com` too, so notification emails include a working link back to the board.
+This points at `smtp.office365.com` by default. See the Microsoft 365 caveat below — this is the path more likely to hit tenant restrictions.
+
+### Receiving (optional, separate from sending)
+
+To turn incoming email into tasks, set IMAP credentials for the actual mailbox you want polled — this only works against a real mailbox (SMTP2GO can't receive mail for you):
+
+```
+IMAP_USER=tasks@yourcompany.com
+IMAP_PASS=your-m365-app-password
+```
+
+Defaults to `outlook.office365.com`; override with `IMAP_HOST`/`IMAP_PORT` for another provider. Leave these unset and receiving just stays off — sending still works fine on its own. Set `EMAIL_RECEIVE=off` to explicitly disable it even if credentials are present.
+
+If you only set the old `EMAIL_USER`/`EMAIL_PASS` (no `SMTP_USER`/`IMAP_USER`), the app uses those same credentials for both sending and receiving, exactly like before — nothing breaks if you don't touch this.
 
 **What it does once configured:**
 - Sending: hitting the 🔔 on a task emails the assignee. Invite and password-reset links are emailed too.
-- First-login verification: with email on, setting a password (from an invite or a reset) also emails a 6-digit code that must be entered before the account activates.
+- First-login verification: with sending on, setting a password (from an invite or a reset) also emails a 6-digit code that must be entered before the account activates.
 - Receiving: every 2 minutes the app checks the inbox for unread mail. Each new email becomes a task — subject as the title, body as notes, dropped into a "From email" group. If the sender's address matches one of your users' emails, it's auto-assigned to them.
 
-**Important Microsoft 365 caveat:** many M365 tenants now block basic username/password SMTP and IMAP login by default (Microsoft has been phasing this out in favor of OAuth2/modern auth). If login fails, you (or your IT admin) likely need to either: enable "Authenticated SMTP" and IMAP for that mailbox in the Microsoft 365 admin center, or set up an **app password** if the mailbox has MFA enabled. If your tenant enforces modern auth with no way around it, this simple setup won't connect — that would need an OAuth2-based integration instead, which is a bigger project; let me know if you hit that wall and want help with it.
+**Important Microsoft 365 caveat (only relevant if you're using M365 directly, for sending or receiving):** many M365 tenants now block basic username/password SMTP and IMAP login by default (Microsoft has announced Basic Auth gets disabled by default for existing tenants at the end of December 2026). If login fails, you likely need to either: enable "Authenticated SMTP" (and IMAP) for that mailbox in the Microsoft 365 admin center, or set up an **app password** if the mailbox has MFA enabled — and if your org has Security Defaults on, that can block this outright until an admin carves out an exception. This is exactly the problem a relay like SMTP2GO avoids for sending; there's no equivalent workaround for receiving since that has to talk to the real mailbox.
 
-Leave `EMAIL_USER`/`EMAIL_PASS` unset and the app runs exactly as before — no email, no errors, notify still logs the "it's your turn" activity entry either way.
+Leave all of these unset and the app runs exactly as before — no email, no errors, notify still logs the "it's your turn" activity entry either way.
 
 ## Notes
 
