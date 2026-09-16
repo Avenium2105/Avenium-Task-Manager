@@ -5,15 +5,22 @@ run as your own standalone app. It has no dependency on any third-party
 account: it's a self-contained Node.js server, so anyone you give the link to
 can open it and see the same board update live.
 
+## What's new
+
+- **Status pipeline** — each task steps through Not started → Next step → In progress → Completed.
+- **Assignees** — every task can be assigned to one of your users; shows on the task itself.
+- **Notify** — click the bell on a task to tell its assignee it's their turn (logged, and emailed if you've set up email — see below).
+- **Private groups** — anyone can add a group and mark it "Private," which only they can see or edit. Nobody else — not even admins — sees it.
+- **Multiple boards** — make a board per company/client from the tabs at the top, plus an "All boards" view that shows everything at once (each group tagged with its board).
+- **Email** — optional. Send notification emails, and turn incoming emails into tasks automatically. See "Email setup" below.
+
 ## What's inside
 
 - `server.js` — an Express server that also runs Socket.IO, so every
   connected browser gets updates the instant anyone adds, checks off, or
   edits a task.
-- `public/index.html` — the whole frontend (no build step, no framework).
-- `data.json` — created automatically the first time someone changes
-  something. This is where all your groups and tasks live. Back this file up
-  if you care about the data — it's the entire database.
+- `public/login.html`, `public/index.html`, `public/users.html` — the whole frontend (no build step, no framework).
+- `data.json`, `users.json` — created automatically the first time someone changes something. This is your entire database — back these up if you care about the data.
 
 ## Run it locally
 
@@ -71,6 +78,25 @@ Every task and group shows who last added or updated it, and the Manage users pa
 **Important:** `users.json` (accounts) and `data.json` (tasks) are excluded from git on purpose since they hold real passwords and data — don't remove them from `.gitignore`. This also means, on a free Render instance with no persistent disk, **both your tasks and your accounts will reset if the service restarts.** If you're using this for real, set up a persistent disk (see the deployment section above) so accounts and tasks survive restarts — otherwise you'll need to re-create the admin account (and re-add the other 2 users) after every restart.
 
 It's also worth setting a fixed `SESSION_SECRET` environment variable in Render (Settings → Environment) to a long random string — otherwise a restart also signs everyone out even if the disk is persistent.
+
+## Email setup (optional — Outlook / Microsoft 365)
+
+Set these environment variables (in Render: Settings → Environment) to turn email on:
+
+```
+EMAIL_USER=your-shared-mailbox@yourcompany.com
+EMAIL_PASS=your-app-password
+```
+
+That's it for defaults — the app already points at `smtp.office365.com` (sending) and `outlook.office365.com` (receiving). Override with `SMTP_HOST`, `SMTP_PORT`, `IMAP_HOST`, `IMAP_PORT` if your setup differs. Set `PUBLIC_URL=https://your-app.onrender.com` too, so notification emails include a working link back to the board.
+
+**What it does once configured:**
+- Sending: hitting the 🔔 on a task emails the assignee (if they have an email set on their account in Manage Users).
+- Receiving: every 2 minutes the app checks the inbox for unread mail. Each new email becomes a task — subject as the title, body as notes, dropped into a "From email" group. If the sender's address matches one of your users' emails, it's auto-assigned to them.
+
+**Important Microsoft 365 caveat:** many M365 tenants now block basic username/password SMTP and IMAP login by default (Microsoft has been phasing this out in favor of OAuth2/modern auth). If login fails, you (or your IT admin) likely need to either: enable "Authenticated SMTP" and IMAP for that mailbox in the Microsoft 365 admin center, or set up an **app password** if the mailbox has MFA enabled. If your tenant enforces modern auth with no way around it, this simple setup won't connect — that would need an OAuth2-based integration instead, which is a bigger project; let me know if you hit that wall and want help with it.
+
+Leave `EMAIL_USER`/`EMAIL_PASS` unset and the app runs exactly as before — no email, no errors, notify still logs the "it's your turn" activity entry either way.
 
 ## Notes
 

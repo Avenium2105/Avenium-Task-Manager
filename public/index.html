@@ -6,149 +6,49 @@
 <title>Avenium Task Manager</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #F3F3EE;
-    --bg-raised: #FBFBF8;
-    --ink: #22261F;
-    --ink-soft: #63685C;
-    --ink-faint: #9A9C8F;
-    --line: #E2E1D5;
-    --line-soft: #EAE9DE;
-    --pine: #3C5A46;
-    --pine-soft: #E4ECE4;
-    --ochre: #C68A2E;
-    --ochre-soft: #F5E8D2;
-    --brick: #B24A3C;
-    --brick-soft: #F5E1DC;
-    --grey-pill: #E6E5DA;
-    --grey-pill-ink: #6C6F62;
-    --shadow: 0 1px 2px rgba(34,38,31,0.06);
-    --radius: 10px;
-    font-synthesis: none;
+    --bg: #F3F3EE; --bg-raised: #FBFBF8; --ink: #22261F; --ink-soft: #63685C; --ink-faint: #9A9C8F;
+    --line: #E2E1D5; --line-soft: #EAE9DE; --pine: #3C5A46; --pine-soft: #E4ECE4;
+    --ochre: #C68A2E; --ochre-soft: #F5E8D2; --slate: #4C7A9E; --slate-soft: #E1EAF1;
+    --brick: #B24A3C; --brick-soft: #F5E1DC; --grey-pill: #E6E5DA; --grey-pill-ink: #6C6F62;
+    --shadow: 0 1px 2px rgba(34,38,31,0.06); --radius: 10px;
   }
-
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #1B1D18;
-      --bg-raised: #232620;
-      --ink: #ECEBE3;
-      --ink-soft: #A9AB9C;
-      --ink-faint: #74766A;
-      --line: #34372E;
-      --line-soft: #2B2D26;
-      --pine: #7FAF8E;
-      --pine-soft: #253227;
-      --ochre: #E0AC57;
-      --ochre-soft: #33291A;
-      --brick: #E08A79;
-      --brick-soft: #382320;
-      --grey-pill: #2C2E27;
-      --grey-pill-ink: #A9AB9C;
+      --bg: #1B1D18; --bg-raised: #232620; --ink: #ECEBE3; --ink-soft: #A9AB9C; --ink-faint: #74766A;
+      --line: #34372E; --line-soft: #2B2D26; --pine: #7FAF8E; --pine-soft: #253227;
+      --ochre: #E0AC57; --ochre-soft: #33291A; --slate: #85AFD1; --slate-soft: #1F2C34;
+      --brick: #E08A79; --brick-soft: #382320; --grey-pill: #2C2E27; --grey-pill-ink: #A9AB9C;
       --shadow: 0 1px 2px rgba(0,0,0,0.3);
     }
   }
-
   * { box-sizing: border-box; }
-  html, body {
-    margin: 0;
-    padding: 0;
-    background: var(--bg);
-    color: var(--ink);
-  }
-  body {
-    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
-    font-size: 14px;
-    line-height: 1.5;
-    -webkit-font-smoothing: antialiased;
-    min-height: 100vh;
-  }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  body { font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; min-height: 100vh; }
+  .wrap { max-width: 800px; margin: 0 auto; padding: 16px 20px 100px; }
 
-  .wrap {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 40px 20px 100px;
-  }
-
-  .topbar {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 14px;
-    padding: 16px 0 0;
-    font-size: 12.5px;
-    color: var(--ink-soft);
-    flex-wrap: wrap;
-  }
+  .topbar { display: flex; align-items: center; justify-content: flex-end; gap: 14px; font-size: 12.5px; color: var(--ink-soft); flex-wrap: wrap; }
   .topbar .who { color: var(--ink); font-weight: 500; }
-  .topbar a, .topbar button.link {
-    color: var(--ink-soft);
-    text-decoration: none;
-    background: none;
-    border: none;
-    font-family: inherit;
-    font-size: 12.5px;
-    cursor: pointer;
-    padding: 0;
-  }
+  .topbar a, .topbar button.link { color: var(--ink-soft); text-decoration: none; background: none; border: none; font-family: inherit; font-size: 12.5px; cursor: pointer; padding: 0; }
   .topbar a:hover, .topbar button.link:hover { color: var(--pine); }
   .topbar .dot { color: var(--line); }
 
-  .pw-form {
-    display: none;
-    gap: 8px;
-    align-items: center;
-    background: var(--bg-raised);
-    border: 1px solid var(--line);
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin: 10px 0 0;
-    flex-wrap: wrap;
-  }
+  .pw-form { display: none; gap: 8px; align-items: center; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; margin: 10px 0 0; flex-wrap: wrap; }
   .pw-form.open { display: flex; }
-  .pw-form input {
-    font-family: inherit; font-size: 12.5px; padding: 6px 8px;
-    border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); outline: none;
-  }
-  .pw-form button {
-    font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 6px 12px;
-    border: none; border-radius: 6px; background: var(--pine); color: var(--bg-raised); cursor: pointer;
-  }
+  .pw-form input { font-family: inherit; font-size: 12.5px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); outline: none; }
+  .pw-form button { font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 6px 12px; border: none; border-radius: 6px; background: var(--pine); color: var(--bg-raised); cursor: pointer; }
   .pw-form .pw-msg { font-size: 12px; color: var(--brick); }
   .pw-form .pw-msg.ok { color: var(--pine); }
 
-  header.board-head { margin-bottom: 34px; }
-  .board-head .brand {
-    font-size: 12.5px;
-    font-weight: 500;
-    letter-spacing: 0.02em;
-    color: var(--pine);
-    margin: 0 0 14px;
-  }
-  .board-head h1 {
-    font-family: "Fraunces", Georgia, serif;
-    font-optical-sizing: auto;
-    font-weight: 500;
-    font-size: 34px;
-    letter-spacing: -0.01em;
-    margin: 0 0 4px;
-    color: var(--ink);
-  }
+  header.board-head { margin: 22px 0 20px; }
+  .board-head .brand { font-size: 12.5px; font-weight: 500; letter-spacing: 0.02em; color: var(--pine); margin: 0 0 14px; }
+  .board-head h1 { font-family: "Fraunces", Georgia, serif; font-optical-sizing: auto; font-weight: 500; font-size: 32px; letter-spacing: -0.01em; margin: 0 0 4px; color: var(--ink); }
   .board-head .date-line { color: var(--ink-soft); font-size: 14px; margin: 0; }
 
-  .conn-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    color: var(--ink-faint);
-    margin-top: 8px;
-  }
-  .conn-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--ink-faint);
-  }
+  .conn-status { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-faint); margin-top: 8px; }
+  .conn-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-faint); }
   .conn-status.online .conn-dot { background: var(--pine); }
   .conn-status.offline .conn-dot { background: var(--brick); }
 
@@ -157,36 +57,29 @@
   .progress-fill { height: 100%; background: var(--pine); border-radius: 4px; transition: width 0.4s cubic-bezier(.4,0,.2,1); width: 0%; }
   .progress-label { font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
 
-  .group {
-    margin-bottom: 26px;
-    background: var(--bg-raised);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    overflow: hidden;
-    box-shadow: var(--shadow);
+  /* board tabs */
+  .board-tabs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin: 22px 0 22px; border-bottom: 1px solid var(--line); }
+  .board-tab {
+    font-family: inherit; font-size: 13px; color: var(--ink-soft); background: none; border: none;
+    padding: 8px 12px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
   }
-  .group-head {
-    display: flex; align-items: center; gap: 10px;
-    padding: 13px 14px 13px 0;
-    cursor: pointer; user-select: none;
-    border-left: 4px solid var(--accent, var(--pine));
+  .board-tab:hover { color: var(--ink); }
+  .board-tab.active { color: var(--pine); border-bottom-color: var(--pine); font-weight: 500; }
+  .board-tab.add-board { color: var(--ink-faint); }
+  .board-badge {
+    display: inline-block; font-size: 10.5px; font-weight: 500; color: var(--ink-soft);
+    background: var(--line-soft); padding: 1px 7px; border-radius: 10px; margin-left: 10px; vertical-align: middle;
   }
+
+  .group { margin-bottom: 26px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+  .group-head { display: flex; align-items: center; gap: 10px; padding: 13px 14px 13px 0; cursor: pointer; user-select: none; border-left: 4px solid var(--accent, var(--pine)); }
   .group-head .chevron { width: 14px; height: 14px; margin-left: 12px; flex-shrink: 0; color: var(--ink-faint); transition: transform 0.18s ease; }
   .group.collapsed .group-head .chevron { transform: rotate(-90deg); }
-  .group-name {
-    font-weight: 600; font-size: 15px; color: var(--ink);
-    background: transparent; border: none; outline: none;
-    padding: 3px 2px; border-radius: 5px; flex: 1; min-width: 0;
-    font-family: inherit;
-  }
+  .group-name { font-weight: 600; font-size: 15px; color: var(--ink); background: transparent; border: none; outline: none; padding: 3px 2px; border-radius: 5px; flex: 1; min-width: 0; font-family: inherit; }
   .group-name:hover, .group-name:focus { background: var(--line-soft); }
+  .lock-icon { flex-shrink: 0; color: var(--ink-faint); display: flex; align-items: center; }
   .group-count { font-size: 12.5px; color: var(--ink-faint); font-variant-numeric: tabular-nums; flex-shrink: 0; }
-  .group-del {
-    flex-shrink: 0; width: 22px; height: 22px; border: none; background: transparent;
-    color: var(--ink-faint); cursor: pointer; border-radius: 5px;
-    display: flex; align-items: center; justify-content: center;
-    opacity: 0; transition: opacity 0.15s, background 0.15s, color 0.15s;
-  }
+  .group-del { flex-shrink: 0; width: 22px; height: 22px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 5px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s, background 0.15s, color 0.15s; }
   .group-head:hover .group-del { opacity: 1; }
   .group-del:hover { background: var(--brick-soft); color: var(--brick); }
   .group-body { display: block; }
@@ -194,54 +87,42 @@
 
   .item { display: flex; flex-direction: column; padding: 9px 14px 7px 18px; border-top: 1px solid var(--line-soft); }
   .item:hover { background: var(--line-soft); }
-  .item-main { display: flex; align-items: center; gap: 10px; }
+  .item-main { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
   .item-meta { font-size: 11px; color: var(--ink-faint); padding: 2px 0 0 30px; }
-  .status-btn {
-    flex-shrink: 0; width: 20px; height: 20px; border-radius: 6px;
-    border: 1.5px solid var(--ink-faint); background: transparent; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; padding: 0;
-    transition: all 0.15s ease;
-  }
+  .item-notes { font-size: 12.5px; color: var(--ink-soft); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin: 6px 0 0 30px; width: calc(100% - 30px); font-family: inherit; resize: vertical; min-height: 30px; outline: none; }
+
+  .status-btn { flex-shrink: 0; width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--ink-faint); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.15s ease; }
   .status-btn svg { width: 12px; height: 12px; opacity: 0; transition: opacity 0.15s; }
+  .status-btn.next_step { border-color: var(--slate); background: var(--slate-soft); }
+  .status-btn.next_step svg { opacity: 1; stroke: var(--slate); }
   .status-btn.in_progress { border-color: var(--ochre); background: var(--ochre-soft); }
+  .status-btn.in_progress svg { opacity: 1; stroke: var(--ochre); }
   .status-btn.done { border-color: var(--pine); background: var(--pine); }
   .status-btn.done svg { opacity: 1; stroke: var(--bg-raised); }
+  .status-label { flex-shrink: 0; font-size: 10.5px; color: var(--ink-faint); width: 64px; }
 
-  .item-title {
-    flex: 1; min-width: 0; background: transparent; border: none; outline: none;
-    color: var(--ink); font-size: 14px; padding: 3px 4px; border-radius: 5px; font-family: inherit;
-  }
+  .item-title { flex: 1; min-width: 60px; background: transparent; border: none; outline: none; color: var(--ink); font-size: 14px; padding: 3px 4px; border-radius: 5px; font-family: inherit; }
   .item-title:hover, .item-title:focus { background: var(--bg); }
   .item.is-done .item-title { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: var(--ink-faint); }
 
-  .priority-tag {
-    flex-shrink: 0; font-size: 11.5px; font-weight: 500; padding: 3px 9px; border-radius: 20px;
-    border: none; cursor: pointer; background: var(--grey-pill); color: var(--grey-pill-ink);
-    font-family: inherit; white-space: nowrap;
-  }
+  .priority-tag { flex-shrink: 0; font-size: 11.5px; font-weight: 500; padding: 3px 9px; border-radius: 20px; border: none; cursor: pointer; background: var(--grey-pill); color: var(--grey-pill-ink); font-family: inherit; white-space: nowrap; }
   .priority-tag.high { background: var(--brick-soft); color: var(--brick); }
   .priority-tag.medium { background: var(--ochre-soft); color: var(--ochre); }
 
-  .due-btn {
-    flex-shrink: 0; font-size: 12px; color: var(--ink-faint); background: transparent; border: none;
-    cursor: pointer; padding: 3px 6px; border-radius: 5px; font-family: inherit;
-    white-space: nowrap; min-width: 58px; text-align: right;
-  }
+  .assignee-select { flex-shrink: 0; font-size: 11.5px; font-family: inherit; color: var(--grey-pill-ink); background: var(--grey-pill); border: none; border-radius: 20px; padding: 3px 6px; max-width: 84px; cursor: pointer; }
+
+  .due-btn { flex-shrink: 0; font-size: 12px; color: var(--ink-faint); background: transparent; border: none; cursor: pointer; padding: 3px 6px; border-radius: 5px; font-family: inherit; white-space: nowrap; min-width: 50px; text-align: right; }
   .due-btn:hover { background: var(--bg); color: var(--ink-soft); }
   .due-btn.overdue { color: var(--brick); font-weight: 500; }
   .due-btn.today { color: var(--pine); font-weight: 500; }
-  .due-input {
-    flex-shrink: 0; font-size: 12px; font-family: inherit; border: 1px solid var(--line); border-radius: 5px;
-    background: var(--bg-raised); color: var(--ink); padding: 2px 4px; width: 118px;
-  }
+  .due-input { flex-shrink: 0; font-size: 12px; font-family: inherit; border: 1px solid var(--line); border-radius: 5px; background: var(--bg-raised); color: var(--ink); padding: 2px 4px; width: 110px; }
 
-  .item-del {
-    flex-shrink: 0; width: 20px; height: 20px; border: none; background: transparent;
-    color: var(--ink-faint); cursor: pointer; border-radius: 5px;
-    display: flex; align-items: center; justify-content: center;
-    opacity: 0; transition: opacity 0.15s, background 0.15s, color 0.15s;
-  }
-  .item:hover .item-del { opacity: 1; }
+  .notify-btn, .notes-btn, .item-del { flex-shrink: 0; width: 20px; height: 20px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 5px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s, background 0.15s, color 0.15s; }
+  .item:hover .notify-btn, .item:hover .notes-btn, .item:hover .item-del { opacity: 1; }
+  .notify-btn:hover { background: var(--slate-soft); color: var(--slate); }
+  .notify-btn.sent { color: var(--pine); opacity: 1; }
+  .notes-btn.has-notes { opacity: 1; color: var(--ink-soft); }
+  .notes-btn:hover { background: var(--bg); color: var(--ink); }
   .item-del:hover { background: var(--brick-soft); color: var(--brick); }
 
   .add-row { display: flex; align-items: center; gap: 9px; padding: 10px 14px 12px 18px; border-top: 1px solid var(--line-soft); }
@@ -249,27 +130,21 @@
   .add-input { flex: 1; border: none; background: transparent; outline: none; font-size: 14px; color: var(--ink); padding: 4px 2px; font-family: inherit; }
   .add-input::placeholder { color: var(--ink-faint); }
 
-  .add-group-btn {
-    display: flex; align-items: center; gap: 8px; background: transparent; border: 1px dashed var(--line);
-    color: var(--ink-soft); font-family: inherit; font-size: 13.5px; padding: 12px 16px; border-radius: var(--radius);
-    cursor: pointer; width: 100%; transition: border-color 0.15s, color 0.15s, background 0.15s;
-  }
+  .add-group-btn { display: flex; align-items: center; gap: 8px; background: transparent; border: 1px dashed var(--line); color: var(--ink-soft); font-family: inherit; font-size: 13.5px; padding: 12px 16px; border-radius: var(--radius); cursor: pointer; width: 100%; transition: border-color 0.15s, color 0.15s, background 0.15s; }
   .add-group-btn:hover { border-color: var(--ink-faint); color: var(--ink); background: var(--bg-raised); }
 
-  .new-group-form {
-    background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius);
-    padding: 12px 14px; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow);
-  }
-  .new-group-form input { flex: 1; border: none; background: var(--bg); border-radius: 6px; padding: 7px 10px; font-size: 14px; color: var(--ink); outline: none; font-family: inherit; }
+  .new-group-form { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow); flex-wrap: wrap; }
+  .new-group-form input[type=text] { flex: 1; min-width: 140px; border: none; background: var(--bg); border-radius: 6px; padding: 7px 10px; font-size: 14px; color: var(--ink); outline: none; font-family: inherit; }
+  .new-group-form label { display: flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--ink-soft); white-space: nowrap; }
   .new-group-form button { border: none; background: var(--pine); color: var(--bg-raised); font-family: inherit; font-size: 13px; font-weight: 500; padding: 7px 14px; border-radius: 6px; cursor: pointer; }
   .new-group-form button.cancel { background: transparent; color: var(--ink-soft); }
 
   .foot-note { text-align: center; color: var(--ink-faint); font-size: 12px; margin-top: 30px; }
 
   @media (max-width: 480px) {
-    .wrap { padding: 28px 14px 90px; }
+    .wrap { padding: 14px 14px 90px; }
     .board-head h1 { font-size: 27px; }
-    .priority-tag { display: none; }
+    .priority-tag, .status-label { display: none; }
   }
   ::selection { background: var(--pine-soft); }
 </style>
@@ -303,10 +178,12 @@
     </div>
   </header>
 
+  <div class="board-tabs" id="boardTabs"></div>
+
   <main id="groupsMount"></main>
   <div id="addGroupMount"></div>
 
-  <p class="foot-note">Click a checkbox to mark a task done · click the date or priority to change it · changes sync live to everyone with this page open</p>
+  <p class="foot-note">Click a checkbox to step a task through its status · 🔔 notifies the assignee it's their turn</p>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -314,34 +191,26 @@
 (function () {
   "use strict";
 
-  var state = { groups: [], items: [] };
-  var collapsedKey = "daily-board-collapsed";
+  var STATUSES = ["not_started", "next_step", "in_progress", "done"];
+  var STATUS_LABELS = { not_started: "Not started", next_step: "Next step", in_progress: "In progress", done: "Completed" };
 
-  function getCollapsed() {
-    try { var raw = localStorage.getItem(collapsedKey); return raw ? JSON.parse(raw) : {}; }
-    catch (e) { return {}; }
-  }
-  function setCollapsed(map) {
-    try { localStorage.setItem(collapsedKey, JSON.stringify(map)); } catch (e) {}
-  }
+  var state = { boards: [], groups: [], items: [] };
+  var team = [];
+  var selectedBoardId = localStorage.getItem("daily-board-selected-board") || "__all__";
+  var collapsedKey = "daily-board-collapsed";
+  var notifiedRecently = {};
+
+  function getCollapsed() { try { var raw = localStorage.getItem(collapsedKey); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; } }
+  function setCollapsed(map) { try { localStorage.setItem(collapsedKey, JSON.stringify(map)); } catch (e) {} }
 
   function fmtDate(now) { return now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }); }
-  function greetingWord(now) {
-    var h = now.getHours();
-    if (h < 12) return "Good morning";
-    if (h < 18) return "Good afternoon";
-    return "Good evening";
-  }
-  function todayISO() {
-    var d = new Date();
-    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
-  }
+  function greetingWord(now) { var h = now.getHours(); if (h < 12) return "Good morning"; if (h < 18) return "Good afternoon"; return "Good evening"; }
+  function todayISO() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
   function dueLabel(iso) {
     if (!iso) return "";
     var today = todayISO();
     if (iso === today) return "Today";
-    var d = new Date(iso + "T00:00:00");
-    var t = new Date(today + "T00:00:00");
+    var d = new Date(iso + "T00:00:00"), t = new Date(today + "T00:00:00");
     var diffDays = Math.round((d - t) / 86400000);
     if (diffDays === 1) return "Tomorrow";
     if (diffDays === -1) return "Yesterday";
@@ -349,135 +218,7 @@
     if (diffDays < 6) return d.toLocaleDateString(undefined, { weekday: "short" });
     return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
-  function dueClass(iso) {
-    if (!iso) return "";
-    var today = todayISO();
-    if (iso < today) return "overdue";
-    if (iso === today) return "today";
-    return "";
-  }
-
-  function el(tag, cls, attrs) {
-    var e = document.createElement(tag);
-    if (cls) e.className = cls;
-    if (attrs) for (var k in attrs) { if (k === "text") e.textContent = attrs[k]; else e.setAttribute(k, attrs[k]); }
-    return e;
-  }
-  function checkSvg() { return '<svg viewBox="0 0 12 12" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6.5L4.8 9L10 3"/></svg>'; }
-  function chevronSvg() { return '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5L7 8.5L10 5.5"/></svg>'; }
-  function xSvg() { return '<svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3.5 3.5L10.5 10.5M10.5 3.5L3.5 10.5"/></svg>'; }
-  function plusSvg() { return '<svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M7 2.5V11.5M2.5 7H11.5"/></svg>'; }
-
-  function render() {
-    var now = new Date();
-    document.getElementById("greeting").textContent = greetingWord(now);
-    document.getElementById("dateLine").textContent = fmtDate(now);
-
-    var totalItems = state.items.length;
-    var doneItems = state.items.filter(function (i) { return i.status === "done"; }).length;
-    var pct = totalItems ? Math.round((doneItems / totalItems) * 100) : 0;
-    document.getElementById("progressFill").style.width = pct + "%";
-    document.getElementById("progressLabel").textContent = doneItems + " of " + totalItems + " done";
-
-    var collapsed = getCollapsed();
-    var mount = document.getElementById("groupsMount");
-    mount.innerHTML = "";
-
-    var sortedGroups = state.groups.slice().sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
-
-    sortedGroups.forEach(function (g) {
-      var groupItems = state.items.filter(function (i) { return i.groupId === g.id; })
-        .sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
-      var isCollapsed = !!collapsed[g.id];
-
-      var groupEl = el("section", "group" + (isCollapsed ? " collapsed" : ""));
-      groupEl.style.setProperty("--accent", g.color || "#3C5A46");
-
-      var head = el("div", "group-head");
-      var chev = el("div", "chevron"); chev.innerHTML = chevronSvg(); head.appendChild(chev);
-
-      var nameInput = el("input", "group-name");
-      nameInput.value = g.name || "";
-      if (g.updatedBy) nameInput.title = "Renamed by " + g.updatedBy + " \u00b7 " + relTime(g.updatedAt);
-      else if (g.createdBy) nameInput.title = "Added by " + g.createdBy;
-      nameInput.addEventListener("click", function (e) { e.stopPropagation(); });
-      nameInput.addEventListener("change", function () { updateGroup(g.id, { name: nameInput.value.trim() || "Untitled" }); });
-      head.appendChild(nameInput);
-
-      var doneCount = groupItems.filter(function (i) { return i.status === "done"; }).length;
-      head.appendChild(el("span", "group-count", { text: groupItems.length ? (doneCount + "/" + groupItems.length) : "" }));
-
-      var delBtn = el("button", "group-del", { "aria-label": "Delete group", type: "button" });
-      delBtn.innerHTML = xSvg();
-      delBtn.addEventListener("click", function (e) { e.stopPropagation(); deleteGroup(g.id); });
-      head.appendChild(delBtn);
-
-      head.addEventListener("click", function () {
-        var c = getCollapsed(); c[g.id] = !c[g.id]; setCollapsed(c); render();
-      });
-
-      groupEl.appendChild(head);
-
-      var body = el("div", "group-body");
-      groupItems.forEach(function (item) { body.appendChild(renderItem(item)); });
-
-      var addRow = el("div", "add-row");
-      var plus = el("div", "plus"); plus.innerHTML = plusSvg(); addRow.appendChild(plus);
-      var addInput = el("input", "add-input", { placeholder: "Add a task", type: "text" });
-      addInput.addEventListener("keydown", function (e) {
-        if (e.key === "Enter" && addInput.value.trim()) {
-          addItem(g.id, addInput.value.trim(), groupItems.length);
-          addInput.value = "";
-        }
-      });
-      addRow.appendChild(addInput);
-      body.appendChild(addRow);
-
-      groupEl.appendChild(body);
-      mount.appendChild(groupEl);
-    });
-
-    var addMount = document.getElementById("addGroupMount");
-    if (!addMount.dataset.formOpen) {
-      addMount.innerHTML = "";
-      var addGroupBtn = el("button", "add-group-btn", { type: "button" });
-      var pl = el("span"); pl.innerHTML = plusSvg();
-      addGroupBtn.appendChild(pl);
-      addGroupBtn.appendChild(document.createTextNode("Add group"));
-      addGroupBtn.addEventListener("click", function () {
-        addMount.dataset.formOpen = "1";
-        renderAddGroupForm();
-      });
-      addMount.appendChild(addGroupBtn);
-    }
-  }
-
-  function renderAddGroupForm() {
-    var addMount = document.getElementById("addGroupMount");
-    addMount.innerHTML = "";
-    var form = el("div", "new-group-form");
-    var input = el("input", "", { placeholder: "Group name", type: "text" });
-    form.appendChild(input);
-    var saveBtn = el("button", "", { type: "button", text: "Add" });
-    saveBtn.addEventListener("click", commit);
-    form.appendChild(saveBtn);
-    var cancelBtn = el("button", "cancel", { type: "button", text: "Cancel" });
-    cancelBtn.addEventListener("click", function () { delete addMount.dataset.formOpen; render(); });
-    form.appendChild(cancelBtn);
-    addMount.appendChild(form);
-    input.focus();
-    input.addEventListener("keydown", function (e) {
-      if (e.key === "Enter") commit();
-      if (e.key === "Escape") { delete addMount.dataset.formOpen; render(); }
-    });
-    function commit() {
-      var name = input.value.trim();
-      if (!name) { delete addMount.dataset.formOpen; render(); return; }
-      addGroup(name);
-      delete addMount.dataset.formOpen;
-    }
-  }
-
+  function dueClass(iso) { if (!iso) return ""; var today = todayISO(); if (iso < today) return "overdue"; if (iso === today) return "today"; return ""; }
   function relTime(iso) {
     if (!iso) return "";
     var diff = Date.now() - new Date(iso).getTime();
@@ -491,22 +232,194 @@
     return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
 
+  function el(tag, cls, attrs) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (attrs) for (var k in attrs) { if (k === "text") e.textContent = attrs[k]; else e.setAttribute(k, attrs[k]); }
+    return e;
+  }
+  function checkSvg() { return '<svg viewBox="0 0 12 12" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6.5L4.8 9L10 3"/></svg>'; }
+  function arrowSvg() { return '<svg viewBox="0 0 12 12" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6H9.5M6.5 3L9.5 6L6.5 9"/></svg>'; }
+  function dotSvg() { return '<svg viewBox="0 0 12 12" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.6"/></svg>'; }
+  function chevronSvg() { return '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5L7 8.5L10 5.5"/></svg>'; }
+  function xSvg() { return '<svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M3.5 3.5L10.5 10.5M10.5 3.5L3.5 10.5"/></svg>'; }
+  function plusSvg() { return '<svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M7 2.5V11.5M2.5 7H11.5"/></svg>'; }
+  function lockSvg() { return '<svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6.5" width="8" height="6" rx="1"/><path d="M4.5 6.5V4.5a2.5 2.5 0 0 1 5 0v2"/></svg>'; }
+  function bellSvg() { return '<svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6a4 4 0 0 1 8 0c0 2 .6 3 1 3.5H2c.4-.5 1-1.5 1-3.5Z"/><path d="M5.5 11a1.5 1.5 0 0 0 3 0"/></svg>'; }
+  function noteSvg() { return '<svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2.5h8v9l-2.5 2-2.5-2-3 2v-11Z"/><path d="M5 5.5h4M5 8h4"/></svg>'; }
+
+  function statusIcon(status) { if (status === "done") return checkSvg(); if (status === "in_progress") return dotSvg(); if (status === "next_step") return arrowSvg(); return ""; }
+  function nextStatus(s) { var i = STATUSES.indexOf(s); return STATUSES[(i + 1) % STATUSES.length]; }
+
+  // ---------------- render ----------------
+
+  function boardsToShow() { return state.boards.slice().sort(function (a, b) { return (a.order || 0) - (b.order || 0); }); }
+
+  function renderTabs() {
+    var mount = document.getElementById("boardTabs");
+    mount.innerHTML = "";
+    var allTab = el("button", "board-tab" + (selectedBoardId === "__all__" ? " active" : ""), { type: "button", text: "All boards" });
+    allTab.addEventListener("click", function () { selectedBoardId = "__all__"; localStorage.setItem("daily-board-selected-board", selectedBoardId); render(); });
+    mount.appendChild(allTab);
+
+    boardsToShow().forEach(function (b) {
+      var tab = el("button", "board-tab" + (selectedBoardId === b.id ? " active" : ""), { type: "button", text: b.name });
+      tab.addEventListener("click", function () { selectedBoardId = b.id; localStorage.setItem("daily-board-selected-board", selectedBoardId); render(); });
+      mount.appendChild(tab);
+    });
+
+    var addTab = el("button", "board-tab add-board", { type: "button", text: "+ New board" });
+    addTab.addEventListener("click", function () {
+      var name = window.prompt("Name this board (e.g. a company or client name):");
+      if (name && name.trim()) socket.emit("addBoard", { name: name.trim() });
+    });
+    mount.appendChild(addTab);
+  }
+
+  function render() {
+    var now = new Date();
+    document.getElementById("greeting").textContent = greetingWord(now);
+    document.getElementById("dateLine").textContent = fmtDate(now);
+    renderTabs();
+
+    var showingAll = selectedBoardId === "__all__";
+    var visibleGroups = state.groups.filter(function (g) { return showingAll || g.boardId === selectedBoardId; });
+    var visibleGroupIds = {};
+    visibleGroups.forEach(function (g) { visibleGroupIds[g.id] = true; });
+    var visibleItems = state.items.filter(function (i) { return visibleGroupIds[i.groupId]; });
+
+    var totalItems = visibleItems.length;
+    var doneItems = visibleItems.filter(function (i) { return i.status === "done"; }).length;
+    var pct = totalItems ? Math.round((doneItems / totalItems) * 100) : 0;
+    document.getElementById("progressFill").style.width = pct + "%";
+    document.getElementById("progressLabel").textContent = doneItems + " of " + totalItems + " done";
+
+    var collapsed = getCollapsed();
+    var mount = document.getElementById("groupsMount");
+    mount.innerHTML = "";
+
+    var sortedGroups = visibleGroups.slice().sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+    var boardsById = {}; state.boards.forEach(function (b) { boardsById[b.id] = b; });
+
+    sortedGroups.forEach(function (g) {
+      var groupItems = state.items.filter(function (i) { return i.groupId === g.id; }).sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+      var isCollapsed = !!collapsed[g.id];
+
+      var groupEl = el("section", "group" + (isCollapsed ? " collapsed" : ""));
+      groupEl.style.setProperty("--accent", g.color || "#3C5A46");
+
+      var head = el("div", "group-head");
+      var chev = el("div", "chevron"); chev.innerHTML = chevronSvg(); head.appendChild(chev);
+
+      if (g.visibility === "private") {
+        var lock = el("span", "lock-icon"); lock.innerHTML = lockSvg(); lock.title = "Private — only visible to you"; head.appendChild(lock);
+      }
+
+      var nameInput = el("input", "group-name");
+      nameInput.value = g.name || "";
+      if (g.updatedBy) nameInput.title = "Renamed by " + g.updatedBy + " \u00b7 " + relTime(g.updatedAt);
+      else if (g.createdBy) nameInput.title = "Added by " + g.createdBy;
+      nameInput.addEventListener("click", function (e) { e.stopPropagation(); });
+      nameInput.addEventListener("change", function () { updateGroup(g.id, { name: nameInput.value.trim() || "Untitled" }); });
+      head.appendChild(nameInput);
+
+      if (showingAll && boardsById[g.boardId]) head.appendChild(el("span", "board-badge", { text: boardsById[g.boardId].name }));
+
+      var doneCount = groupItems.filter(function (i) { return i.status === "done"; }).length;
+      head.appendChild(el("span", "group-count", { text: groupItems.length ? (doneCount + "/" + groupItems.length) : "" }));
+
+      var delBtn = el("button", "group-del", { "aria-label": "Delete group", type: "button" });
+      delBtn.innerHTML = xSvg();
+      delBtn.addEventListener("click", function (e) { e.stopPropagation(); deleteGroup(g.id); });
+      head.appendChild(delBtn);
+
+      head.addEventListener("click", function () { var c = getCollapsed(); c[g.id] = !c[g.id]; setCollapsed(c); render(); });
+      groupEl.appendChild(head);
+
+      var body = el("div", "group-body");
+      groupItems.forEach(function (item) { body.appendChild(renderItem(item)); });
+
+      var addRow = el("div", "add-row");
+      var plus = el("div", "plus"); plus.innerHTML = plusSvg(); addRow.appendChild(plus);
+      var addInput = el("input", "add-input", { placeholder: "Add a task", type: "text" });
+      addInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && addInput.value.trim()) { addItem(g.id, addInput.value.trim(), groupItems.length); addInput.value = ""; }
+      });
+      addRow.appendChild(addInput);
+      body.appendChild(addRow);
+
+      groupEl.appendChild(body);
+      mount.appendChild(groupEl);
+    });
+
+    var addMount = document.getElementById("addGroupMount");
+    if (!addMount.dataset.formOpen) {
+      addMount.innerHTML = "";
+      if (!showingAll) {
+        var addGroupBtn = el("button", "add-group-btn", { type: "button" });
+        var pl = el("span"); pl.innerHTML = plusSvg();
+        addGroupBtn.appendChild(pl);
+        addGroupBtn.appendChild(document.createTextNode("Add group"));
+        addGroupBtn.addEventListener("click", function () { addMount.dataset.formOpen = "1"; renderAddGroupForm(); });
+        addMount.appendChild(addGroupBtn);
+      }
+    }
+  }
+
+  function renderAddGroupForm() {
+    var addMount = document.getElementById("addGroupMount");
+    addMount.innerHTML = "";
+    var form = el("div", "new-group-form");
+    var input = el("input", "", { placeholder: "Group name", type: "text" });
+    form.appendChild(input);
+    var privLabel = el("label");
+    var privCheck = el("input", "", { type: "checkbox" });
+    privLabel.appendChild(privCheck);
+    privLabel.appendChild(document.createTextNode("Private (only visible to you)"));
+    form.appendChild(privLabel);
+    var saveBtn = el("button", "", { type: "button", text: "Add" });
+    saveBtn.addEventListener("click", commit);
+    form.appendChild(saveBtn);
+    var cancelBtn = el("button", "cancel", { type: "button", text: "Cancel" });
+    cancelBtn.addEventListener("click", function () { delete addMount.dataset.formOpen; render(); });
+    form.appendChild(cancelBtn);
+    addMount.appendChild(form);
+    input.focus();
+    input.addEventListener("keydown", function (e) { if (e.key === "Enter") commit(); if (e.key === "Escape") { delete addMount.dataset.formOpen; render(); } });
+    function commit() {
+      var name = input.value.trim();
+      if (!name) { delete addMount.dataset.formOpen; render(); return; }
+      socket.emit("addGroup", { name: name, boardId: selectedBoardId, visibility: privCheck.checked ? "private" : "shared" });
+      delete addMount.dataset.formOpen;
+    }
+  }
+
   function renderItem(item) {
     var row = el("div", "item" + (item.status === "done" ? " is-done" : ""));
     var main = el("div", "item-main");
 
     var statusBtn = el("button", "status-btn " + item.status, { type: "button", "aria-label": "Task status" });
-    statusBtn.innerHTML = checkSvg();
-    statusBtn.addEventListener("click", function () {
-      var next = item.status === "not_started" ? "in_progress" : item.status === "in_progress" ? "done" : "not_started";
-      updateItem(item.id, { status: next });
-    });
+    statusBtn.innerHTML = statusIcon(item.status);
+    statusBtn.title = STATUS_LABELS[item.status];
+    statusBtn.addEventListener("click", function () { updateItem(item.id, { status: nextStatus(item.status) }); });
     main.appendChild(statusBtn);
+    main.appendChild(el("span", "status-label", { text: STATUS_LABELS[item.status] }));
 
     var titleInput = el("input", "item-title");
     titleInput.value = item.title || "";
     titleInput.addEventListener("change", function () { updateItem(item.id, { title: titleInput.value.trim() || "Untitled task" }); });
     main.appendChild(titleInput);
+
+    var assigneeSel = el("select", "assignee-select");
+    assigneeSel.appendChild(el("option", "", { value: "", text: "Unassigned" }));
+    team.forEach(function (t) {
+      var opt = el("option", "", { value: t.id, text: t.displayName });
+      if (item.assigneeId === t.id) opt.selected = true;
+      assigneeSel.appendChild(opt);
+    });
+    if (!item.assigneeId) assigneeSel.value = "";
+    assigneeSel.addEventListener("change", function () { updateItem(item.id, { assigneeId: assigneeSel.value || null }); });
+    main.appendChild(assigneeSel);
 
     var priorityLabels = { low: "Low", medium: "Medium", high: "High" };
     var priBtn = el("button", "priority-tag " + item.priority, { type: "button", text: priorityLabels[item.priority] || "Low" });
@@ -527,6 +440,30 @@
     });
     main.appendChild(dueBtn);
 
+    var notesBtn = el("button", "notes-btn" + (item.notes ? " has-notes" : ""), { type: "button", "aria-label": "Notes", title: "Notes" });
+    notesBtn.innerHTML = noteSvg();
+    notesBtn.addEventListener("click", function () {
+      var existing = row.querySelector(".item-notes");
+      if (existing) { existing.remove(); return; }
+      var ta = el("textarea", "item-notes", { placeholder: "Notes…" });
+      ta.value = item.notes || "";
+      ta.addEventListener("blur", function () { updateItem(item.id, { notes: ta.value }); });
+      row.appendChild(ta);
+      ta.focus();
+    });
+    main.appendChild(notesBtn);
+
+    var notifyBtn = el("button", "notify-btn" + (notifiedRecently[item.id] ? " sent" : ""), { type: "button", "aria-label": "Notify assignee", title: item.assigneeId ? "Notify it's their turn" : "Assign someone first" });
+    notifyBtn.innerHTML = bellSvg();
+    if (!item.assigneeId) notifyBtn.disabled = true;
+    notifyBtn.addEventListener("click", function () {
+      socket.emit("notifyTurn", { itemId: item.id });
+      notifiedRecently[item.id] = true;
+      notifyBtn.classList.add("sent");
+      setTimeout(function () { notifiedRecently[item.id] = false; }, 4000);
+    });
+    main.appendChild(notifyBtn);
+
     var delBtn = el("button", "item-del", { type: "button", "aria-label": "Delete task" });
     delBtn.innerHTML = xSvg();
     delBtn.addEventListener("click", function () { deleteItem(item.id); });
@@ -538,6 +475,10 @@
       var everEdited = item.updatedBy !== item.createdBy;
       var label = everEdited ? "Updated by " + item.updatedBy : "Added by " + (item.createdBy || item.updatedBy);
       row.appendChild(el("div", "item-meta", { text: label + " \u00b7 " + relTime(item.updatedAt) }));
+    }
+    if (item.notes) {
+      var preview = el("div", "item-meta", { text: "\uD83D\uDCDD " + item.notes.slice(0, 80) + (item.notes.length > 80 ? "…" : "") });
+      row.appendChild(preview);
     }
 
     return row;
@@ -555,42 +496,26 @@
   fetch("/api/me").then(function (r) {
     if (r.status === 401) { window.location.href = "/login.html"; return null; }
     return r.json();
-  }).then(function (data) {
-    if (data && data.user) applyMe(data.user);
-  }).catch(function () {});
+  }).then(function (data) { if (data && data.user) applyMe(data.user); }).catch(function () {});
 
   document.getElementById("logoutBtn").addEventListener("click", function () {
     fetch("/api/logout", { method: "POST" }).then(function () { window.location.href = "/login.html"; });
   });
 
   var pwForm = document.getElementById("pwForm");
-  document.getElementById("changePwBtn").addEventListener("click", function () {
-    pwForm.classList.toggle("open");
-  });
+  document.getElementById("changePwBtn").addEventListener("click", function () { pwForm.classList.toggle("open"); });
   pwForm.addEventListener("submit", function (e) {
     e.preventDefault();
     var msg = document.getElementById("pwMsg");
     msg.className = "pw-msg";
     var current = document.getElementById("pwCurrent").value;
     var next = document.getElementById("pwNew").value;
-    fetch("/api/change-password", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currentPassword: current, newPassword: next })
-    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+    fetch("/api/change-password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ currentPassword: current, newPassword: next }) })
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
       .then(function (res) {
-        if (res.ok) {
-          msg.textContent = "Password updated.";
-          msg.className = "pw-msg ok";
-          document.getElementById("pwCurrent").value = "";
-          document.getElementById("pwNew").value = "";
-        } else {
-          msg.textContent = res.data.error === "wrong_current_password" ? "Current password is wrong."
-            : res.data.error === "weak_password" ? "New password needs 6+ characters."
-            : "Couldn't update password.";
-        }
-      })
-      .catch(function () { msg.textContent = "Couldn't reach the server."; });
+        if (res.ok) { msg.textContent = "Password updated."; msg.className = "pw-msg ok"; document.getElementById("pwCurrent").value = ""; document.getElementById("pwNew").value = ""; }
+        else { msg.textContent = res.data.error === "wrong_current_password" ? "Current password is wrong." : res.data.error === "weak_password" ? "New password needs 6+ characters." : "Couldn't update password."; }
+      }).catch(function () { msg.textContent = "Couldn't reach the server."; });
   });
 
   // ---------------- socket wiring ----------------
@@ -599,30 +524,24 @@
   var statusEl = document.getElementById("connStatus");
   var statusLabel = document.getElementById("connLabel");
 
-  socket.on("connect", function () {
-    statusEl.className = "conn-status online";
-    statusLabel.textContent = "Live";
-  });
-  socket.on("disconnect", function () {
-    statusEl.className = "conn-status offline";
-    statusLabel.textContent = "Reconnecting…";
-  });
-  socket.on("auth_error", function () {
-    window.location.href = "/login.html";
-  });
+  socket.on("connect", function () { statusEl.className = "conn-status online"; statusLabel.textContent = "Live"; });
+  socket.on("disconnect", function () { statusEl.className = "conn-status offline"; statusLabel.textContent = "Reconnecting…"; });
+  socket.on("auth_error", function () { window.location.href = "/login.html"; });
   socket.on("me", function (user) { applyMe(user); });
+  socket.on("team", function (t) { team = t || []; render(); });
   socket.on("state", function (s) {
+    state.boards = s.boards || [];
     state.groups = s.groups || [];
     state.items = s.items || [];
+    if (selectedBoardId !== "__all__" && !state.boards.some(function (b) { return b.id === selectedBoardId; })) selectedBoardId = "__all__";
     render();
   });
 
-  function addGroup(name) { socket.emit("addGroup", { name: name }); }
-  function updateGroup(id, patch) { socket.emit("updateGroup", { id: id, patch: patch }); }
-  function deleteGroup(id) { socket.emit("deleteGroup", { id: id }); }
   function addItem(groupId, title, order) { socket.emit("addItem", { groupId: groupId, title: title, order: order }); }
   function updateItem(id, patch) { socket.emit("updateItem", { id: id, patch: patch }); }
   function deleteItem(id) { socket.emit("deleteItem", { id: id }); }
+  function updateGroup(id, patch) { socket.emit("updateGroup", { id: id, patch: patch }); }
+  function deleteGroup(id) { socket.emit("deleteGroup", { id: id }); }
 
   render();
 })();

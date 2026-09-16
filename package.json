@@ -10,8 +10,10 @@
     "bcryptjs": "^3.0.3",
     "express": "^4.19.2",
     "express-session": "^1.19.0",
-    "socket.io": "^4.7.5",
-    "socket.io-client": "^4.8.3"
+    "imapflow": "^2.0.5",
+    "mailparser": "^3.9.28",
+    "nodemailer": "^10.0.10",
+    "socket.io": "^4.7.5"
   },
   "engines": {
     "node": ">=18"

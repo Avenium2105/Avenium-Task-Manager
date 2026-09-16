@@ -88,7 +88,7 @@
   <p class="lead">Add, edit, or remove the accounts that can sign in to the board.</p>
 
   <table id="usersTable">
-    <thead><tr><th>User</th><th>Role</th><th>Added</th><th></th></tr></thead>
+    <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Added</th><th></th></tr></thead>
     <tbody id="usersBody"></tbody>
   </table>
 
@@ -96,6 +96,7 @@
     <div class="fields">
       <input id="newUsername" placeholder="Username" autocomplete="off">
       <input id="newDisplayName" placeholder="Display name (optional)" autocomplete="off">
+      <input id="newEmail" placeholder="Email (for notifications)" type="email" autocomplete="off">
       <input id="newPassword" placeholder="Temporary password" type="text" autocomplete="off">
       <select id="newRole">
         <option value="member">Member</option>
@@ -151,6 +152,8 @@
       nameTd.innerHTML = "<strong>" + escapeHtml(u.displayName) + "</strong><br><span style='color:var(--ink-faint);font-size:12px;'>" + escapeHtml(u.username) + "</span>";
       tr.appendChild(nameTd);
 
+      tr.appendChild(el("td", "", { text: u.email || "—" }));
+
       var roleTd = el("td");
       roleTd.appendChild(el("span", "role-badge" + (u.role === "member" ? " member" : ""), { text: u.role === "admin" ? "Admin" : "Member" }));
       tr.appendChild(roleTd);
@@ -170,13 +173,17 @@
       tr.appendChild(actionsTd);
 
       var panelRow = el("tr");
-      var panelTd = el("td", "", { colspan: "4" });
+      var panelTd = el("td", "", { colspan: "5" });
       panelTd.style.padding = "0";
       var panel = el("div", "edit-panel");
       var fields = el("div", "fields");
       var nameInput = el("input", "", { type: "text", placeholder: "Display name" });
       nameInput.value = u.displayName;
       fields.appendChild(nameInput);
+
+      var emailInput = el("input", "", { type: "email", placeholder: "Email" });
+      emailInput.value = u.email || "";
+      fields.appendChild(emailInput);
 
       var roleSel = el("select");
       roleSel.innerHTML = '<option value="member">Member</option><option value="admin">Admin</option>';
@@ -196,7 +203,7 @@
 
       editBtn.addEventListener("click", function () { panel.classList.toggle("open"); });
       saveBtn.addEventListener("click", function () {
-        var body = { displayName: nameInput.value.trim(), role: roleSel.value };
+        var body = { displayName: nameInput.value.trim(), email: emailInput.value.trim(), role: roleSel.value };
         if (pwInput.value.trim()) body.password = pwInput.value.trim();
         fetch("/api/users/" + u.id, {
           method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body)
@@ -230,6 +237,7 @@
     var body = {
       username: document.getElementById("newUsername").value.trim(),
       displayName: document.getElementById("newDisplayName").value.trim(),
+      email: document.getElementById("newEmail").value.trim(),
       password: document.getElementById("newPassword").value.trim(),
       role: document.getElementById("newRole").value
     };
@@ -244,6 +252,7 @@
           msg.className = "msg ok";
           document.getElementById("newUsername").value = "";
           document.getElementById("newDisplayName").value = "";
+          document.getElementById("newEmail").value = "";
           document.getElementById("newPassword").value = "";
           loadUsers();
         } else {
