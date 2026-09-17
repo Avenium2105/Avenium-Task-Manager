@@ -78,7 +78,9 @@
 
   /* board tabs — a modern segmented control instead of underlined text tabs */
   .board-tabs { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; margin: 22px 0 26px; background: var(--line-soft); border-radius: 12px; padding: 4px; }
-  .board-tab-wrap { display: inline-flex; align-items: center; border-radius: 9px; }
+  .board-tab-wrap { display: inline-flex; align-items: center; border-radius: 9px; cursor: grab; }
+  .board-tab-wrap:active { cursor: grabbing; }
+  .board-tab-wrap.drag-over { box-shadow: inset 0 0 0 2px var(--slate); }
   .board-tab {
     font-family: inherit; font-size: 13px; color: var(--ink-soft); background: none; border: none;
     padding: 8px 14px; cursor: pointer; border-radius: 9px; transition: background 0.15s, color 0.15s, box-shadow 0.15s;
@@ -91,27 +93,26 @@
   .board-tab-rename:hover { color: var(--pine); background: var(--bg-raised); }
   .board-tab-delete { font-family: inherit; font-size: 14px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 6px 6px; border-radius: 6px; }
   .board-tab-delete:hover { color: var(--brick); background: var(--bg-raised); }
-  .board-section { margin-bottom: 30px; }
+  .board-section { margin-bottom: 30px; border-radius: 8px; transition: background 0.1s; }
+  .board-section.drag-over { background: var(--slate-soft); }
   .board-section-head { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
   .board-section-title { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 19px; color: var(--ink); letter-spacing: -0.01em; }
-  .board-section-reorder { display: flex; flex-direction: column; }
-  .board-section-move { width: 22px; height: 16px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; padding: 0; }
-  .board-section-move:hover:not(:disabled) { background: var(--line-soft); color: var(--ink); }
-  .board-section-move:disabled { color: var(--line); cursor: default; }
+  .board-section-drag-handle { flex-shrink: 0; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; color: var(--ink-faint); cursor: grab; border-radius: 6px; }
+  .board-section-drag-handle:hover { background: var(--line-soft); color: var(--ink); }
+  .board-section-drag-handle:active { cursor: grabbing; }
 
-  .group { margin-bottom: 20px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(34,38,31,0.05), 0 1px 8px rgba(34,38,31,0.04); transition: box-shadow 0.15s; }
+  .group { margin-bottom: 20px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(34,38,31,0.05), 0 1px 8px rgba(34,38,31,0.04); transition: box-shadow 0.15s, background 0.1s; }
   .group:hover { box-shadow: 0 2px 4px rgba(34,38,31,0.06), 0 4px 14px rgba(34,38,31,0.06); }
+  .group.drag-over { background: var(--slate-soft); }
   .group-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 14px 0; cursor: pointer; user-select: none; border-left: 4px solid var(--accent, var(--pine)); }
-  .group-head .chevron { width: 14px; height: 14px; margin-left: 14px; flex-shrink: 0; color: var(--ink-faint); transition: transform 0.18s ease; }
+  .group-drag-handle { flex-shrink: 0; width: 30px; height: 30px; margin-left: 6px; display: flex; align-items: center; justify-content: center; color: var(--ink-faint); cursor: grab; border-radius: 6px; }
+  .group-drag-handle:hover { background: var(--line-soft); color: var(--ink); }
+  .group-drag-handle:active { cursor: grabbing; }
+  .group-head .chevron { width: 14px; height: 14px; margin-left: 4px; flex-shrink: 0; color: var(--ink-faint); transition: transform 0.18s ease; }
   .group.collapsed .group-head .chevron { transform: rotate(-90deg); }
   .group-name { font-weight: 600; font-size: 15px; color: var(--ink); background: transparent; border: none; outline: none; padding: 3px 2px; border-radius: 5px; flex: 1; min-width: 0; font-family: inherit; }
   .group-name:hover, .group-name:focus { background: var(--line-soft); }
   .lock-icon { flex-shrink: 0; color: var(--ink-faint); display: flex; align-items: center; }
-  .group-count { font-size: 12px; font-weight: 500; color: var(--ink-soft); font-variant-numeric: tabular-nums; flex-shrink: 0; background: var(--line-soft); padding: 2px 8px; border-radius: 20px; }
-  .group-reorder { flex-shrink: 0; display: flex; flex-direction: column; }
-  .group-move { width: 22px; height: 16px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; padding: 0; }
-  .group-move:hover:not(:disabled) { background: var(--line-soft); color: var(--ink); }
-  .group-move:disabled { color: var(--line); cursor: default; }
   .group-del { flex-shrink: 0; width: 32px; height: 32px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
   .group-del svg { width: 15px; height: 15px; }
   .group-del:hover { background: var(--brick-soft); color: var(--brick); }
@@ -121,6 +122,7 @@
   .item { display: flex; flex-direction: column; padding: 10px 16px 9px 20px; border-top: 1px solid var(--line-soft); transition: background 0.1s; cursor: pointer; }
   .item:hover { background: var(--line-soft); }
   .item.selected { background: var(--slate-soft); }
+  .item.drag-over { background: var(--ochre-soft); }
   .item-main { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
   .item-meta { font-size: 12px; color: var(--ink-faint); }
   .item-notes { font-size: 12.5px; color: var(--ink-soft); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin: 6px 0 0 30px; width: calc(100% - 30px); font-family: inherit; resize: vertical; min-height: 30px; outline: none; }
@@ -184,6 +186,8 @@
   .task-panel-body { display: flex; flex-direction: column; gap: 10px; }
   .task-panel-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
   .task-panel-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .task-panel-col:first-child { border-right: 1px solid var(--line); padding-right: 18px; }
+  .task-panel-chat-col { display: flex; flex-direction: column; }
   .details-section-label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); margin-bottom: 4px; }
   .details-notes { font-size: 13px; color: var(--ink-soft); background: var(--bg-raised); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; width: 100%; font-family: inherit; resize: vertical; min-height: 220px; outline: none; line-height: 1.5; }
 
@@ -199,14 +203,27 @@
   .file-drop:hover, .file-drop.drag-over { border-color: var(--pine); color: var(--pine); background: var(--pine-soft); }
   .file-drop input[type=file] { display: none; }
 
-  .item-chat { display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; }
-  .chat-msg { font-size: 12.5px; line-height: 1.4; }
-  .chat-msg .chat-who { font-weight: 600; color: var(--ink); }
-  .chat-msg .chat-when { color: var(--ink-faint); font-size: 11px; margin-left: 4px; }
+  /* WhatsApp-style chat bubbles: own messages right-aligned/green, others left-aligned/white */
+  .task-chat-messages { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; padding: 4px 2px; }
+  .chat-row { display: flex; position: relative; }
+  .chat-row.mine { justify-content: flex-end; }
+  .chat-bubble { max-width: 78%; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 12px 12px 12px 3px; padding: 7px 10px; cursor: pointer; }
+  .chat-row.mine .chat-bubble { background: var(--pine-soft); border-color: var(--pine-soft); border-radius: 12px 12px 3px 12px; }
+  .chat-who { font-size: 11px; font-weight: 600; color: var(--slate); margin-bottom: 2px; }
+  .chat-text { font-size: 13px; color: var(--ink); line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+  .chat-when { font-size: 10px; color: var(--ink-faint); margin-top: 3px; text-align: right; }
   .chat-empty { color: var(--ink-faint); font-size: 12px; font-style: italic; }
-  .chat-input-row { display: flex; gap: 6px; }
+  .chat-input-row { display: flex; gap: 6px; flex-shrink: 0; margin-top: 8px; }
   .chat-input-row input { flex: 1; font-family: inherit; font-size: 12.5px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-raised); color: var(--ink); outline: none; }
   .chat-input-row button { font-family: inherit; font-size: 12px; font-weight: 500; padding: 6px 10px; border: none; border-radius: 6px; background: var(--slate); color: var(--bg-raised); cursor: pointer; }
+
+  .read-receipt-popover { position: absolute; z-index: 25; top: 100%; margin-top: 4px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 8px 10px; min-width: 160px; font-size: 12px; }
+  .chat-row.mine .read-receipt-popover { right: 0; }
+  .chat-row:not(.mine) .read-receipt-popover { left: 0; }
+  .read-receipt-title { font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+  .read-receipt-line { display: flex; justify-content: space-between; gap: 10px; color: var(--ink-soft); padding: 2px 0; }
+  .read-receipt-time { color: var(--ink-faint); white-space: nowrap; }
+  .read-receipt-empty { color: var(--ink-faint); font-style: italic; }
 
   .mention-dropdown { position: absolute; z-index: 40; bottom: 100%; left: 0; margin-bottom: 4px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 4px; min-width: 160px; max-height: 160px; overflow-y: auto; }
   .mention-item { font-size: 12.5px; padding: 6px 9px; border-radius: 5px; cursor: pointer; }
@@ -265,7 +282,7 @@
 <aside class="board-chat" id="boardChat" style="display:none;">
   <div class="board-chat-head" id="boardChatHead"></div>
   <div class="board-chat-body" id="boardChatBody"></div>
-  <div class="board-chat-foot">
+  <div class="board-chat-foot" id="boardChatFoot">
     <div class="chat-input-row">
       <input type="text" id="boardChatInput" placeholder="Message this board… use @name to mention">
       <button id="boardChatSend" type="button">Send</button>
@@ -294,6 +311,9 @@
   var openBoardAccess = {}; // boardId -> true while its access popover is open
   var openBoardMenus = {}; // boardId -> true while its 3-dot options menu is open
   var collapsedItems = {}; // itemId -> true while collapsed to title-only
+  var dragState = { type: null, id: null }; // in-progress native drag (group / item / board-section / board-tab)
+  var openMessagePopovers = {}; // messageId -> true while its "read by" popover is open
+  var openNewBoardForm = false; // true while the "+ new board" popover form is showing
   var selectedItemId = null; // when set, the right-side panel shows this task's notes/files/chat instead of board chat
 
   function getCollapsed() { try { var raw = localStorage.getItem(collapsedKey); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; } }
@@ -339,6 +359,37 @@
     return (n / (1024 * 1024)).toFixed(1) + " MB";
   }
 
+  // ---- generic native drag-and-drop: dragging one row onto another swaps
+  // their order. Used for groups, tasks, board sections, and board tabs.
+  // Note: this is desktop mouse-drag only (HTML5 drag-and-drop isn't
+  // triggered by touch), so touch/mobile users won't be able to drag.
+  function makeDragSource(handleEl, type, id) {
+    handleEl.draggable = true;
+    handleEl.addEventListener("dragstart", function (e) {
+      e.stopPropagation();
+      dragState = { type: type, id: id };
+      if (e.dataTransfer) { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", id); }
+    });
+    handleEl.addEventListener("dragend", function () { dragState = { type: null, id: null }; });
+  }
+  function makeDropTarget(targetEl, type, id, onSwap) {
+    targetEl.addEventListener("dragover", function (e) {
+      if (dragState.type === type && dragState.id && dragState.id !== id) {
+        e.preventDefault();
+        targetEl.classList.add("drag-over");
+      }
+    });
+    targetEl.addEventListener("dragleave", function () { targetEl.classList.remove("drag-over"); });
+    targetEl.addEventListener("drop", function (e) {
+      targetEl.classList.remove("drag-over");
+      if (dragState.type === type && dragState.id && dragState.id !== id) {
+        e.preventDefault();
+        onSwap(dragState.id, id);
+      }
+      dragState = { type: null, id: null };
+    });
+  }
+
   function escapeHtml(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c];
@@ -361,6 +412,7 @@
   // ---------------- render ----------------
 
   function boardsToShow() { return state.boards.slice().sort(function (a, b) { return (a.order || 0) - (b.order || 0); }); }
+  function boardsInTabOrder() { return state.boards.slice().sort(function (a, b) { return (a.tabOrder || 0) - (b.tabOrder || 0); }); }
 
   function renderTabs() {
     var mount = document.getElementById("boardTabs");
@@ -370,8 +422,10 @@
     mount.appendChild(allTab);
 
     var isAdmin = currentUser && currentUser.role === "admin";
-    boardsToShow().forEach(function (b) {
-      var wrap = el("span", "board-tab-wrap");
+    boardsInTabOrder().forEach(function (b) {
+      var wrap = el("span", "board-tab-wrap", { title: "Drag to reorder tabs" });
+      makeDragSource(wrap, "board-tab", b.id);
+      makeDropTarget(wrap, "board-tab", b.id, function (srcId, targetId) { socket.emit("swapBoardTabOrder", { idA: srcId, idB: targetId }); });
       var tab = el("button", "board-tab" + (selectedBoardId === b.id ? " active" : ""), { type: "button", text: b.name });
       tab.addEventListener("click", function () { selectedBoardId = b.id; localStorage.setItem("daily-board-selected-board", selectedBoardId); render(); });
       wrap.appendChild(tab);
@@ -476,12 +530,41 @@
       mount.appendChild(wrap);
     });
 
+    var addWrap = el("span", "board-tab-wrap");
     var addTab = el("button", "board-tab add-board", { type: "button", text: "+", title: "New board" });
-    addTab.addEventListener("click", function () {
-      var name = window.prompt("Name this board (e.g. a company or client name):");
-      if (name && name.trim()) socket.emit("addBoard", { name: name.trim() });
+    addTab.addEventListener("click", function (e) {
+      e.stopPropagation();
+      openNewBoardForm = !openNewBoardForm;
+      render();
     });
-    mount.appendChild(addTab);
+    addWrap.appendChild(addTab);
+    if (openNewBoardForm) {
+      var newBoardPop = el("div", "board-access-popover");
+      newBoardPop.addEventListener("click", function (e) { e.stopPropagation(); });
+      var nameInput2 = el("input", "", { type: "text", placeholder: "Board name (e.g. a client)" });
+      nameInput2.style.width = "100%";
+      nameInput2.style.marginBottom = "8px";
+      newBoardPop.appendChild(nameInput2);
+      var privLbl = el("label");
+      var privChk = el("input", "", { type: "checkbox" });
+      privLbl.appendChild(privChk);
+      privLbl.appendChild(document.createTextNode("Private (no one else can see this board, or that you created it)"));
+      newBoardPop.appendChild(privLbl);
+      var createBtn = el("button", "add-group-btn", { type: "button", text: "Create board" });
+      createBtn.style.marginTop = "8px";
+      createBtn.addEventListener("click", function () {
+        var name = nameInput2.value.trim();
+        if (name) {
+          socket.emit("addBoard", { name: name, isPrivate: privChk.checked });
+          openNewBoardForm = false;
+          render();
+        }
+      });
+      newBoardPop.appendChild(createBtn);
+      addWrap.appendChild(newBoardPop);
+      setTimeout(function () { nameInput2.focus(); }, 0);
+    }
+    mount.appendChild(addWrap);
   }
 
   function render() {
@@ -512,6 +595,14 @@
       groupEl.style.setProperty("--accent", g.color || "#3C5A46");
 
       var head = el("div", "group-head");
+
+      var dragHandle = el("span", "group-drag-handle", { title: "Drag to reorder" });
+      dragHandle.innerHTML = '<svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 4h10M2 7h10M2 10h10"/></svg>';
+      dragHandle.addEventListener("click", function (e) { e.stopPropagation(); });
+      makeDragSource(dragHandle, "group", g.id);
+      head.appendChild(dragHandle);
+      makeDropTarget(groupEl, "group", g.id, function (srcId, targetId) { socket.emit("swapGroupOrder", { idA: srcId, idB: targetId }); });
+
       var chev = el("div", "chevron"); chev.innerHTML = chevronSvg(); head.appendChild(chev);
 
       if (g.visibility === "private") {
@@ -525,27 +616,6 @@
       nameInput.addEventListener("click", function (e) { e.stopPropagation(); });
       nameInput.addEventListener("change", function () { updateGroup(g.id, { name: nameInput.value.trim() || "Untitled" }); });
       head.appendChild(nameInput);
-
-      var reorderWrap = el("span", "group-reorder");
-      var upBtn = el("button", "group-move", { type: "button", "aria-label": "Move group up" });
-      upBtn.innerHTML = '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5L6 4L9.5 7.5"/></svg>';
-      if (gIndex === 0) upBtn.disabled = true;
-      upBtn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        var prev = reorderList[gIndex - 1];
-        if (prev) socket.emit("swapGroupOrder", { idA: g.id, idB: prev.id });
-      });
-      reorderWrap.appendChild(upBtn);
-      var downBtn = el("button", "group-move", { type: "button", "aria-label": "Move group down" });
-      downBtn.innerHTML = '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5L6 8L9.5 4.5"/></svg>';
-      if (gIndex === reorderList.length - 1) downBtn.disabled = true;
-      downBtn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        var next = reorderList[gIndex + 1];
-        if (next) socket.emit("swapGroupOrder", { idA: g.id, idB: next.id });
-      });
-      reorderWrap.appendChild(downBtn);
-      head.appendChild(reorderWrap);
 
       if (!allGroupItems.length) {
         var delBtn = el("button", "group-del", { "aria-label": "Delete group", type: "button" });
@@ -582,26 +652,14 @@
 
         var section = el("div", "board-section");
         var sHead = el("div", "board-section-head");
-        sHead.appendChild(el("span", "board-section-title", { text: b.name }));
 
-        var sReorder = el("span", "board-section-reorder");
-        var sUp = el("button", "board-section-move", { type: "button", "aria-label": "Move board up" });
-        sUp.innerHTML = '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5L6 4L9.5 7.5"/></svg>';
-        if (bIndex === 0) sUp.disabled = true;
-        sUp.addEventListener("click", function () {
-          var prev = boardsInOrder[bIndex - 1];
-          if (prev) socket.emit("swapBoardOrder", { idA: b.id, idB: prev.id });
-        });
-        sReorder.appendChild(sUp);
-        var sDown = el("button", "board-section-move", { type: "button", "aria-label": "Move board down" });
-        sDown.innerHTML = '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5L6 8L9.5 4.5"/></svg>';
-        if (bIndex === boardsInOrder.length - 1) sDown.disabled = true;
-        sDown.addEventListener("click", function () {
-          var next = boardsInOrder[bIndex + 1];
-          if (next) socket.emit("swapBoardOrder", { idA: b.id, idB: next.id });
-        });
-        sReorder.appendChild(sDown);
-        sHead.appendChild(sReorder);
+        var sHandle = el("span", "board-section-drag-handle", { title: "Drag to reorder" });
+        sHandle.innerHTML = '<svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 4h10M2 7h10M2 10h10"/></svg>';
+        makeDragSource(sHandle, "board-section", b.id);
+        sHead.appendChild(sHandle);
+        makeDropTarget(section, "board-section", b.id, function (srcId, targetId) { socket.emit("swapBoardOrder", { idA: srcId, idB: targetId }); });
+
+        sHead.appendChild(el("span", "board-section-title", { text: b.name }));
         section.appendChild(sHead);
 
         boardGroups.forEach(function (g, gIndex) { section.appendChild(renderGroupSection(g, boardGroups, gIndex)); });
@@ -658,13 +716,15 @@
     var row = el("div", "item" + (item.archived ? " is-done" : "") + (item.id === selectedItemId ? " selected" : "") + (isCollapsed ? " item-collapsed" : ""));
     var main = el("div", "item-main");
 
-    var collapseBtn = el("button", "item-collapse-btn", { type: "button", "aria-label": isCollapsed ? "Expand task" : "Collapse task" });
+    var collapseBtn = el("button", "item-collapse-btn", { type: "button", "aria-label": isCollapsed ? "Expand task" : "Collapse task", title: "Click to collapse \u00b7 drag to reorder" });
     collapseBtn.innerHTML = chevronSvg();
     collapseBtn.addEventListener("click", function (e) {
       e.stopPropagation();
       collapsedItems[item.id] = !isCollapsed;
       render();
     });
+    makeDragSource(collapseBtn, "item", item.id);
+    makeDropTarget(row, "item", item.id, function (srcId, targetId) { socket.emit("swapItemOrder", { idA: srcId, idB: targetId }); });
     main.appendChild(collapseBtn);
 
     var titleInput = el("input", "item-title");
@@ -759,16 +819,6 @@
 
     function renderStepRow(s) {
       var stepRow = el("div", "step-row" + (s.done ? " done" : ""));
-      var textInput = el("input", "step-text", { type: "text" });
-      textInput.value = s.text || "";
-      textInput.addEventListener("change", function () {
-        if (textInput.value.trim() && textInput.value.trim() !== s.text) {
-          socket.emit("updateTaskStep", { itemId: item.id, stepId: s.id, text: textInput.value.trim() });
-        } else {
-          textInput.value = s.text || "";
-        }
-      });
-      stepRow.appendChild(textInput);
 
       var rowMenuWrap = el("span", "step-row-menu-wrap");
       var rowMenuBtn = el("button", "step-row-menu-btn", { type: "button", "aria-label": "Step options" });
@@ -798,6 +848,18 @@
         rowMenuWrap.appendChild(rowMenu);
       }
       stepRow.appendChild(rowMenuWrap);
+
+      var textInput = el("input", "step-text", { type: "text" });
+      textInput.value = s.text || "";
+      textInput.addEventListener("change", function () {
+        if (textInput.value.trim() && textInput.value.trim() !== s.text) {
+          socket.emit("updateTaskStep", { itemId: item.id, stepId: s.id, text: textInput.value.trim() });
+        } else {
+          textInput.value = s.text || "";
+        }
+      });
+      stepRow.appendChild(textInput);
+
       return stepRow;
     }
 
@@ -937,23 +999,71 @@
     left.appendChild(drop);
     cols.appendChild(left);
 
-    var right = el("div", "task-panel-col");
+    var right = el("div", "task-panel-col task-panel-chat-col");
     right.appendChild(el("div", "details-section-label", { text: "Chat" }));
+    var chatMsgsWrap = el("div", "task-chat-messages");
     var chatMsgs = state.messages.filter(function (m) { return m.scope === "item" && m.scopeId === item.id; });
     if (!chatMsgs.length) {
-      right.appendChild(el("div", "chat-empty", { text: "No messages yet." }));
+      chatMsgsWrap.appendChild(el("div", "chat-empty", { text: "No messages yet." }));
     } else {
-      chatMsgs.forEach(function (m) { right.appendChild(renderChatMsg(m)); });
+      chatMsgs.forEach(function (m) { chatMsgsWrap.appendChild(renderChatMsg(m)); });
     }
+    right.appendChild(chatMsgsWrap);
+
+    var chatForm = el("form", "chat-input-row task-chat-input");
+    var chatInput = el("input", "", { type: "text", placeholder: "Message about this task\u2026 use @name to mention", enterkeyhint: "send" });
+    chatForm.appendChild(chatInput);
+    var chatSend = el("button", "", { type: "submit", text: "Send" });
+    chatForm.appendChild(chatSend);
+    chatForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (chatInput.value.trim()) { socket.emit("addMessage", { scope: "item", scopeId: item.id, text: chatInput.value.trim() }); chatInput.value = ""; }
+    });
+    attachMentionAutocomplete(chatInput, function () { return team; });
+    right.appendChild(chatForm);
+
     cols.appendChild(right);
     wrap.appendChild(cols);
+
+    socket.emit("markMessagesRead", { scope: "item", scopeId: item.id });
+    setTimeout(function () { chatMsgsWrap.scrollTop = chatMsgsWrap.scrollHeight; }, 0);
     return wrap;
   }
 
   function renderChatMsg(m) {
-    var el1 = el("div", "chat-msg");
-    el1.innerHTML = "<span class=\"chat-who\">" + escapeHtml(m.byName) + "</span><span class=\"chat-when\">" + relTime(m.at) + "</span><br>" + renderMentionText(m.text);
-    return el1;
+    var isMine = currentUser && m.byId === currentUser.id;
+    var row = el("div", "chat-row" + (isMine ? " mine" : ""));
+    var bubble = el("div", "chat-bubble");
+    if (!isMine) bubble.appendChild(el("div", "chat-who", { text: m.byName }));
+    var textEl = el("div", "chat-text");
+    textEl.innerHTML = renderMentionText(m.text);
+    bubble.appendChild(textEl);
+    bubble.appendChild(el("div", "chat-when", { text: relTime(m.at) }));
+    bubble.addEventListener("click", function (e) {
+      e.stopPropagation();
+      openMessagePopovers[m.id] = !openMessagePopovers[m.id];
+      render();
+    });
+    row.appendChild(bubble);
+
+    if (openMessagePopovers[m.id]) {
+      var readers = (m.readBy || []).filter(function (r) { return r.userId !== m.byId; });
+      var pop = el("div", "read-receipt-popover");
+      pop.addEventListener("click", function (e) { e.stopPropagation(); });
+      if (!readers.length) {
+        pop.appendChild(el("div", "read-receipt-empty", { text: "Not read by anyone else yet." }));
+      } else {
+        pop.appendChild(el("div", "read-receipt-title", { text: "Read by" }));
+        readers.forEach(function (r) {
+          var line = el("div", "read-receipt-line");
+          line.appendChild(el("span", "", { text: r.userName }));
+          line.appendChild(el("span", "read-receipt-time", { text: relTime(r.at) }));
+          pop.appendChild(line);
+        });
+      }
+      row.appendChild(pop);
+    }
+    return row;
   }
 
   function uploadItemFile(itemId, file) {
@@ -975,14 +1085,14 @@
     aside.style.display = "flex";
     var head = document.getElementById("boardChatHead");
     var body = document.getElementById("boardChatBody");
-    var input = document.getElementById("boardChatInput");
-    var sendBtn = document.getElementById("boardChatSend");
+    var foot = document.getElementById("boardChatFoot");
 
     var selectedItem = selectedItemId ? state.items.find(function (i) { return i.id === selectedItemId; }) : null;
     if (selectedItemId && !selectedItem) selectedItemId = null; // task no longer visible (deleted/filtered) — fall back
 
     if (selectedItem) {
       aside.classList.add("task-mode");
+      foot.style.display = "none"; // task mode has its own input under the chat column instead
       head.innerHTML = "";
       head.appendChild(el("span", "head-title", { text: selectedItem.title }));
       var backBtn = el("button", "board-chat-back", { type: "button", text: "\u2190 Board chat" });
@@ -991,21 +1101,10 @@
 
       body.innerHTML = "";
       body.appendChild(renderTaskPanelBody(selectedItem));
-      body.scrollTop = body.scrollHeight;
-
-      input.disabled = false; sendBtn.disabled = false;
-      input.placeholder = "Message about this task\u2026 use @name to mention";
-      var newSendBtn2 = sendBtn.cloneNode(true); sendBtn.parentNode.replaceChild(newSendBtn2, sendBtn);
-      var newInput2 = input.cloneNode(true); newInput2.value = input.value; input.parentNode.replaceChild(newInput2, input);
-      function sendItemMsg() {
-        if (newInput2.value.trim()) { socket.emit("addMessage", { scope: "item", scopeId: selectedItem.id, text: newInput2.value.trim() }); newInput2.value = ""; }
-      }
-      newSendBtn2.addEventListener("click", sendItemMsg);
-      newInput2.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); sendItemMsg(); } });
-      attachMentionAutocomplete(newInput2, function () { return team; });
       return;
     }
 
+    foot.style.display = "";
     renderBoardChat(board);
   }
 
@@ -1053,6 +1152,7 @@
     attachMentionAutocomplete(newInput, function () {
       return team.filter(function (t) { return !board.memberIds || board.memberIds.includes(t.id); });
     });
+    socket.emit("markMessagesRead", { scope: "board", scopeId: board.id });
   }
 
   // Reusable @mention autocomplete: shows a small dropdown of matching team
@@ -1130,9 +1230,9 @@
 
   // Close any open step-menu / assignee-picker / board-access popover when clicking elsewhere.
   document.addEventListener("click", function () {
-    var changed = Object.keys(openAssigneePickers).length || Object.keys(openBoardAccess).length || Object.keys(openStepMenus).length || Object.keys(openBoardMenus).length || Object.keys(openStepRowMenus).length;
+    var changed = Object.keys(openAssigneePickers).length || Object.keys(openBoardAccess).length || Object.keys(openStepMenus).length || Object.keys(openBoardMenus).length || Object.keys(openStepRowMenus).length || Object.keys(openMessagePopovers).length || openNewBoardForm;
     if (changed) {
-      openAssigneePickers = {}; openBoardAccess = {}; openStepMenus = {}; openBoardMenus = {}; openStepRowMenus = {};
+      openAssigneePickers = {}; openBoardAccess = {}; openStepMenus = {}; openBoardMenus = {}; openStepRowMenus = {}; openMessagePopovers = {}; openNewBoardForm = false;
       render();
     }
   });

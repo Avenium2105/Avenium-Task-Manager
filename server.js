@@ -32,6 +32,11 @@ function uid(prefix) {
   return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 }
 function nowIso() { return new Date().toISOString(); }
+// Capitalize the first letter of a task title (and after ". "/"! "/"? ")
+// so titles read naturally without the user having to think about it.
+function autoCapitalize(s) {
+  return s.replace(/(^|[.!?]\s+)([a-z])/g, (m, sep, ch) => sep + ch.toUpperCase());
+}
 
 // ---------- session secret ----------
 
@@ -47,7 +52,7 @@ function loadOrCreateSecret() {
 
 function loadState() {
   const now = Date.now();
-  const defaultBoard = { id: "b" + now, name: "General", order: 0, createdAt: now, memberIds: null };
+  const defaultBoard = { id: "b" + now, name: "General", order: 0, tabOrder: 0, createdAt: now, memberIds: null };
 
   if (fs.existsSync(DATA_FILE)) {
     try {
@@ -56,7 +61,7 @@ function loadState() {
       const firstBoardId = boards[0].id;
       // memberIds === null/undefined means "open to everyone" — how every
       // board created before access control existed keeps working.
-      boards.forEach((b) => { if (!("memberIds" in b)) b.memberIds = null; });
+      boards.forEach((b) => { if (!("memberIds" in b)) b.memberIds = null; if (typeof b.tabOrder !== "number") b.tabOrder = b.order || 0; });
       const groups = (Array.isArray(raw.groups) ? raw.groups : []).map((g) => ({
         visibility: "shared",
         boardId: firstBoardId,
@@ -676,18 +681,20 @@ io.on("connection", (socket) => {
   socket.emit("team", activeUsers().map(teamMember));
 
   // ---- boards ----
-  socket.on("addBoard", ({ name }) => {
+  socket.on("addBoard", ({ name, isPrivate }) => {
     if (!name || typeof name !== "string") return;
     const board = {
-      id: uid("b"), name: name.trim().slice(0, 100) || "Untitled board", order: state.boards.length,
+      id: uid("b"), name: name.trim().slice(0, 100) || "Untitled board",
+      order: state.boards.length, tabOrder: state.boards.length,
       createdAt: Date.now(), createdBy: actorName(),
       // Admins create boards open to everyone by default (matches how shared company
       // boards have always worked); anyone else's board starts private to just them,
-      // until an admin grants access to others.
-      memberIds: user.role === "admin" ? null : [user.id]
+      // until an admin grants access to others. Checking "Private" forces it private
+      // regardless of role, and its creation is never announced to anyone else.
+      memberIds: isPrivate ? [user.id] : (user.role === "admin" ? null : [user.id])
     };
     state.boards.push(board);
-    logActivity(`${actorName()} created the board "${board.name}"`);
+    if (!isPrivate) logActivity(`${actorName()} created the board "${board.name}"`);
     persist();
     broadcastState();
   });
@@ -741,6 +748,19 @@ io.on("connection", (socket) => {
     const tmp = a.order;
     a.order = b.order;
     b.order = tmp;
+    persist();
+    broadcastState();
+  });
+
+  // Separate from swapBoardOrder: this reorders the tabs at the top only,
+  // independent of how boards are grouped/ordered in the "All boards" view.
+  socket.on("swapBoardTabOrder", ({ idA, idB }) => {
+    const a = boardById(idA);
+    const b = boardById(idB);
+    if (!a || !b || !canSeeBoard(a, user) || !canSeeBoard(b, user)) return;
+    const tmp = a.tabOrder;
+    a.tabOrder = b.tabOrder;
+    b.tabOrder = tmp;
     persist();
     broadcastState();
   });
@@ -813,7 +833,7 @@ io.on("connection", (socket) => {
     if (!group || !canTouchGroup(group)) return;
     const item = {
       id: uid("i"), groupId,
-      title: title.trim().slice(0, 500) || "Untitled task",
+      title: autoCapitalize(title.trim().slice(0, 500) || "Untitled task"),
       notes: "", priority: "low",
       assigneeIds: [], steps: [], archived: false, files: [],
       order: typeof order === "number" ? order : state.items.length,
@@ -821,6 +841,20 @@ io.on("connection", (socket) => {
     };
     state.items.push(item);
     if (group.visibility !== "private") logActivity(`${actorName()} added "${item.title}" to ${group.name}`);
+    persist();
+    broadcastState();
+  });
+
+  socket.on("swapItemOrder", ({ idA, idB }) => {
+    const a = state.items.find((x) => x.id === idA);
+    const b = state.items.find((x) => x.id === idB);
+    if (!a || !b) return;
+    const groupA = groupById(a.groupId);
+    const groupB = groupById(b.groupId);
+    if (!canTouchGroup(groupA) || !canTouchGroup(groupB)) return;
+    const tmp = a.order;
+    a.order = b.order;
+    b.order = tmp;
     persist();
     broadcastState();
   });
@@ -833,7 +867,7 @@ io.on("connection", (socket) => {
     let changeDesc = null;
 
     if (typeof patch.title === "string") {
-      const t = patch.title.trim().slice(0, 500) || "Untitled task";
+      const t = autoCapitalize(patch.title.trim().slice(0, 500) || "Untitled task");
       if (t !== item.title) { item.title = t; changeDesc = `renamed a task to "${item.title}"`; }
     }
     if (["low", "medium", "high"].includes(patch.priority) && patch.priority !== item.priority) {
@@ -998,7 +1032,8 @@ io.on("connection", (socket) => {
 
     const message = {
       id: uid("m"), scope, scopeId, text: trimmed,
-      byId: user.id, byName: actorName(), at: nowIso(), mentions: mentionedIds
+      byId: user.id, byName: actorName(), at: nowIso(), mentions: mentionedIds,
+      readBy: [{ userId: user.id, userName: actorName(), at: nowIso() }] // the author has implicitly "read" their own message
     };
     state.messages.push(message);
     if (state.messages.length > 2000) state.messages = state.messages.slice(-2000);
@@ -1013,6 +1048,31 @@ io.on("connection", (socket) => {
         await sendMail(mentioned.email, `You were mentioned in ${label}`, `${actorName()} mentioned you:\n\n${trimmed}${link ? "\n\nOpen the board: " + link : ""}`);
       }
     }
+  });
+
+  // Mark every message currently visible in a board/task chat as read by this
+  // user, so others can see who has (and hasn't) seen a given message.
+  socket.on("markMessagesRead", ({ scope, scopeId }) => {
+    if (scope !== "board" && scope !== "item") return;
+    if (scope === "board") {
+      const board = boardById(scopeId);
+      if (!board || !canSeeBoard(board, user)) return;
+    } else {
+      const item = state.items.find((x) => x.id === scopeId);
+      if (!item) return;
+      const group = groupById(item.groupId);
+      if (!canTouchGroup(group)) return;
+    }
+    let changed = false;
+    for (const m of state.messages) {
+      if (m.scope !== scope || m.scopeId !== scopeId) continue;
+      if (!m.readBy) m.readBy = [];
+      if (!m.readBy.some((r) => r.userId === user.id)) {
+        m.readBy.push({ userId: user.id, userName: actorName(), at: nowIso() });
+        changed = true;
+      }
+    }
+    if (changed) { persist(); broadcastState(); }
   });
 
   // ---- notify assignees it's their turn ----
