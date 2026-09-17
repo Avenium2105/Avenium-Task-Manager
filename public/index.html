@@ -19,7 +19,29 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
   body { font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; min-height: 100vh; }
-  .wrap { max-width: 800px; margin: 0 auto; padding: 16px 20px 100px; }
+  .page { display: flex; align-items: flex-start; justify-content: center; gap: 24px; max-width: 1180px; margin: 0 auto; }
+  .wrap { max-width: 800px; flex: 1 1 auto; margin: 0; padding: 16px 20px 100px; min-width: 0; }
+
+  .board-chat { flex-shrink: 0; width: 300px; margin: 16px 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: 16px; display: flex; flex-direction: column; max-height: calc(100vh - 32px); }
+  .board-chat-head { padding: 12px 14px; border-bottom: 1px solid var(--line-soft); font-weight: 600; font-size: 13px; }
+  .board-chat-head .sub { font-weight: 400; color: var(--ink-faint); font-size: 11.5px; display: block; margin-top: 2px; }
+  .board-chat-body { flex: 1; overflow-y: auto; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; min-height: 120px; }
+  .board-chat-foot { padding: 10px 14px; border-top: 1px solid var(--line-soft); }
+  .board-chat-foot .chat-input-row input { background: var(--bg); }
+
+  @media (max-width: 1000px) {
+    .page { display: block; }
+    .board-chat { width: auto; margin: 16px 20px 0; position: static; max-height: none; }
+  }
+
+  .board-access-wrap { position: relative; }
+  .board-access-btn { font-family: inherit; font-size: 11px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 4px 6px 4px 0; opacity: 0; transition: opacity 0.15s, color 0.15s; }
+  .board-tab-wrap:hover .board-access-btn { opacity: 1; }
+  .board-access-btn:hover { color: var(--pine); }
+  .board-access-popover { position: absolute; z-index: 30; top: 100%; left: 0; margin-top: 4px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 10px; min-width: 220px; }
+  .board-access-popover label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 5px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
+  .board-access-popover label:hover { background: var(--line-soft); }
+  .board-access-popover hr { border: none; border-top: 1px solid var(--line-soft); margin: 6px 0; }
 
   .topbar { display: flex; align-items: center; justify-content: flex-end; gap: 14px; font-size: 12.5px; color: var(--ink-soft); flex-wrap: wrap; }
   .topbar a, .topbar button.link { color: var(--ink-soft); text-decoration: none; background: none; border: none; font-family: inherit; font-size: 12.5px; cursor: pointer; padding: 0; }
@@ -92,15 +114,70 @@
   .priority-tag.high { background: var(--brick-soft); color: var(--brick); }
   .priority-tag.medium { background: var(--ochre-soft); color: var(--ochre); }
 
-  .assignee-select { flex-shrink: 0; font-size: 11.5px; font-family: inherit; color: var(--grey-pill-ink); background: var(--grey-pill); border: none; border-radius: 20px; padding: 3px 6px; max-width: 84px; cursor: pointer; }
+  .assignee-chips { display: flex; align-items: center; gap: 3px; flex-shrink: 0; max-width: 160px; overflow: hidden; }
+  .assignee-chip { font-size: 11px; font-weight: 500; color: var(--grey-pill-ink); background: var(--grey-pill); border-radius: 20px; padding: 3px 8px; white-space: nowrap; }
+  .assignee-picker-btn { flex-shrink: 0; font-size: 11.5px; font-family: inherit; color: var(--grey-pill-ink); background: var(--grey-pill); border: none; border-radius: 20px; padding: 3px 8px; cursor: pointer; white-space: nowrap; }
+  .assignee-picker-btn:hover { background: var(--line-soft); }
+  .assignee-popover { position: relative; }
+  .assignee-popover-list { position: absolute; z-index: 20; top: 100%; left: 0; margin-top: 4px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 6px; min-width: 170px; max-height: 220px; overflow-y: auto; }
+  .assignee-popover-list label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 5px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
+  .assignee-popover-list label:hover { background: var(--line-soft); }
 
-  .notify-btn, .notes-btn, .item-del { flex-shrink: 0; width: 20px; height: 20px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 5px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s, background 0.15s, color 0.15s; }
-  .item:hover .notify-btn, .item:hover .notes-btn, .item:hover .item-del { opacity: 1; }
+  .notify-btn, .details-btn, .item-del { flex-shrink: 0; width: 20px; height: 20px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 5px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s, background 0.15s, color 0.15s; }
+  .item:hover .notify-btn, .item:hover .details-btn, .item:hover .item-del { opacity: 1; }
   .notify-btn:hover { background: var(--slate-soft); color: var(--slate); }
   .notify-btn.sent { color: var(--pine); opacity: 1; }
-  .notes-btn.has-notes { opacity: 1; color: var(--ink-soft); }
-  .notes-btn:hover { background: var(--bg); color: var(--ink); }
+  .details-btn.has-content { opacity: 1; color: var(--ink-soft); }
+  .details-btn:hover { background: var(--bg); color: var(--ink); }
   .item-del:hover { background: var(--brick-soft); color: var(--brick); }
+
+  .current-step-line { font-size: 12.5px; color: var(--slate); padding: 3px 0 0 30px; display: flex; align-items: center; gap: 5px; }
+  .current-step-line svg { width: 11px; height: 11px; flex-shrink: 0; }
+
+  .step-menu-wrap { position: relative; flex-shrink: 0; }
+  .step-btn { font-family: inherit; font-size: 11.5px; font-weight: 500; color: var(--bg-raised); background: var(--slate); border: none; border-radius: 20px; padding: 3px 10px; cursor: pointer; white-space: nowrap; }
+  .step-btn:hover { background: var(--pine); }
+  .step-menu { position: absolute; z-index: 20; top: 100%; right: 0; margin-top: 4px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 4px; min-width: 160px; }
+  .step-menu button { display: block; width: 100%; text-align: left; font-family: inherit; font-size: 12.5px; color: var(--ink); background: none; border: none; padding: 7px 9px; border-radius: 5px; cursor: pointer; }
+  .step-menu button:hover { background: var(--line-soft); }
+  .step-menu button.danger:hover { background: var(--brick-soft); color: var(--brick); }
+
+  .next-step-row { display: flex; gap: 6px; padding: 6px 0 0 30px; width: calc(100% - 30px); }
+  .next-step-row input { flex: 1; font-family: inherit; font-size: 13px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); outline: none; }
+  .next-step-row button { font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 6px 12px; border: none; border-radius: 6px; background: var(--pine); color: var(--bg-raised); cursor: pointer; white-space: nowrap; }
+
+  .details-panel { margin: 8px 0 0 30px; width: calc(100% - 30px); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+  .details-section-label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); margin-bottom: 4px; }
+  .step-log { display: flex; flex-direction: column; gap: 5px; }
+  .step-log-entry { font-size: 12px; color: var(--ink-soft); display: flex; gap: 5px; }
+  .step-log-entry .who { color: var(--ink-faint); white-space: nowrap; }
+  .details-notes { font-size: 12.5px; color: var(--ink-soft); background: var(--bg-raised); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; width: 100%; font-family: inherit; resize: vertical; min-height: 50px; outline: none; }
+
+  .file-list { display: flex; flex-direction: column; gap: 4px; }
+  .file-row { display: flex; align-items: center; gap: 6px; font-size: 12.5px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
+  .file-row a { color: var(--slate); text-decoration: none; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-row a:hover { text-decoration: underline; }
+  .file-row .file-size { color: var(--ink-faint); font-size: 11px; white-space: nowrap; }
+  .file-row .file-del { flex-shrink: 0; width: 16px; height: 16px; border: none; background: none; color: var(--ink-faint); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .file-row .file-del:hover { color: var(--brick); }
+  .file-drop { border: 1.5px dashed var(--line); border-radius: 6px; padding: 10px; text-align: center; font-size: 12px; color: var(--ink-faint); cursor: pointer; }
+  .file-drop:hover, .file-drop.drag-over { border-color: var(--pine); color: var(--pine); background: var(--pine-soft); }
+  .file-drop input[type=file] { display: none; }
+
+  .item-chat { display: flex; flex-direction: column; gap: 6px; max-height: 180px; overflow-y: auto; }
+  .chat-msg { font-size: 12.5px; line-height: 1.4; }
+  .chat-msg .chat-who { font-weight: 600; color: var(--ink); }
+  .chat-msg .chat-when { color: var(--ink-faint); font-size: 11px; margin-left: 4px; }
+  .chat-empty { color: var(--ink-faint); font-size: 12px; font-style: italic; }
+  .chat-input-row { display: flex; gap: 6px; }
+  .chat-input-row input { flex: 1; font-family: inherit; font-size: 12.5px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-raised); color: var(--ink); outline: none; }
+  .chat-input-row button { font-family: inherit; font-size: 12px; font-weight: 500; padding: 6px 10px; border: none; border-radius: 6px; background: var(--slate); color: var(--bg-raised); cursor: pointer; }
+
+  .archived-toggle-row { text-align: center; margin: 10px 0 4px; }
+  .archived-toggle-row button { font-family: inherit; font-size: 12.5px; color: var(--ink-faint); background: none; border: none; cursor: pointer; }
+  .archived-toggle-row button:hover { color: var(--pine); }
+  .archived-section { opacity: 0.75; }
+  .archived-section .group-head { border-left-color: var(--ink-faint) !important; }
 
   .add-row { display: flex; align-items: center; gap: 9px; padding: 10px 14px 12px 18px; border-top: 1px solid var(--line-soft); }
   .add-row .plus { width: 20px; height: 20px; flex-shrink: 0; color: var(--ink-faint); display: flex; align-items: center; justify-content: center; }
@@ -127,6 +204,7 @@
 </style>
 </head>
 <body>
+<div class="page">
 <div class="wrap">
   <div class="topbar" id="topbar">
     <a href="/users.html" id="manageUsersLink" style="display:none;">Admin</a>
@@ -145,10 +223,26 @@
 
   <div class="board-tabs" id="boardTabs"></div>
 
+  <div class="archived-toggle-row">
+    <button id="archivedToggleBtn" type="button">Show completed / archived</button>
+  </div>
+
   <main id="groupsMount"></main>
   <div id="addGroupMount"></div>
 
-  <p class="foot-note">Click a checkbox to step a task through its status · 🔔 notifies the assignee it's their turn</p>
+  <p class="foot-note">Use the step button to move a task forward · 🔔 notifies assignees it's their turn</p>
+</div>
+
+<aside class="board-chat" id="boardChat" style="display:none;">
+  <div class="board-chat-head">Board chat<span class="sub" id="boardChatSub"></span></div>
+  <div class="board-chat-body" id="boardChatBody"></div>
+  <div class="board-chat-foot">
+    <div class="chat-input-row">
+      <input type="text" id="boardChatInput" placeholder="Message this board… use @name to mention">
+      <button id="boardChatSend" type="button">Send</button>
+    </div>
+  </div>
+</aside>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -156,15 +250,17 @@
 (function () {
   "use strict";
 
-  var STATUSES = ["not_started", "next_step", "in_progress", "done"];
-  var STATUS_LABELS = { not_started: "Not started", next_step: "Next step", in_progress: "In progress", done: "Completed" };
-
-  var state = { boards: [], groups: [], items: [] };
+  var state = { boards: [], groups: [], items: [], messages: [] };
   var team = [];
   var currentUser = null;
   var selectedBoardId = localStorage.getItem("daily-board-selected-board") || "__all__";
   var collapsedKey = "daily-board-collapsed";
   var notifiedRecently = {};
+  var showArchived = false;
+  var openDetailPanels = {}; // itemId -> true while its details panel is expanded
+  var openStepMenus = {};    // itemId -> true while its step-action menu is open
+  var openAssigneePickers = {}; // itemId -> true while its assignee picker is open
+  var openBoardAccess = {}; // boardId -> true while its access popover is open
 
   var QUOTES = [
     "Small steps, done consistently, win.",
@@ -218,8 +314,33 @@
   function bellSvg() { return '<svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6a4 4 0 0 1 8 0c0 2 .6 3 1 3.5H2c.4-.5 1-1.5 1-3.5Z"/><path d="M5.5 11a1.5 1.5 0 0 0 3 0"/></svg>'; }
   function noteSvg() { return '<svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2.5h8v9l-2.5 2-2.5-2-3 2v-11Z"/><path d="M5 5.5h4M5 8h4"/></svg>'; }
 
-  function statusIcon(status) { if (status === "done") return checkSvg(); if (status === "in_progress") return dotSvg(); if (status === "next_step") return arrowSvg(); return ""; }
-  function nextStatus(s) { var i = STATUSES.indexOf(s); return STATUSES[(i + 1) % STATUSES.length]; }
+  function sendSvg() { return '<svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7L12 2.5L8 12L6.3 7.7L2 7Z"/></svg>'; }
+  function clipSvg() { return '<svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 3.5L4.8 8.2a2 2 0 0 0 2.8 2.8l4.2-4.2a3.2 3.2 0 0 0-4.5-4.5L3.1 6.5a4.3 4.3 0 0 0 6 6"/></svg>'; }
+
+  function fmtBytes(n) {
+    if (n < 1024) return n + " B";
+    if (n < 1024 * 1024) return Math.round(n / 1024) + " KB";
+    return (n / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  // Renders @mentions inside chat text as bold, matching the same names the
+  // server looks for when it decides who to notify.
+  function renderMentionText(text) {
+    var html = escapeHtml(text);
+    team.forEach(function (t) {
+      [t.displayName].filter(Boolean).forEach(function (h) {
+        var re = new RegExp("@" + h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "gi");
+        html = html.replace(re, function (m) { return "<strong>" + m + "</strong>"; });
+      });
+    });
+    return html;
+  }
 
   // ---------------- render ----------------
 
@@ -258,6 +379,54 @@
           });
           wrap.appendChild(deleteBtn);
         }
+
+        var accessWrap = el("span", "board-access-wrap");
+        var accessBtn = el("button", "board-access-btn", { type: "button", text: "👥", title: "Who can see this board" });
+        accessBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          openBoardAccess[b.id] = !openBoardAccess[b.id];
+          render();
+        });
+        accessWrap.appendChild(accessBtn);
+        if (openBoardAccess[b.id]) {
+          var pop = el("div", "board-access-popover");
+          pop.addEventListener("click", function (e) { e.stopPropagation(); });
+          var openEveryone = !b.memberIds;
+          var openLabel = el("label");
+          var openCheck = el("input", "", { type: "checkbox" });
+          openCheck.checked = openEveryone;
+          openLabel.appendChild(openCheck);
+          openLabel.appendChild(document.createTextNode("Open to everyone"));
+          pop.appendChild(openLabel);
+          pop.appendChild(el("hr"));
+          var memberChecks = [];
+          team.forEach(function (t) {
+            var lbl = el("label");
+            var chk = el("input", "", { type: "checkbox" });
+            chk.checked = openEveryone || (b.memberIds || []).includes(t.id);
+            chk.disabled = openEveryone;
+            chk.dataset.uid = t.id;
+            memberChecks.push(chk);
+            lbl.appendChild(chk);
+            lbl.appendChild(document.createTextNode(t.displayName));
+            pop.appendChild(lbl);
+          });
+          function commitAccess() {
+            if (openCheck.checked) {
+              socket.emit("updateBoardAccess", { id: b.id, memberIds: null });
+            } else {
+              var ids = memberChecks.filter(function (c) { return c.checked; }).map(function (c) { return c.dataset.uid; });
+              socket.emit("updateBoardAccess", { id: b.id, memberIds: ids });
+            }
+          }
+          openCheck.addEventListener("change", function () {
+            memberChecks.forEach(function (c) { c.disabled = openCheck.checked; });
+            commitAccess();
+          });
+          memberChecks.forEach(function (c) { c.addEventListener("change", commitAccess); });
+          accessWrap.appendChild(pop);
+        }
+        wrap.appendChild(accessWrap);
       }
       mount.appendChild(wrap);
     });
@@ -284,6 +453,10 @@
     visibleGroups.forEach(function (g) { visibleGroupIds[g.id] = true; });
     var visibleItems = state.items.filter(function (i) { return visibleGroupIds[i.groupId]; });
 
+    document.getElementById("archivedToggleBtn").textContent = showArchived ? "Hide completed / archived" : "Show completed / archived";
+
+    renderBoardChat(showingAll ? null : boardsToShow().find(function (b) { return b.id === selectedBoardId; }));
+
     var collapsed = getCollapsed();
     var mount = document.getElementById("groupsMount");
     mount.innerHTML = "";
@@ -292,7 +465,8 @@
     var boardsById = {}; state.boards.forEach(function (b) { boardsById[b.id] = b; });
 
     sortedGroups.forEach(function (g) {
-      var groupItems = state.items.filter(function (i) { return i.groupId === g.id; }).sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+      var allGroupItems = state.items.filter(function (i) { return i.groupId === g.id; }).sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
+      var groupItems = showArchived ? allGroupItems : allGroupItems.filter(function (i) { return !i.archived; });
       var isCollapsed = !!collapsed[g.id];
 
       var groupEl = el("section", "group" + (isCollapsed ? " collapsed" : ""));
@@ -315,8 +489,8 @@
 
       if (showingAll && boardsById[g.boardId]) head.appendChild(el("span", "board-badge", { text: boardsById[g.boardId].name }));
 
-      var doneCount = groupItems.filter(function (i) { return i.status === "done"; }).length;
-      head.appendChild(el("span", "group-count", { text: groupItems.length ? (doneCount + "/" + groupItems.length) : "" }));
+      var doneCount = allGroupItems.filter(function (i) { return i.archived; }).length;
+      head.appendChild(el("span", "group-count", { text: allGroupItems.length ? (doneCount + "/" + allGroupItems.length) : "" }));
 
       var delBtn = el("button", "group-del", { "aria-label": "Delete group", type: "button" });
       delBtn.innerHTML = xSvg();
@@ -386,31 +560,89 @@
   }
 
   function renderItem(item) {
-    var row = el("div", "item" + (item.status === "done" ? " is-done" : ""));
+    var row = el("div", "item" + (item.archived ? " is-done" : ""));
     var main = el("div", "item-main");
 
-    var statusBtn = el("button", "status-btn " + item.status, { type: "button", "aria-label": "Task status" });
-    statusBtn.innerHTML = statusIcon(item.status);
-    statusBtn.title = STATUS_LABELS[item.status];
-    statusBtn.addEventListener("click", function () { updateItem(item.id, { status: nextStatus(item.status) }); });
-    main.appendChild(statusBtn);
-    main.appendChild(el("span", "status-label", { text: STATUS_LABELS[item.status] }));
+    // ---- step action button (Next step / Completed step / Completed task) ----
+    var stepWrap = el("span", "step-menu-wrap");
+    var stepBtn = el("button", "step-btn", { type: "button", text: "Step \u25be" });
+    stepBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      openStepMenus[item.id] = !openStepMenus[item.id];
+      render();
+    });
+    stepWrap.appendChild(stepBtn);
+    if (openStepMenus[item.id]) {
+      var menu = el("div", "step-menu");
+      menu.addEventListener("click", function (e) { e.stopPropagation(); });
+      var nextBtn = el("button", "", { type: "button", text: "Next step\u2026" });
+      nextBtn.addEventListener("click", function () {
+        delete openStepMenus[item.id];
+        openDetailPanels[item.id] = "next_step";
+        render();
+      });
+      menu.appendChild(nextBtn);
+      var doneStepBtn = el("button", "", { type: "button", text: "Completed step" });
+      doneStepBtn.addEventListener("click", function () {
+        delete openStepMenus[item.id];
+        socket.emit("addStep", { itemId: item.id, type: "completed_step" });
+        openDetailPanels[item.id] = "next_step"; // prompt right away for what's next
+        render();
+      });
+      menu.appendChild(doneStepBtn);
+      var doneTaskBtn = el("button", "danger", { type: "button", text: "Completed task" });
+      doneTaskBtn.addEventListener("click", function () {
+        delete openStepMenus[item.id];
+        if (window.confirm("Mark \"" + item.title + "\" as fully complete? It will move to Archived.")) {
+          socket.emit("addStep", { itemId: item.id, type: "completed_task" });
+        }
+        render();
+      });
+      menu.appendChild(doneTaskBtn);
+      stepWrap.appendChild(menu);
+    }
+    main.appendChild(stepWrap);
 
     var titleInput = el("input", "item-title");
     titleInput.value = item.title || "";
     titleInput.addEventListener("change", function () { updateItem(item.id, { title: titleInput.value.trim() || "Untitled task" }); });
     main.appendChild(titleInput);
 
-    var assigneeSel = el("select", "assignee-select");
-    assigneeSel.appendChild(el("option", "", { value: "", text: "Unassigned" }));
-    team.forEach(function (t) {
-      var opt = el("option", "", { value: t.id, text: t.displayName });
-      if (item.assigneeId === t.id) opt.selected = true;
-      assigneeSel.appendChild(opt);
-    });
-    if (!item.assigneeId) assigneeSel.value = "";
-    assigneeSel.addEventListener("change", function () { updateItem(item.id, { assigneeId: assigneeSel.value || null }); });
-    main.appendChild(assigneeSel);
+    // ---- multi-assignee picker ----
+    var assigneeIds = item.assigneeIds || [];
+    var pickerWrap = el("span", "assignee-popover");
+    if (assigneeIds.length) {
+      var chips = el("span", "assignee-chips");
+      assigneeIds.forEach(function (aid) {
+        var t = team.find(function (x) { return x.id === aid; });
+        chips.appendChild(el("span", "assignee-chip", { text: t ? t.displayName : "?" }));
+      });
+      chips.addEventListener("click", function (e) { e.stopPropagation(); openAssigneePickers[item.id] = !openAssigneePickers[item.id]; render(); });
+      chips.style.cursor = "pointer";
+      pickerWrap.appendChild(chips);
+    } else {
+      var pickBtn = el("button", "assignee-picker-btn", { type: "button", text: "Unassigned" });
+      pickBtn.addEventListener("click", function (e) { e.stopPropagation(); openAssigneePickers[item.id] = !openAssigneePickers[item.id]; render(); });
+      pickerWrap.appendChild(pickBtn);
+    }
+    if (openAssigneePickers[item.id]) {
+      var list = el("div", "assignee-popover-list");
+      list.addEventListener("click", function (e) { e.stopPropagation(); });
+      team.forEach(function (t) {
+        var lbl = el("label");
+        var chk = el("input", "", { type: "checkbox" });
+        chk.checked = assigneeIds.includes(t.id);
+        chk.addEventListener("change", function () {
+          var next = chk.checked ? assigneeIds.concat([t.id]) : assigneeIds.filter(function (x) { return x !== t.id; });
+          updateItem(item.id, { assigneeIds: next });
+        });
+        lbl.appendChild(chk);
+        lbl.appendChild(document.createTextNode(t.displayName));
+        list.appendChild(lbl);
+      });
+      pickerWrap.appendChild(list);
+    }
+    main.appendChild(pickerWrap);
 
     var priorityLabels = { low: "Low", medium: "Medium", high: "High" };
     var priBtn = el("button", "priority-tag " + item.priority, { type: "button", text: priorityLabels[item.priority] || "Low" });
@@ -420,22 +652,18 @@
     });
     main.appendChild(priBtn);
 
-    var notesBtn = el("button", "notes-btn" + (item.notes ? " has-notes" : ""), { type: "button", "aria-label": "Notes", title: "Notes" });
-    notesBtn.innerHTML = noteSvg();
-    notesBtn.addEventListener("click", function () {
-      var existing = row.querySelector(".item-notes");
-      if (existing) { existing.remove(); return; }
-      var ta = el("textarea", "item-notes", { placeholder: "Notes…" });
-      ta.value = item.notes || "";
-      ta.addEventListener("blur", function () { updateItem(item.id, { notes: ta.value }); });
-      row.appendChild(ta);
-      ta.focus();
+    var hasExtras = item.notes || (item.files && item.files.length) || (item.steps && item.steps.length);
+    var detailsBtn = el("button", "details-btn" + (hasExtras ? " has-content" : ""), { type: "button", "aria-label": "Details", title: "Steps, notes, files, chat" });
+    detailsBtn.innerHTML = noteSvg();
+    detailsBtn.addEventListener("click", function () {
+      openDetailPanels[item.id] = openDetailPanels[item.id] ? false : true;
+      render();
     });
-    main.appendChild(notesBtn);
+    main.appendChild(detailsBtn);
 
-    var notifyBtn = el("button", "notify-btn" + (notifiedRecently[item.id] ? " sent" : ""), { type: "button", "aria-label": "Notify assignee", title: item.assigneeId ? "Notify it's their turn" : "Assign someone first" });
+    var notifyBtn = el("button", "notify-btn" + (notifiedRecently[item.id] ? " sent" : ""), { type: "button", "aria-label": "Notify assignees", title: assigneeIds.length ? "Notify it's their turn" : "Assign someone first" });
     notifyBtn.innerHTML = bellSvg();
-    if (!item.assigneeId) notifyBtn.disabled = true;
+    if (!assigneeIds.length) notifyBtn.disabled = true;
     notifyBtn.addEventListener("click", function () {
       socket.emit("notifyTurn", { itemId: item.id });
       notifiedRecently[item.id] = true;
@@ -451,17 +679,167 @@
 
     row.appendChild(main);
 
+    // ---- current next-step line (read-only summary under the title) ----
+    var lastStep = item.steps && item.steps.length ? item.steps[item.steps.length - 1] : null;
+    if (lastStep && lastStep.type === "next_step" && openDetailPanels[item.id] !== "next_step") {
+      var line = el("div", "current-step-line");
+      line.innerHTML = arrowSvg() + " " + escapeHtml(lastStep.text);
+      row.appendChild(line);
+    }
+
+    // ---- inline "what's the next step" input, shown right after choosing Next step / Completed step ----
+    if (openDetailPanels[item.id] === "next_step") {
+      var nsRow = el("form", "next-step-row");
+      var nsInput = el("input", "", { type: "text", placeholder: "What's the next step?", enterkeyhint: "done" });
+      nsRow.appendChild(nsInput);
+      var nsBtn = el("button", "", { type: "submit", text: "Save" });
+      nsRow.appendChild(nsBtn);
+      nsRow.addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (nsInput.value.trim()) {
+          socket.emit("addStep", { itemId: item.id, type: "next_step", text: nsInput.value.trim() });
+          openDetailPanels[item.id] = false;
+          render();
+        }
+      });
+      row.appendChild(nsRow);
+      setTimeout(function () { nsInput.focus(); }, 0);
+    }
+
     if (item.updatedBy) {
       var everEdited = item.updatedBy !== item.createdBy;
       var label = everEdited ? "Updated by " + item.updatedBy : "Added by " + (item.createdBy || item.updatedBy);
       row.appendChild(el("div", "item-meta", { text: label + " \u00b7 " + relTime(item.updatedAt) }));
     }
-    if (item.notes) {
-      var preview = el("div", "item-meta", { text: "\uD83D\uDCDD " + item.notes.slice(0, 80) + (item.notes.length > 80 ? "…" : "") });
-      row.appendChild(preview);
+
+    // ---- full details panel: step log, notes, files, task chat ----
+    if (openDetailPanels[item.id] === true) {
+      row.appendChild(renderItemDetails(item));
     }
 
     return row;
+  }
+
+  function renderItemDetails(item) {
+    var panel = el("div", "details-panel");
+
+    if (item.steps && item.steps.length) {
+      panel.appendChild(el("div", "details-section-label", { text: "Step history" }));
+      var log = el("div", "step-log");
+      item.steps.slice().reverse().forEach(function (s) {
+        var verb = s.type === "next_step" ? ("Next step: " + s.text) : s.type === "completed_step" ? "Completed a step" : "Completed the task";
+        var entry = el("div", "step-log-entry");
+        entry.appendChild(el("span", "who", { text: s.byName + ":" }));
+        entry.appendChild(document.createTextNode(verb + " \u00b7 " + relTime(s.at)));
+        log.appendChild(entry);
+      });
+      panel.appendChild(log);
+    }
+
+    panel.appendChild(el("div", "details-section-label", { text: "Notes" }));
+    var ta = el("textarea", "details-notes", { placeholder: "Notes\u2026" });
+    ta.value = item.notes || "";
+    ta.addEventListener("blur", function () { updateItem(item.id, { notes: ta.value }); });
+    panel.appendChild(ta);
+
+    panel.appendChild(el("div", "details-section-label", { text: "Files" }));
+    var fileList = el("div", "file-list");
+    (item.files || []).forEach(function (f) {
+      var row = el("div", "file-row");
+      var link = el("a", "", { href: "/api/items/" + item.id + "/files/" + f.id, target: "_blank", text: f.name });
+      row.appendChild(link);
+      row.appendChild(el("span", "file-size", { text: fmtBytes(f.size) }));
+      var delF = el("button", "file-del", { type: "button", "aria-label": "Remove file" });
+      delF.innerHTML = xSvg();
+      delF.addEventListener("click", function () {
+        if (window.confirm("Remove \"" + f.name + "\"?")) {
+          fetch("/api/items/" + item.id + "/files/" + f.id, { method: "DELETE" });
+        }
+      });
+      row.appendChild(delF);
+      fileList.appendChild(row);
+    });
+    panel.appendChild(fileList);
+
+    var drop = el("label", "file-drop", { text: "Click or drop a file to attach (up to 20MB)" });
+    var fileInput = el("input", "", { type: "file" });
+    fileInput.addEventListener("change", function () {
+      if (fileInput.files[0]) uploadItemFile(item.id, fileInput.files[0]);
+      fileInput.value = "";
+    });
+    drop.appendChild(fileInput);
+    drop.addEventListener("dragover", function (e) { e.preventDefault(); drop.classList.add("drag-over"); });
+    drop.addEventListener("dragleave", function () { drop.classList.remove("drag-over"); });
+    drop.addEventListener("drop", function (e) {
+      e.preventDefault();
+      drop.classList.remove("drag-over");
+      if (e.dataTransfer.files[0]) uploadItemFile(item.id, e.dataTransfer.files[0]);
+    });
+    panel.appendChild(drop);
+
+    panel.appendChild(el("div", "details-section-label", { text: "Task chat" }));
+    var chatMsgs = state.messages.filter(function (m) { return m.scope === "item" && m.scopeId === item.id; });
+    var chatBox = el("div", "item-chat");
+    if (!chatMsgs.length) {
+      chatBox.appendChild(el("div", "chat-empty", { text: "No messages yet." }));
+    } else {
+      chatMsgs.forEach(function (m) { chatBox.appendChild(renderChatMsg(m)); });
+    }
+    panel.appendChild(chatBox);
+
+    var chatForm = el("form", "chat-input-row");
+    var chatInput = el("input", "", { type: "text", placeholder: "Message about this task\u2026 use @name to mention", enterkeyhint: "send" });
+    chatForm.appendChild(chatInput);
+    var chatSend = el("button", "", { type: "submit", text: "Send" });
+    chatForm.appendChild(chatSend);
+    chatForm.addEventListener("submit", function (e) {
+      e.preventDefault();
+      if (chatInput.value.trim()) { socket.emit("addMessage", { scope: "item", scopeId: item.id, text: chatInput.value.trim() }); chatInput.value = ""; }
+    });
+    panel.appendChild(chatForm);
+
+    return panel;
+  }
+
+  function renderChatMsg(m) {
+    var el1 = el("div", "chat-msg");
+    el1.innerHTML = "<span class=\"chat-who\">" + escapeHtml(m.byName) + "</span><span class=\"chat-when\">" + relTime(m.at) + "</span><br>" + renderMentionText(m.text);
+    return el1;
+  }
+
+  function uploadItemFile(itemId, file) {
+    if (file.size > 20 * 1024 * 1024) { window.alert("That file is over the 20MB limit."); return; }
+    var fd = new FormData();
+    fd.append("file", file);
+    fetch("/api/items/" + itemId + "/files", { method: "POST", body: fd })
+      .then(function (r) { return r.json(); })
+      .then(function (res) { if (!res.ok) window.alert("Couldn't upload that file."); })
+      .catch(function () { window.alert("Couldn't reach the server."); });
+  }
+
+  function renderBoardChat(board) {
+    var aside = document.getElementById("boardChat");
+    if (!board) { aside.style.display = "none"; return; }
+    aside.style.display = "flex";
+    document.getElementById("boardChatSub").textContent = board.name;
+    var msgs = state.messages.filter(function (m) { return m.scope === "board" && m.scopeId === board.id; });
+    var body = document.getElementById("boardChatBody");
+    body.innerHTML = "";
+    if (!msgs.length) {
+      body.appendChild(el("div", "chat-empty", { text: "No messages yet on this board." }));
+    } else {
+      msgs.forEach(function (m) { body.appendChild(renderChatMsg(m)); });
+      body.scrollTop = body.scrollHeight;
+    }
+    var input = document.getElementById("boardChatInput");
+    var sendBtn = document.getElementById("boardChatSend");
+    var newSendBtn = sendBtn.cloneNode(true); sendBtn.parentNode.replaceChild(newSendBtn, sendBtn);
+    var newInput = input.cloneNode(true); newInput.value = input.value; input.parentNode.replaceChild(newInput, input);
+    function send() {
+      if (newInput.value.trim()) { socket.emit("addMessage", { scope: "board", scopeId: board.id, text: newInput.value.trim() }); newInput.value = ""; }
+    }
+    newSendBtn.addEventListener("click", send);
+    newInput.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); send(); } });
   }
 
   // ---------------- auth / topbar wiring ----------------
@@ -494,8 +872,23 @@
     state.boards = s.boards || [];
     state.groups = s.groups || [];
     state.items = s.items || [];
+    state.messages = s.messages || [];
     if (selectedBoardId !== "__all__" && !state.boards.some(function (b) { return b.id === selectedBoardId; })) selectedBoardId = "__all__";
     render();
+  });
+
+  document.getElementById("archivedToggleBtn").addEventListener("click", function () {
+    showArchived = !showArchived;
+    render();
+  });
+
+  // Close any open step-menu / assignee-picker / board-access popover when clicking elsewhere.
+  document.addEventListener("click", function () {
+    var changed = Object.keys(openStepMenus).length || Object.keys(openAssigneePickers).length || Object.keys(openBoardAccess).length;
+    if (changed) {
+      openStepMenus = {}; openAssigneePickers = {}; openBoardAccess = {};
+      render();
+    }
   });
 
   function addItem(groupId, title, order) { socket.emit("addItem", { groupId: groupId, title: title, order: order }); }

@@ -10,6 +10,7 @@ const http = require("http");
 const express = require("express");
 const session = require("express-session");
 const bcrypt = require("bcryptjs");
+const multer = require("multer");
 const { Server } = require("socket.io");
 const nodemailer = require("nodemailer");
 
@@ -18,13 +19,15 @@ const DATA_DIR = process.env.DATA_DIR || __dirname;
 const DATA_FILE = path.join(DATA_DIR, "data.json");
 const USERS_FILE = path.join(DATA_DIR, "users.json");
 const SECRET_FILE = path.join(DATA_DIR, ".session-secret");
+const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
 fs.mkdirSync(DATA_DIR, { recursive: true });
+fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 const PUBLIC_URL = process.env.PUBLIC_URL || "";
 
 const GROUP_COLORS = ["#3C5A46", "#C68A2E", "#7D6BAE", "#4C7A9E", "#B24A3C"];
 const DEFAULT_GROUPS = ["Today", "This week", "Someday"];
-const STATUSES = ["not_started", "next_step", "in_progress", "done"];
-const STATUS_LABELS = { not_started: "Not started", next_step: "Next step", in_progress: "In progress", done: "Completed" };
+const STEP_TYPES = ["next_step", "completed_step", "completed_task"];
+const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB per file
 
 function uid(prefix) {
   return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -45,24 +48,42 @@ function loadOrCreateSecret() {
 
 function loadState() {
   const now = Date.now();
-  const defaultBoard = { id: "b" + now, name: "General", order: 0, createdAt: now };
+  const defaultBoard = { id: "b" + now, name: "General", order: 0, createdAt: now, memberIds: null };
 
   if (fs.existsSync(DATA_FILE)) {
     try {
       const raw = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
       const boards = Array.isArray(raw.boards) && raw.boards.length ? raw.boards : [defaultBoard];
       const firstBoardId = boards[0].id;
+      // memberIds === null/undefined means "open to everyone" — how every
+      // board created before access control existed keeps working.
+      boards.forEach((b) => { if (!("memberIds" in b)) b.memberIds = null; });
       const groups = (Array.isArray(raw.groups) ? raw.groups : []).map((g) => ({
         visibility: "shared",
         boardId: firstBoardId,
         ...g
       }));
-      const items = (Array.isArray(raw.items) ? raw.items : []).map((i) => ({
-        assigneeId: null,
-        notes: "",
-        ...i
-      }));
-      return { boards, groups, items, activity: Array.isArray(raw.activity) ? raw.activity : [] };
+      const items = (Array.isArray(raw.items) ? raw.items : []).map((i) => {
+        const migrated = {
+          notes: "", assigneeIds: [], steps: [], archived: false, files: [],
+          ...i
+        };
+        // migrate legacy single-assignee + status fields the first time we see them
+        if (!Array.isArray(migrated.assigneeIds)) migrated.assigneeIds = [];
+        if (migrated.assigneeId && !migrated.assigneeIds.includes(migrated.assigneeId)) migrated.assigneeIds.push(migrated.assigneeId);
+        delete migrated.assigneeId;
+        if (migrated.status === "done" && !migrated.archived) migrated.archived = true;
+        delete migrated.status;
+        delete migrated.dueDate;
+        if (!Array.isArray(migrated.steps)) migrated.steps = [];
+        if (!Array.isArray(migrated.files)) migrated.files = [];
+        return migrated;
+      });
+      return {
+        boards, groups, items,
+        activity: Array.isArray(raw.activity) ? raw.activity : [],
+        messages: Array.isArray(raw.messages) ? raw.messages : []
+      };
     } catch (e) {
       console.error("Could not read data.json, starting fresh:", e.message);
     }
@@ -79,7 +100,8 @@ function loadState() {
       createdAt: now
     })),
     items: [],
-    activity: []
+    activity: [],
+    messages: []
   };
 }
 
@@ -101,6 +123,15 @@ function logActivity(text) {
 }
 
 function groupById(id) { return state.groups.find((g) => g.id === id); }
+function boardById(id) { return state.boards.find((b) => b.id === id); }
+// null/undefined memberIds = open to everyone (legacy boards, and the default behavior
+// unless an admin has deliberately restricted the board).
+function canSeeBoard(board, user) {
+  if (!board) return false;
+  if (!board.memberIds) return true;
+  if (user.role === "admin") return true;
+  return board.memberIds.includes(user.id);
+}
 
 // ---------- users ----------
 
@@ -226,8 +257,9 @@ function createTaskFromEmail(parsed) {
     id: uid("i"), groupId: group.id,
     title: (parsed.subject || "Untitled task").slice(0, 500),
     notes: (parsed.text || "").slice(0, 2000),
-    status: "not_started", priority: "low", dueDate: "",
-    assigneeId: matchedUser ? matchedUser.id : null,
+    priority: "low",
+    assigneeIds: matchedUser ? [matchedUser.id] : [],
+    steps: [], archived: false, files: [],
     order: state.items.filter((i) => i.groupId === group.id).length,
     createdAt: Date.now(), createdBy: "Email", updatedBy: "Email", updatedAt: nowIso()
   };
@@ -511,6 +543,78 @@ app.delete("/api/users/:id", requireAuth, requireAdmin, (req, res) => {
 // ---- activity API ----
 app.get("/api/activity", requireAuth, (req, res) => res.json({ activity: state.activity.slice(-60).reverse() }));
 
+// ---- file attachments (stored on local disk under DATA_DIR/uploads/<itemId>/) ----
+function itemUploadDir(itemId) { return path.join(UPLOADS_DIR, itemId); }
+function removeItemUploads(itemId) {
+  fs.rm(itemUploadDir(itemId), { recursive: true, force: true }, () => {});
+}
+function canAccessItem(item, user) {
+  if (!item) return false;
+  const group = groupById(item.groupId);
+  if (!group) return false;
+  if (group.visibility === "private" && group.ownerId !== user.id) return false;
+  return canSeeBoard(boardById(group.boardId), user);
+}
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = itemUploadDir(req.params.id);
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => cb(null, uid("f") + "-" + file.originalname.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-150))
+  }),
+  limits: { fileSize: MAX_FILE_BYTES }
+});
+
+app.post("/api/items/:id/files", requireAuth, (req, res) => {
+  const item = state.items.find((x) => x.id === req.params.id);
+  const user = findUserById(req.session.userId);
+  if (!item || !canAccessItem(item, user)) return res.status(404).json({ error: "not_found" });
+  upload.single("file")(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.code === "LIMIT_FILE_SIZE" ? "file_too_large" : "upload_failed" });
+    if (!req.file) return res.status(400).json({ error: "no_file" });
+    const record = {
+      id: uid("file"), name: req.file.originalname.slice(0, 200), storedAs: req.file.filename,
+      size: req.file.size, mime: req.file.mimetype || "application/octet-stream",
+      uploadedBy: user.displayName || user.username, uploadedById: user.id, uploadedAt: nowIso()
+    };
+    item.files.push(record);
+    item.updatedBy = user.displayName || user.username;
+    item.updatedAt = nowIso();
+    const group = groupById(item.groupId);
+    if (group.visibility !== "private") logActivity(`${user.displayName || user.username} attached "${record.name}" to "${item.title}"`);
+    persist();
+    broadcastState();
+    res.json({ ok: true, file: record });
+  });
+});
+
+app.get("/api/items/:id/files/:fileId", requireAuth, (req, res) => {
+  const item = state.items.find((x) => x.id === req.params.id);
+  const user = findUserById(req.session.userId);
+  if (!item || !canAccessItem(item, user)) return res.status(404).json({ error: "not_found" });
+  const file = item.files.find((f) => f.id === req.params.fileId);
+  if (!file) return res.status(404).json({ error: "not_found" });
+  res.download(path.join(itemUploadDir(item.id), file.storedAs), file.name);
+});
+
+app.delete("/api/items/:id/files/:fileId", requireAuth, (req, res) => {
+  const item = state.items.find((x) => x.id === req.params.id);
+  const user = findUserById(req.session.userId);
+  if (!item || !canAccessItem(item, user)) return res.status(404).json({ error: "not_found" });
+  const file = item.files.find((f) => f.id === req.params.fileId);
+  if (!file) return res.status(404).json({ error: "not_found" });
+  item.files = item.files.filter((f) => f.id !== req.params.fileId);
+  fs.unlink(path.join(itemUploadDir(item.id), file.storedAs), () => {});
+  const group = groupById(item.groupId);
+  if (group.visibility !== "private") logActivity(`${user.displayName || user.username} removed "${file.name}" from "${item.title}"`);
+  persist();
+  broadcastState();
+  res.json({ ok: true });
+});
+
 // ---------- realtime board ----------
 
 const server = http.createServer(app);
@@ -526,10 +630,17 @@ function socketUser(socket) {
 // Build the state a specific user is allowed to see: every shared group/item,
 // plus only that user's own private groups/items.
 function stateForUser(userId) {
-  const visibleGroups = state.groups.filter((g) => g.visibility !== "private" || g.ownerId === userId);
+  const user = findUserById(userId);
+  const visibleBoards = state.boards.filter((b) => canSeeBoard(b, user));
+  const visibleBoardIds = new Set(visibleBoards.map((b) => b.id));
+  const visibleGroups = state.groups.filter((g) => visibleBoardIds.has(g.boardId) && (g.visibility !== "private" || g.ownerId === userId));
   const visibleGroupIds = new Set(visibleGroups.map((g) => g.id));
   const visibleItems = state.items.filter((i) => visibleGroupIds.has(i.groupId));
-  return { boards: state.boards, groups: visibleGroups, items: visibleItems, activity: state.activity };
+  const visibleItemIds = new Set(visibleItems.map((i) => i.id));
+  const visibleMessages = state.messages.filter((m) =>
+    m.scope === "board" ? visibleBoardIds.has(m.scopeId) : visibleItemIds.has(m.scopeId)
+  );
+  return { boards: visibleBoards, groups: visibleGroups, items: visibleItems, activity: state.activity, messages: visibleMessages };
 }
 
 function broadcastState() {
@@ -546,7 +657,10 @@ io.on("connection", (socket) => {
   const actorName = () => user.displayName || user.username;
 
   function canTouchGroup(g) {
-    return g && (g.visibility !== "private" || g.ownerId === user.id);
+    if (!g) return false;
+    if (g.visibility === "private" && g.ownerId !== user.id) return false;
+    const board = boardById(g.boardId);
+    return canSeeBoard(board, user);
   }
 
   socket.emit("state", stateForUser(user.id));
@@ -556,9 +670,33 @@ io.on("connection", (socket) => {
   // ---- boards ----
   socket.on("addBoard", ({ name }) => {
     if (!name || typeof name !== "string") return;
-    const board = { id: uid("b"), name: name.trim().slice(0, 100) || "Untitled board", order: state.boards.length, createdAt: Date.now(), createdBy: actorName() };
+    const board = {
+      id: uid("b"), name: name.trim().slice(0, 100) || "Untitled board", order: state.boards.length,
+      createdAt: Date.now(), createdBy: actorName(),
+      // Admins create boards open to everyone by default (matches how shared company
+      // boards have always worked); anyone else's board starts private to just them,
+      // until an admin grants access to others.
+      memberIds: user.role === "admin" ? null : [user.id]
+    };
     state.boards.push(board);
     logActivity(`${actorName()} created the board "${board.name}"`);
+    persist();
+    broadcastState();
+  });
+
+  socket.on("updateBoardAccess", ({ id, memberIds }) => {
+    if (user.role !== "admin") return;
+    const board = boardById(id);
+    if (!board) return;
+    if (memberIds === null) {
+      board.memberIds = null; // open to everyone
+    } else if (Array.isArray(memberIds)) {
+      const validIds = new Set(users.map((u) => u.id));
+      board.memberIds = memberIds.filter((mid) => validIds.has(mid)).slice(0, 500);
+    } else {
+      return;
+    }
+    logActivity(`${actorName()} updated who can see the board "${board.name}"`);
     persist();
     broadcastState();
   });
@@ -582,6 +720,7 @@ io.on("connection", (socket) => {
     const hasGroups = state.groups.some((g) => g.boardId === id);
     if (hasGroups) return; // only empty boards can be deleted
     state.boards = state.boards.filter((b) => b.id !== id);
+    state.messages = state.messages.filter((m) => !(m.scope === "board" && m.scopeId === id));
     logActivity(`${actorName()} deleted the board "${board.name}"`);
     persist();
     broadcastState();
@@ -590,7 +729,8 @@ io.on("connection", (socket) => {
   // ---- groups ----
   socket.on("addGroup", ({ name, boardId, visibility }) => {
     if (!name || typeof name !== "string") return;
-    if (!state.boards.some((b) => b.id === boardId)) return;
+    const board = boardById(boardId);
+    if (!board || !canSeeBoard(board, user)) return;
     const isPrivate = visibility === "private";
     const order = state.groups.filter((g) => g.boardId === boardId).length;
     const group = {
@@ -623,8 +763,9 @@ io.on("connection", (socket) => {
   socket.on("deleteGroup", ({ id }) => {
     const g = groupById(id);
     if (!g || !canTouchGroup(g)) return;
+    const hasItems = state.items.some((i) => i.groupId === id);
+    if (hasItems) return; // only empty groups can be deleted
     state.groups = state.groups.filter((x) => x.id !== id);
-    state.items = state.items.filter((i) => i.groupId !== id);
     if (g.visibility !== "private") logActivity(`${actorName()} deleted the group "${g.name}"`);
     persist();
     broadcastState();
@@ -638,8 +779,8 @@ io.on("connection", (socket) => {
     const item = {
       id: uid("i"), groupId,
       title: title.trim().slice(0, 500) || "Untitled task",
-      notes: "", status: "not_started", priority: "low", dueDate: "",
-      assigneeId: null,
+      notes: "", priority: "low",
+      assigneeIds: [], steps: [], archived: false, files: [],
       order: typeof order === "number" ? order : state.items.length,
       createdAt: Date.now(), createdBy: actorName(), updatedBy: actorName(), updatedAt: nowIso()
     };
@@ -660,26 +801,23 @@ io.on("connection", (socket) => {
       const t = patch.title.trim().slice(0, 500) || "Untitled task";
       if (t !== item.title) { item.title = t; changeDesc = `renamed a task to "${item.title}"`; }
     }
-    if (STATUSES.includes(patch.status) && patch.status !== item.status) {
-      item.status = patch.status;
-      changeDesc = `marked "${item.title}" as ${STATUS_LABELS[patch.status].toLowerCase()}`;
-    }
     if (["low", "medium", "high"].includes(patch.priority) && patch.priority !== item.priority) {
       item.priority = patch.priority;
       changeDesc = `set "${item.title}" priority to ${patch.priority}`;
     }
-    if (typeof patch.dueDate === "string" && patch.dueDate.slice(0, 10) !== item.dueDate) {
-      item.dueDate = patch.dueDate.slice(0, 10);
-      changeDesc = item.dueDate ? `set a due date on "${item.title}"` : `cleared the due date on "${item.title}"`;
-    }
     if (typeof patch.notes === "string" && patch.notes !== item.notes) {
-      item.notes = patch.notes.slice(0, 2000);
+      item.notes = patch.notes.slice(0, 4000);
       changeDesc = `updated the notes on "${item.title}"`;
     }
-    if ("assigneeId" in patch && patch.assigneeId !== item.assigneeId) {
-      item.assigneeId = patch.assigneeId || null;
-      const assignee = item.assigneeId ? findUserById(item.assigneeId) : null;
-      changeDesc = assignee ? `assigned "${item.title}" to ${assignee.displayName}` : `unassigned "${item.title}"`;
+    if (Array.isArray(patch.assigneeIds)) {
+      const validIds = new Set(users.map((u) => u.id));
+      const next = [...new Set(patch.assigneeIds.filter((aid) => validIds.has(aid)))].slice(0, 20);
+      const changed = next.length !== item.assigneeIds.length || next.some((x) => !item.assigneeIds.includes(x));
+      if (changed) {
+        item.assigneeIds = next;
+        const names = next.map((aid) => { const u = findUserById(aid); return u ? (u.displayName || u.username) : null; }).filter(Boolean);
+        changeDesc = names.length ? `assigned "${item.title}" to ${names.join(", ")}` : `unassigned "${item.title}"`;
+      }
     }
 
     if (changeDesc) {
@@ -697,25 +835,112 @@ io.on("connection", (socket) => {
     const group = groupById(item.groupId);
     if (!canTouchGroup(group)) return;
     state.items = state.items.filter((x) => x.id !== id);
+    state.messages = state.messages.filter((m) => !(m.scope === "item" && m.scopeId === id));
     if (group.visibility !== "private") logActivity(`${actorName()} deleted "${item.title}"`);
     persist();
     broadcastState();
+    removeItemUploads(id);
   });
 
-  // ---- notify assignee it's their turn ----
-  socket.on("notifyTurn", async ({ itemId }) => {
+  // ---- steps: next step / completed step / completed task (replaces the old status pipeline) ----
+  socket.on("addStep", async ({ itemId, type, text }) => {
     const item = state.items.find((x) => x.id === itemId);
-    if (!item || !item.assigneeId) return;
+    if (!item) return;
     const group = groupById(item.groupId);
     if (!canTouchGroup(group)) return;
-    const assignee = findUserById(item.assigneeId);
-    if (!assignee) return;
-    if (group.visibility !== "private") logActivity(`${actorName()} notified ${assignee.displayName} that it's their turn on "${item.title}"`);
+    if (!STEP_TYPES.includes(type)) return;
+    if (type === "next_step" && (!text || !String(text).trim())) return;
+
+    const step = {
+      id: uid("s"), type,
+      text: type === "next_step" ? String(text).trim().slice(0, 1000) : "",
+      byId: user.id, byName: actorName(), at: nowIso()
+    };
+    item.steps.push(step);
+    item.updatedBy = actorName();
+    item.updatedAt = nowIso();
+    if (type === "completed_task") item.archived = true;
+
+    const verb = type === "next_step" ? `set the next step on "${item.title}"` : type === "completed_step" ? `completed a step on "${item.title}"` : `completed "${item.title}"`;
+    if (group.visibility !== "private") logActivity(`${actorName()} ${verb}`);
     persist();
     broadcastState();
-    if (assignee.email) {
-      const link = PUBLIC_URL ? ("\n\nOpen the board: " + PUBLIC_URL) : "";
-      await sendMail(assignee.email, `It's your turn: ${item.title}`, `${actorName()} says it's your turn on "${item.title}".${link}`);
+
+    // Notify everyone assigned to the task whenever a new next-step is posted.
+    if (type === "next_step" && item.assigneeIds.length) {
+      const link = PUBLIC_URL || "";
+      for (const aid of item.assigneeIds) {
+        if (aid === user.id) continue;
+        const u = findUserById(aid);
+        if (u && u.email) {
+          await sendMail(u.email, `New step on: ${item.title}`, `${actorName()} set the next step on "${item.title}":\n\n${step.text}${link ? "\n\nOpen the board: " + link : ""}`);
+        }
+      }
+    }
+  });
+
+  // ---- messages: per-board chat and per-task chat, with @mention notifications ----
+  socket.on("addMessage", async ({ scope, scopeId, text }) => {
+    if (scope !== "board" && scope !== "item") return;
+    if (!text || !String(text).trim()) return;
+    let boardForNotify = null;
+    let label = null;
+    if (scope === "board") {
+      const board = boardById(scopeId);
+      if (!board || !canSeeBoard(board, user)) return;
+      boardForNotify = board;
+      label = board.name;
+    } else {
+      const item = state.items.find((x) => x.id === scopeId);
+      if (!item) return;
+      const group = groupById(item.groupId);
+      if (!canTouchGroup(group)) return;
+      label = item.title;
+    }
+
+    const trimmed = String(text).trim().slice(0, 2000);
+    const mentionedIds = [];
+    for (const u of activeUsers()) {
+      const handles = [u.username, u.displayName].filter(Boolean);
+      for (const h of handles) {
+        const re = new RegExp("@" + h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i");
+        if (re.test(trimmed) && !mentionedIds.includes(u.id)) { mentionedIds.push(u.id); break; }
+      }
+    }
+
+    const message = {
+      id: uid("m"), scope, scopeId, text: trimmed,
+      byId: user.id, byName: actorName(), at: nowIso(), mentions: mentionedIds
+    };
+    state.messages.push(message);
+    if (state.messages.length > 2000) state.messages = state.messages.slice(-2000);
+    persist();
+    broadcastState();
+
+    for (const mid of mentionedIds) {
+      if (mid === user.id) continue;
+      const mentioned = findUserById(mid);
+      if (mentioned && mentioned.email) {
+        const link = PUBLIC_URL || "";
+        await sendMail(mentioned.email, `You were mentioned in ${label}`, `${actorName()} mentioned you:\n\n${trimmed}${link ? "\n\nOpen the board: " + link : ""}`);
+      }
+    }
+  });
+
+  // ---- notify assignees it's their turn ----
+  socket.on("notifyTurn", async ({ itemId }) => {
+    const item = state.items.find((x) => x.id === itemId);
+    if (!item || !item.assigneeIds || !item.assigneeIds.length) return;
+    const group = groupById(item.groupId);
+    if (!canTouchGroup(group)) return;
+    const assignees = item.assigneeIds.map((aid) => findUserById(aid)).filter(Boolean);
+    if (!assignees.length) return;
+    if (group.visibility !== "private") logActivity(`${actorName()} notified ${assignees.map((a) => a.displayName).join(", ")} that it's their turn on "${item.title}"`);
+    persist();
+    broadcastState();
+    const link = PUBLIC_URL ? ("\n\nOpen the board: " + PUBLIC_URL) : "";
+    for (const assignee of assignees) {
+      if (assignee.email) await sendMail(assignee.email, `It's your turn: ${item.title}`, `${actorName()} says it's your turn on "${item.title}".${link}`);
     }
   });
 });
