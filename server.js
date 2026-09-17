@@ -26,7 +26,6 @@ const PUBLIC_URL = process.env.PUBLIC_URL || "";
 
 const GROUP_COLORS = ["#3C5A46", "#C68A2E", "#7D6BAE", "#4C7A9E", "#B24A3C"];
 const DEFAULT_GROUPS = ["Today", "This week", "Someday"];
-const STEP_TYPES = ["next_step", "completed_step", "completed_task"];
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB per file
 
 function uid(prefix) {
@@ -76,6 +75,15 @@ function loadState() {
         delete migrated.status;
         delete migrated.dueDate;
         if (!Array.isArray(migrated.steps)) migrated.steps = [];
+        // migrate the old typed step-log (next_step/completed_step/completed_task)
+        // to the new persistent checklist model (each step has its own done flag)
+        migrated.steps = migrated.steps.map((s) => {
+          if (s && s.type) {
+            if (s.type === "completed_task") return null; // handled via item.archived already
+            return { id: s.id, text: s.text || "", done: s.type === "completed_step", byId: s.byId, byName: s.byName, createdAt: s.at, doneById: s.type === "completed_step" ? s.byId : undefined, doneByName: s.type === "completed_step" ? s.byName : undefined, doneAt: s.type === "completed_step" ? s.at : undefined };
+          }
+          return s;
+        }).filter(Boolean);
         if (!Array.isArray(migrated.files)) migrated.files = [];
         return migrated;
       });
@@ -842,41 +850,80 @@ io.on("connection", (socket) => {
     removeItemUploads(id);
   });
 
-  // ---- steps: next step / completed step / completed task (replaces the old status pipeline) ----
-  socket.on("addStep", async ({ itemId, type, text }) => {
+  // ---- steps: a persistent checklist per task. Any number of steps can be
+  // open at once; each has its own done/undone toggle. Completing the whole
+  // task (archiving it) is a separate action from finishing individual steps.
+  socket.on("addTaskStep", async ({ itemId, text }) => {
     const item = state.items.find((x) => x.id === itemId);
     if (!item) return;
     const group = groupById(item.groupId);
     if (!canTouchGroup(group)) return;
-    if (!STEP_TYPES.includes(type)) return;
-    if (type === "next_step" && (!text || !String(text).trim())) return;
+    if (!text || !String(text).trim()) return;
 
     const step = {
-      id: uid("s"), type,
-      text: type === "next_step" ? String(text).trim().slice(0, 1000) : "",
-      byId: user.id, byName: actorName(), at: nowIso()
+      id: uid("s"), text: String(text).trim().slice(0, 1000), done: false,
+      byId: user.id, byName: actorName(), createdAt: nowIso()
     };
     item.steps.push(step);
     item.updatedBy = actorName();
     item.updatedAt = nowIso();
-    if (type === "completed_task") item.archived = true;
-
-    const verb = type === "next_step" ? `set the next step on "${item.title}"` : type === "completed_step" ? `completed a step on "${item.title}"` : `completed "${item.title}"`;
-    if (group.visibility !== "private") logActivity(`${actorName()} ${verb}`);
+    if (group.visibility !== "private") logActivity(`${actorName()} added a step to "${item.title}"`);
     persist();
     broadcastState();
 
-    // Notify everyone assigned to the task whenever a new next-step is posted.
-    if (type === "next_step" && item.assigneeIds.length) {
+    if (item.assigneeIds.length) {
       const link = PUBLIC_URL || "";
       for (const aid of item.assigneeIds) {
         if (aid === user.id) continue;
         const u = findUserById(aid);
         if (u && u.email) {
-          await sendMail(u.email, `New step on: ${item.title}`, `${actorName()} set the next step on "${item.title}":\n\n${step.text}${link ? "\n\nOpen the board: " + link : ""}`);
+          await sendMail(u.email, `New step on: ${item.title}`, `${actorName()} added a step on "${item.title}":\n\n${step.text}${link ? "\n\nOpen the board: " + link : ""}`);
         }
       }
     }
+  });
+
+  socket.on("toggleTaskStep", ({ itemId, stepId, done }) => {
+    const item = state.items.find((x) => x.id === itemId);
+    if (!item) return;
+    const group = groupById(item.groupId);
+    if (!canTouchGroup(group)) return;
+    const step = item.steps.find((s) => s.id === stepId);
+    if (!step) return;
+    step.done = !!done;
+    step.doneById = step.done ? user.id : undefined;
+    step.doneByName = step.done ? actorName() : undefined;
+    step.doneAt = step.done ? nowIso() : undefined;
+    item.updatedBy = actorName();
+    item.updatedAt = nowIso();
+    if (group.visibility !== "private") logActivity(`${actorName()} marked a step ${step.done ? "done" : "not done"} on "${item.title}"`);
+    persist();
+    broadcastState();
+  });
+
+  socket.on("deleteTaskStep", ({ itemId, stepId }) => {
+    const item = state.items.find((x) => x.id === itemId);
+    if (!item) return;
+    const group = groupById(item.groupId);
+    if (!canTouchGroup(group)) return;
+    item.steps = item.steps.filter((s) => s.id !== stepId);
+    item.updatedBy = actorName();
+    item.updatedAt = nowIso();
+    persist();
+    broadcastState();
+  });
+
+  socket.on("completeTask", ({ itemId }) => {
+    const item = state.items.find((x) => x.id === itemId);
+    if (!item) return;
+    const group = groupById(item.groupId);
+    if (!canTouchGroup(group)) return;
+    item.archived = true;
+    item.updatedBy = actorName();
+    item.updatedAt = nowIso();
+    if (group.visibility !== "private") logActivity(`${actorName()} completed "${item.title}"`);
+    persist();
+    broadcastState();
   });
 
   // ---- messages: per-board chat and per-task chat, with @mention notifications ----
