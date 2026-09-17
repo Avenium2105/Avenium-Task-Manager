@@ -1070,7 +1070,7 @@ io.on("connection", (socket) => {
   socket.on("updateMessage", ({ id, text }) => {
     const m = state.messages.find((x) => x.id === id);
     if (!m || !text || !String(text).trim()) return;
-    if (m.byId !== user.id && user.role !== "admin") return;
+    if (m.byId !== user.id) return; // strictly own messages only — no admin override
     m.text = String(text).trim().slice(0, 2000);
     m.editedAt = nowIso();
     persist();
@@ -1080,7 +1080,7 @@ io.on("connection", (socket) => {
   socket.on("deleteMessage", ({ id }) => {
     const m = state.messages.find((x) => x.id === id);
     if (!m) return;
-    if (m.byId !== user.id && user.role !== "admin") return;
+    if (m.byId !== user.id) return; // strictly own messages only — no admin override
     state.messages = state.messages.filter((x) => x.id !== id);
     persist();
     broadcastState();

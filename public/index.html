@@ -30,7 +30,7 @@
   .page { display: flex; align-items: flex-start; justify-content: center; gap: 28px; max-width: 1440px; margin: 0 auto; padding: 0 28px; }
   .wrap { max-width: 900px; flex: 1 1 auto; margin: 0; padding: 20px 0 100px; min-width: 0; }
 
-  .board-chat { flex-shrink: 0; width: 340px; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: 20px; display: flex; flex-direction: column; max-height: calc(100vh - 40px); transition: width 0.15s; }
+  .board-chat { flex-shrink: 0; width: 400px; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: 20px; display: flex; flex-direction: column; max-height: calc(100vh - 40px); transition: width 0.15s; }
   .board-chat.task-mode { width: 560px; }
   .board-chat-head { padding: 14px 16px; border-bottom: 1px solid var(--line-soft); font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .board-chat-head .head-titles { display: flex; flex-direction: column; min-width: 0; }
@@ -53,8 +53,8 @@
     .task-panel-cols { grid-template-columns: 1fr; }
   }
 
-  .board-access-wrap { position: relative; }
-  .board-access-popover { position: absolute; z-index: 30; top: 100%; left: 0; margin-top: 4px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 10px; min-width: 220px; }
+  .board-access-wrap { display: inline-flex; }
+  .board-access-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 10px; min-width: 220px; }
   .board-access-popover label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 5px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
   .board-access-popover label:hover { background: var(--line-soft); }
   .board-access-popover hr { border: none; border-top: 1px solid var(--line-soft); margin: 6px 0; }
@@ -62,10 +62,9 @@
   .board-access-close { float: right; font-size: 15px; line-height: 1; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 2px 4px; }
   .board-access-close:hover { color: var(--ink); }
 
-  .board-menu-wrap { position: relative; }
   .board-menu-btn { font-family: inherit; font-size: 15px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 6px 8px; border-radius: 6px; line-height: 1; }
   .board-menu-btn:hover { color: var(--pine); background: var(--bg-raised); }
-  .board-menu { position: absolute; z-index: 30; top: 100%; left: 0; margin-top: 4px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 4px; min-width: 160px; }
+  .board-menu { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 4px; min-width: 160px; }
   .board-menu button { display: block; width: 100%; text-align: left; font-family: inherit; font-size: 13px; color: var(--ink); background: none; border: none; padding: 9px 11px; border-radius: 5px; cursor: pointer; }
   .board-menu button:hover { background: var(--line-soft); }
 
@@ -149,8 +148,7 @@
   .assignee-avatar:first-child { margin-left: 0; }
   .assignee-picker-btn { flex-shrink: 0; font-size: 11.5px; font-family: inherit; color: var(--grey-pill-ink); background: var(--grey-pill); border: none; border-radius: 20px; padding: 3px 8px; cursor: pointer; white-space: nowrap; }
   .assignee-picker-btn:hover { background: var(--line-soft); }
-  .assignee-popover { position: relative; }
-  .assignee-popover-list { position: absolute; z-index: 20; top: 100%; left: 0; margin-top: 4px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 6px; min-width: 170px; max-height: 220px; overflow-y: auto; }
+  .assignee-popover-list { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 6px; min-width: 170px; max-height: 220px; overflow-y: auto; }
   .assignee-popover-list label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 5px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
   .assignee-popover-list label:hover { background: var(--line-soft); }
 
@@ -166,19 +164,18 @@
   .item-del:hover { background: var(--brick-soft); color: var(--brick); }
 
   .step-checklist { display: flex; flex-direction: column; gap: 6px; padding: 6px 0 4px 30px; width: calc(100% - 30px); }
-  .step-row { display: flex; align-items: center; gap: 4px; }
+  .step-row { display: flex; align-items: center; gap: 8px; }
   .step-text { flex: 1; font-size: 14px; color: var(--ink-soft); background: transparent; border: none; outline: none; font-family: inherit; padding: 6px 6px; border-radius: 6px; min-width: 0; }
   .step-text:hover, .step-text:focus { background: var(--bg); color: var(--ink); }
   .step-row.done .step-text { color: var(--ink-faint); text-decoration: line-through; }
-  .step-row-menu-btn { flex-shrink: 0; width: 26px; height: 26px; border: none; background: none; color: var(--ink-faint); cursor: pointer; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
-  .step-row-menu-btn:hover { background: var(--bg); color: var(--ink); }
+  .step-row-update-btn { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; color: var(--bg-raised); background: var(--slate); border: none; border-radius: 20px; padding: 6px 13px; cursor: pointer; white-space: nowrap; }
+  .step-row-update-btn:hover { background: var(--pine); }
 
   .step-completed-toggle { align-self: flex-start; font-family: inherit; font-size: 12.5px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 4px; }
   .step-completed-toggle:hover { color: var(--pine); }
 
-  .step-menu-wrap { align-self: flex-start; margin-top: 2px; }
-  .step-menu-btn { font-family: inherit; font-size: 13px; font-weight: 500; color: var(--bg-raised); background: var(--slate); border: none; border-radius: 20px; padding: 6px 14px; cursor: pointer; }
-  .step-menu-btn:hover { background: var(--pine); }
+  .step-add-link { align-self: flex-start; font-family: inherit; font-size: 13px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 4px; }
+  .step-add-link:hover { color: var(--pine); }
 
   .floating-popover { position: fixed; z-index: 1000; }
   .step-menu { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 4px; min-width: 170px; }
@@ -223,7 +220,7 @@
   .chat-when { font-size: 10px; color: var(--ink-faint); margin-top: 3px; text-align: right; }
   .chat-empty { color: var(--ink-faint); font-size: 12px; font-style: italic; }
   .chat-input-row { display: flex; gap: 6px; flex-shrink: 0; margin-top: 8px; flex-wrap: wrap; }
-  .chat-input-row input { flex: 1; min-width: 60px; font-family: inherit; font-size: 12.5px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-raised); color: var(--ink); outline: none; }
+  .chat-input-row input { flex: 1 1 160px; min-width: 140px; font-family: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-raised); color: var(--ink); outline: none; }
   .chat-input-row button { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; padding: 6px 10px; border: none; border-radius: 6px; background: var(--slate); color: var(--bg-raised); cursor: pointer; }
 
   .read-receipt-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 8px 10px; min-width: 170px; font-size: 12px; }
@@ -240,7 +237,8 @@
   .chat-edit-form button { font-family: inherit; font-size: 11px; font-weight: 500; padding: 4px 7px; border: none; border-radius: 5px; background: var(--pine); color: var(--bg-raised); cursor: pointer; }
   .chat-edit-form button.cancel { background: none; color: var(--ink-soft); }
 
-  .chat-to-btn { flex-shrink: 0; font-family: inherit; font-size: 11.5px; font-weight: 500; color: var(--slate); background: var(--slate-soft); border: none; border-radius: 20px; padding: 6px 10px; cursor: pointer; white-space: nowrap; }
+  .chat-to-btn { flex-shrink: 0; font-family: inherit; font-size: 11.5px; font-weight: 500; color: var(--ink-soft); background: var(--line-soft); border: none; border-radius: 20px; padding: 6px 10px; cursor: pointer; white-space: nowrap; }
+  .chat-to-btn.chosen { color: var(--slate); background: var(--slate-soft); }
   .chat-to-btn:hover { background: var(--slate); color: var(--bg-raised); }
   .recipient-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 8px 10px; min-width: 190px; max-height: 260px; overflow-y: auto; }
   .recipient-popover label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 5px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
@@ -532,6 +530,7 @@
           menuWrap2.appendChild(boardMenu);
         }
         wrap.appendChild(menuWrap2);
+        if (openBoardMenus[b.id]) anchorPopover(dotsBtn, boardMenu, "left");
 
         var accessWrap = el("span", "board-access-wrap");
         if (openBoardAccess[b.id]) {
@@ -584,9 +583,9 @@
           });
           memberChecks.forEach(function (c) { c.addEventListener("change", commitAccess); });
           privateChk.addEventListener("change", commitAccess);
-          accessWrap.appendChild(pop);
         }
         wrap.appendChild(accessWrap);
+        if (openBoardAccess[b.id]) anchorPopover(menuWrap2, pop, "left");
       }
       mount.appendChild(wrap);
     });
@@ -622,7 +621,7 @@
         }
       });
       newBoardPop.appendChild(createBtn);
-      addWrap.appendChild(newBoardPop);
+      anchorPopover(addTab, newBoardPop, "left");
       setTimeout(function () { nameInput2.focus(); }, 0);
     }
     mount.appendChild(addWrap);
@@ -809,6 +808,7 @@
     // ---- multi-assignee picker ----
     var assigneeIds = item.assigneeIds || [];
     var pickerWrap = el("span", "assignee-popover");
+    var assigneeTrigger;
     if (assigneeIds.length) {
       var chips = el("span", "assignee-chips");
       assigneeIds.forEach(function (aid) {
@@ -821,10 +821,12 @@
       chips.addEventListener("click", function (e) { e.stopPropagation(); openAssigneePickers[item.id] = !openAssigneePickers[item.id]; render(); });
       chips.style.cursor = "pointer";
       pickerWrap.appendChild(chips);
+      assigneeTrigger = chips;
     } else {
       var pickBtn = el("button", "assignee-picker-btn", { type: "button", text: "Unassigned" });
       pickBtn.addEventListener("click", function (e) { e.stopPropagation(); openAssigneePickers[item.id] = !openAssigneePickers[item.id]; render(); });
       pickerWrap.appendChild(pickBtn);
+      assigneeTrigger = pickBtn;
     }
     if (openAssigneePickers[item.id]) {
       var list = el("div", "assignee-popover-list");
@@ -841,7 +843,7 @@
         lbl.appendChild(document.createTextNode(t.displayName));
         list.appendChild(lbl);
       });
-      pickerWrap.appendChild(list);
+      anchorPopover(assigneeTrigger, list, "left");
     }
     main.appendChild(pickerWrap);
 
@@ -900,33 +902,6 @@
     function renderStepRow(s) {
       var stepRow = el("div", "step-row" + (s.done ? " done" : ""));
 
-      var rowMenuBtn = el("button", "step-row-menu-btn", { type: "button", "aria-label": "Step options" });
-      rowMenuBtn.innerHTML = '<svg viewBox="0 0 14 14" width="13" height="13" fill="none"><circle cx="3" cy="7" r="1.3" fill="currentColor"/><circle cx="7" cy="7" r="1.3" fill="currentColor"/><circle cx="11" cy="7" r="1.3" fill="currentColor"/></svg>';
-      rowMenuBtn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        openStepRowMenus[s.id] = !openStepRowMenus[s.id];
-        render();
-      });
-      stepRow.appendChild(rowMenuBtn);
-      if (openStepRowMenus[s.id]) {
-        var rowMenu = el("div", "step-menu");
-        rowMenu.addEventListener("click", function (e) { e.stopPropagation(); });
-        var toggleDoneBtn = el("button", "", { type: "button", text: s.done ? "Mark not done" : "Mark done" });
-        toggleDoneBtn.addEventListener("click", function () {
-          delete openStepRowMenus[s.id];
-          socket.emit("toggleTaskStep", { itemId: item.id, stepId: s.id, done: !s.done });
-          render();
-        });
-        rowMenu.appendChild(toggleDoneBtn);
-        var deleteStepBtn = el("button", "danger", { type: "button", text: "Delete" });
-        deleteStepBtn.addEventListener("click", function () {
-          delete openStepRowMenus[s.id];
-          socket.emit("deleteTaskStep", { itemId: item.id, stepId: s.id });
-        });
-        rowMenu.appendChild(deleteStepBtn);
-        anchorPopover(rowMenuBtn, rowMenu, "left");
-      }
-
       var textInput = el("input", "step-text", { type: "text" });
       textInput.value = s.text || "";
       textInput.addEventListener("change", function () {
@@ -937,6 +912,45 @@
         }
       });
       stepRow.appendChild(textInput);
+
+      var rowUpdateBtn = el("button", "step-row-update-btn", { type: "button", text: "Update" });
+      rowUpdateBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openStepRowMenus[s.id] = !openStepRowMenus[s.id];
+        render();
+      });
+      stepRow.appendChild(rowUpdateBtn);
+      if (openStepRowMenus[s.id]) {
+        var rowMenu = el("div", "step-menu");
+        rowMenu.addEventListener("click", function (e) { e.stopPropagation(); });
+        var toggleDoneBtn = el("button", "", { type: "button", text: s.done ? "Mark not done" : "Mark done" });
+        toggleDoneBtn.addEventListener("click", function () {
+          delete openStepRowMenus[s.id];
+          socket.emit("toggleTaskStep", { itemId: item.id, stepId: s.id, done: !s.done });
+          if (!s.done) openStepAdders[item.id] = true; // marking a step done immediately opens the next line
+          render();
+        });
+        rowMenu.appendChild(toggleDoneBtn);
+        var deleteStepBtn = el("button", "danger", { type: "button", text: "Delete Step" });
+        deleteStepBtn.addEventListener("click", function () {
+          delete openStepRowMenus[s.id];
+          socket.emit("deleteTaskStep", { itemId: item.id, stepId: s.id });
+          render();
+        });
+        rowMenu.appendChild(deleteStepBtn);
+        if (!item.archived) {
+          var completeTaskBtn2 = el("button", "danger", { type: "button", text: "Complete Task" });
+          completeTaskBtn2.addEventListener("click", function () {
+            delete openStepRowMenus[s.id];
+            if (window.confirm("Mark \"" + item.title + "\" as fully complete? It will move to Archived.")) {
+              socket.emit("completeTask", { itemId: item.id });
+            }
+            render();
+          });
+          rowMenu.appendChild(completeTaskBtn2);
+        }
+        anchorPopover(rowUpdateBtn, rowMenu, "left");
+      }
 
       return stepRow;
     }
@@ -971,60 +985,9 @@
       wrap.appendChild(form);
       setTimeout(function () { input.focus(); }, 0);
     } else {
-      var updateWrap = el("span", "step-menu-wrap");
-      var updateBtn = el("button", "step-menu-btn", { type: "button", text: "Update \u25be" });
-      updateBtn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        openStepMenus[item.id] = !openStepMenus[item.id];
-        render();
-      });
-      updateWrap.appendChild(updateBtn);
-      if (openStepMenus[item.id]) {
-        var menu = el("div", "step-menu");
-        menu.addEventListener("click", function (e) { e.stopPropagation(); });
-
-        var addStepBtn = el("button", "", { type: "button", text: "Add Step" });
-        addStepBtn.addEventListener("click", function () {
-          delete openStepMenus[item.id];
-          openStepAdders[item.id] = true;
-          render();
-        });
-        menu.appendChild(addStepBtn);
-
-        var completeStepBtn = el("button", "", { type: "button", text: "Complete Step" });
-        if (!openSteps.length) completeStepBtn.disabled = true;
-        completeStepBtn.addEventListener("click", function () {
-          delete openStepMenus[item.id];
-          if (openSteps.length) socket.emit("toggleTaskStep", { itemId: item.id, stepId: openSteps[0].id, done: true });
-          openStepAdders[item.id] = true; // trigger a new line for what's next
-          render();
-        });
-        menu.appendChild(completeStepBtn);
-
-        var deleteStepBtn2 = el("button", "danger", { type: "button", text: "Delete Step" });
-        if (!openSteps.length) deleteStepBtn2.disabled = true;
-        deleteStepBtn2.addEventListener("click", function () {
-          delete openStepMenus[item.id];
-          if (openSteps.length) socket.emit("deleteTaskStep", { itemId: item.id, stepId: openSteps[0].id });
-          render();
-        });
-        menu.appendChild(deleteStepBtn2);
-
-        if (!item.archived) {
-          var completeTaskBtn = el("button", "danger", { type: "button", text: "Complete Task" });
-          completeTaskBtn.addEventListener("click", function () {
-            delete openStepMenus[item.id];
-            if (window.confirm("Mark \"" + item.title + "\" as fully complete? It will move to Archived.")) {
-              socket.emit("completeTask", { itemId: item.id });
-            }
-            render();
-          });
-          menu.appendChild(completeTaskBtn);
-        }
-
-        anchorPopover(updateBtn, menu, "left");
-      }
-      wrap.appendChild(updateWrap);
+      var addStepLink = el("button", "step-add-link", { type: "button", text: "+ Add step" });
+      addStepLink.addEventListener("click", function () { openStepAdders[item.id] = true; render(); });
+      wrap.appendChild(addStepLink);
     }
 
     return wrap;
@@ -1121,7 +1084,7 @@
 
   function renderChatMsg(m) {
     var isMine = currentUser && m.byId === currentUser.id;
-    var canModify = currentUser && (isMine || currentUser.role === "admin");
+    var canModify = isMine; // messages can only ever be edited/deleted by their own author — no admin override
     var row = el("div", "chat-row" + (isMine ? " mine" : ""));
     var bubble = el("div", "chat-bubble");
     if (!isMine) bubble.appendChild(el("div", "chat-who", { text: m.byName }));
@@ -1322,13 +1285,9 @@
     var toBtn = el("button", "chat-to-btn", { type: "button" });
     var inputEl = el("input", "", { type: "text", enterkeyhint: "send" });
 
-    function labelFor() {
-      if (sel.all) return "Recipients: All \u25be";
-      if (sel.ids.length) return "Recipients: " + sel.ids.length + " \u25be";
-      return "Recipients \u25be";
-    }
     function refresh() {
-      toBtn.textContent = labelFor();
+      toBtn.textContent = "Recipients";
+      toBtn.classList.toggle("chosen", !!(sel.all || sel.ids.length));
       inputEl.readOnly = !(sel.all || sel.ids.length);
     }
     refresh();
@@ -1412,9 +1371,12 @@
     render();
   });
 
-  // Close any open step-menu / assignee-picker / board-access popover when clicking elsewhere.
+  // Close any open popover when clicking elsewhere. Checking for any live
+  // .floating-popover directly (rather than only specific state flags) makes
+  // this catch every popover, including ones like the recipient picker that
+  // aren't tied to one of the flags below.
   document.addEventListener("click", function () {
-    var changed = Object.keys(openAssigneePickers).length || Object.keys(openBoardAccess).length || Object.keys(openStepMenus).length || Object.keys(openBoardMenus).length || Object.keys(openStepRowMenus).length || Object.keys(openMessagePopovers).length || openNewBoardForm;
+    var changed = Object.keys(openAssigneePickers).length || Object.keys(openBoardAccess).length || Object.keys(openStepMenus).length || Object.keys(openBoardMenus).length || Object.keys(openStepRowMenus).length || Object.keys(openMessagePopovers).length || openNewBoardForm || document.querySelectorAll(".floating-popover").length;
     if (changed) {
       openAssigneePickers = {}; openBoardAccess = {}; openStepMenus = {}; openBoardMenus = {}; openStepRowMenus = {}; openMessagePopovers = {}; openNewBoardForm = false;
       render();
