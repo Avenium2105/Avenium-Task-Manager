@@ -28,8 +28,12 @@
   .wrap { max-width: 900px; flex: 1 1 auto; margin: 0; padding: 20px 0 100px; min-width: 0; }
 
   .board-chat { flex-shrink: 0; width: 340px; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: 20px; display: flex; flex-direction: column; max-height: calc(100vh - 40px); }
-  .board-chat-head { padding: 14px 16px; border-bottom: 1px solid var(--line-soft); font-weight: 600; font-size: 14px; }
+  .board-chat-head { padding: 14px 16px; border-bottom: 1px solid var(--line-soft); font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .board-chat-head .head-titles { display: flex; flex-direction: column; min-width: 0; }
+  .board-chat-head .head-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .board-chat-head .sub { font-weight: 400; color: var(--ink-faint); font-size: 11.5px; display: block; margin-top: 2px; }
+  .board-chat-back { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; color: var(--ink-soft); background: var(--line-soft); border: none; border-radius: 20px; padding: 5px 11px; cursor: pointer; white-space: nowrap; }
+  .board-chat-back:hover { color: var(--ink); background: var(--line); }
   .board-chat-body { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; min-height: 160px; }
   .board-chat-foot { padding: 12px 16px; border-top: 1px solid var(--line-soft); }
   .board-chat-foot .chat-input-row input { background: var(--bg); }
@@ -99,6 +103,7 @@
 
   .item { display: flex; flex-direction: column; padding: 10px 16px 9px 20px; border-top: 1px solid var(--line-soft); transition: background 0.1s; }
   .item:hover { background: var(--line-soft); }
+  .item.selected { background: var(--slate-soft); }
   .item-main { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
   .item-meta { font-size: 11px; color: var(--ink-faint); padding: 2px 0 0 30px; }
   .item-notes { font-size: 12.5px; color: var(--ink-soft); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin: 6px 0 0 30px; width: calc(100% - 30px); font-family: inherit; resize: vertical; min-height: 30px; outline: none; }
@@ -135,33 +140,34 @@
   .notify-btn:hover { background: var(--slate-soft); color: var(--slate); }
   .notify-btn.sent { color: var(--pine); opacity: 1; }
   .details-btn.has-content { opacity: 1; color: var(--ink-soft); }
+  .details-btn.active { opacity: 1; color: var(--slate); background: var(--slate-soft); }
   .details-btn:hover { background: var(--bg); color: var(--ink); }
   .item-del:hover { background: var(--brick-soft); color: var(--brick); }
-
-  .complete-task-btn { flex-shrink: 0; width: 20px; height: 20px; border: 1.5px solid var(--ink-faint); background: transparent; color: transparent; cursor: pointer; border-radius: 6px; display: flex; align-items: center; justify-content: center; padding: 0; }
-  .complete-task-btn:hover { border-color: var(--pine); }
-  .complete-task-btn svg { width: 12px; height: 12px; }
-  .complete-task-btn.done { border-color: var(--pine); background: var(--pine); color: var(--bg-raised); }
 
   .step-checklist { display: flex; flex-direction: column; gap: 3px; padding: 4px 0 2px 30px; width: calc(100% - 30px); }
   .step-row { display: flex; align-items: center; gap: 8px; }
   .step-toggle { flex-shrink: 0; width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--slate); background: transparent; color: var(--bg-raised); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
   .step-toggle svg { width: 10px; height: 10px; }
   .step-row.done .step-toggle { background: var(--slate); }
-  .step-text { flex: 1; font-size: 13px; color: var(--ink-soft); }
+  .step-text { flex: 1; font-size: 13px; color: var(--ink-soft); background: transparent; border: none; outline: none; font-family: inherit; padding: 3px 4px; border-radius: 5px; min-width: 0; }
+  .step-text:hover, .step-text:focus { background: var(--bg); color: var(--ink); }
   .step-row.done .step-text { color: var(--ink-faint); text-decoration: line-through; }
   .step-del { flex-shrink: 0; width: 16px; height: 16px; border: none; background: none; color: var(--ink-faint); cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; }
   .step-row:hover .step-del { opacity: 1; }
   .step-del:hover { color: var(--brick); }
 
-  .step-add-btn { align-self: flex-start; font-family: inherit; font-size: 12px; color: var(--ink-faint); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 3px 0; }
+  .step-foot-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 3px 0; }
+  .step-add-btn { font-family: inherit; font-size: 12px; color: var(--ink-faint); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 3px 0; }
   .step-add-btn svg { width: 10px; height: 10px; }
   .step-add-btn:hover { color: var(--pine); }
+  .step-complete-btn { font-family: inherit; font-size: 12px; font-weight: 500; color: var(--pine); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 3px 0; }
+  .step-complete-btn svg { width: 10px; height: 10px; }
+  .step-complete-btn:hover { text-decoration: underline; }
   .step-add-row { display: flex; gap: 6px; padding: 2px 0; }
   .step-add-row input { flex: 1; font-family: inherit; font-size: 13px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); outline: none; }
   .step-add-row button { font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 6px 12px; border: none; border-radius: 6px; background: var(--pine); color: var(--bg-raised); cursor: pointer; white-space: nowrap; }
 
-  .details-panel { margin: 8px 0 0 30px; width: calc(100% - 30px); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+  .task-panel-body { display: flex; flex-direction: column; gap: 10px; }
   .details-section-label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); margin-bottom: 4px; }
   .details-notes { font-size: 12.5px; color: var(--ink-soft); background: var(--bg-raised); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; width: 100%; font-family: inherit; resize: vertical; min-height: 50px; outline: none; }
 
@@ -251,7 +257,7 @@
 </div>
 
 <aside class="board-chat" id="boardChat" style="display:none;">
-  <div class="board-chat-head">Board chat<span class="sub" id="boardChatSub"></span></div>
+  <div class="board-chat-head" id="boardChatHead"></div>
   <div class="board-chat-body" id="boardChatBody"></div>
   <div class="board-chat-foot">
     <div class="chat-input-row">
@@ -274,10 +280,10 @@
   var collapsedKey = "daily-board-collapsed";
   var notifiedRecently = {};
   var showArchived = false;
-  var openDetailPanels = {}; // itemId -> true while its notes/files/chat panel is expanded
   var openStepAdders = {};   // itemId -> true while its "add a step" input is showing
   var openAssigneePickers = {}; // itemId -> true while its assignee picker is open
   var openBoardAccess = {}; // boardId -> true while its access popover is open
+  var selectedItemId = null; // when set, the right-side panel shows this task's notes/files/chat instead of board chat
 
   var QUOTES = [
     "Small steps, done consistently, win.",
@@ -472,7 +478,7 @@
 
     document.getElementById("archivedToggleBtn").textContent = showArchived ? "Hide completed / archived" : "Show completed / archived";
 
-    renderBoardChat(showingAll ? null : boardsToShow().find(function (b) { return b.id === selectedBoardId; }));
+    renderSidePanel(showingAll ? null : boardsToShow().find(function (b) { return b.id === selectedBoardId; }));
 
     var collapsed = getCollapsed();
     var mount = document.getElementById("groupsMount");
@@ -577,7 +583,7 @@
   }
 
   function renderItem(item) {
-    var row = el("div", "item" + (item.archived ? " is-done" : ""));
+    var row = el("div", "item" + (item.archived ? " is-done" : "") + (item.id === selectedItemId ? " selected" : ""));
     var main = el("div", "item-main");
 
     var titleInput = el("input", "item-title");
@@ -630,10 +636,10 @@
     main.appendChild(priBtn);
 
     var hasExtras = item.notes || (item.files && item.files.length);
-    var detailsBtn = el("button", "details-btn" + (hasExtras ? " has-content" : ""), { type: "button", "aria-label": "Notes & files", title: "Notes, files, chat" });
+    var detailsBtn = el("button", "details-btn" + (hasExtras ? " has-content" : "") + (item.id === selectedItemId ? " active" : ""), { type: "button", "aria-label": "Notes & files", title: "Notes, files, chat (opens on the right)" });
     detailsBtn.innerHTML = noteSvg();
     detailsBtn.addEventListener("click", function () {
-      openDetailPanels[item.id] = !openDetailPanels[item.id];
+      selectedItemId = (selectedItemId === item.id) ? null : item.id;
       render();
     });
     main.appendChild(detailsBtn);
@@ -648,15 +654,6 @@
       setTimeout(function () { notifiedRecently[item.id] = false; }, 4000);
     });
     main.appendChild(notifyBtn);
-
-    var completeBtn = el("button", "complete-task-btn" + (item.archived ? " done" : ""), { type: "button", "aria-label": "Mark task complete", title: item.archived ? "Completed" : "Mark whole task complete" });
-    completeBtn.innerHTML = checkSvg();
-    completeBtn.addEventListener("click", function () {
-      if (!item.archived && window.confirm("Mark \"" + item.title + "\" as fully complete? It will move to Archived.")) {
-        socket.emit("completeTask", { itemId: item.id });
-      }
-    });
-    main.appendChild(completeBtn);
 
     var delBtn = el("button", "item-del", { type: "button", "aria-label": "Delete task" });
     delBtn.innerHTML = xSvg();
@@ -675,11 +672,6 @@
       row.appendChild(el("div", "item-meta", { text: label + " \u00b7 " + relTime(item.updatedAt) }));
     }
 
-    // ---- expandable panel: notes, files, task chat ----
-    if (openDetailPanels[item.id]) {
-      row.appendChild(renderItemDetails(item));
-    }
-
     return row;
   }
 
@@ -693,7 +685,18 @@
         socket.emit("toggleTaskStep", { itemId: item.id, stepId: s.id, done: !s.done });
       });
       stepRow.appendChild(toggle);
-      stepRow.appendChild(el("span", "step-text", { text: s.text }));
+
+      var textInput = el("input", "step-text", { type: "text" });
+      textInput.value = s.text || "";
+      textInput.addEventListener("change", function () {
+        if (textInput.value.trim() && textInput.value.trim() !== s.text) {
+          socket.emit("updateTaskStep", { itemId: item.id, stepId: s.id, text: textInput.value.trim() });
+        } else {
+          textInput.value = s.text || "";
+        }
+      });
+      stepRow.appendChild(textInput);
+
       var delStep = el("button", "step-del", { type: "button", "aria-label": "Remove step" });
       delStep.innerHTML = xSvg();
       delStep.addEventListener("click", function () { socket.emit("deleteTaskStep", { itemId: item.id, stepId: s.id }); });
@@ -714,24 +717,37 @@
       wrap.appendChild(form);
       setTimeout(function () { input.focus(); }, 0);
     } else {
+      var footRow = el("div", "step-foot-row");
       var addBtn = el("button", "step-add-btn", { type: "button" });
       addBtn.innerHTML = plusSvg() + " Add step";
       addBtn.addEventListener("click", function () { openStepAdders[item.id] = true; render(); });
-      wrap.appendChild(addBtn);
+      footRow.appendChild(addBtn);
+
+      if (!item.archived) {
+        var completeBtn = el("button", "step-complete-btn", { type: "button" });
+        completeBtn.innerHTML = checkSvg() + " Mark task complete";
+        completeBtn.addEventListener("click", function () {
+          if (window.confirm("Mark \"" + item.title + "\" as fully complete? It will move to Archived.")) {
+            socket.emit("completeTask", { itemId: item.id });
+          }
+        });
+        footRow.appendChild(completeBtn);
+      }
+      wrap.appendChild(footRow);
     }
     return wrap;
   }
 
-  function renderItemDetails(item) {
-    var panel = el("div", "details-panel");
+  function renderTaskPanelBody(item) {
+    var wrap = el("div", "task-panel-body");
 
-    panel.appendChild(el("div", "details-section-label", { text: "Notes" }));
+    wrap.appendChild(el("div", "details-section-label", { text: "Notes" }));
     var ta = el("textarea", "details-notes", { placeholder: "Notes\u2026" });
     ta.value = item.notes || "";
     ta.addEventListener("blur", function () { updateItem(item.id, { notes: ta.value }); });
-    panel.appendChild(ta);
+    wrap.appendChild(ta);
 
-    panel.appendChild(el("div", "details-section-label", { text: "Files" }));
+    wrap.appendChild(el("div", "details-section-label", { text: "Files" }));
     var fileList = el("div", "file-list");
     (item.files || []).forEach(function (f) {
       var row = el("div", "file-row");
@@ -748,7 +764,7 @@
       row.appendChild(delF);
       fileList.appendChild(row);
     });
-    panel.appendChild(fileList);
+    wrap.appendChild(fileList);
 
     var drop = el("label", "file-drop", { text: "Click or drop a file to attach (up to 20MB)" });
     var fileInput = el("input", "", { type: "file" });
@@ -764,31 +780,16 @@
       drop.classList.remove("drag-over");
       if (e.dataTransfer.files[0]) uploadItemFile(item.id, e.dataTransfer.files[0]);
     });
-    panel.appendChild(drop);
+    wrap.appendChild(drop);
 
-    panel.appendChild(el("div", "details-section-label", { text: "Task chat" }));
+    wrap.appendChild(el("div", "details-section-label", { text: "Task chat" }));
     var chatMsgs = state.messages.filter(function (m) { return m.scope === "item" && m.scopeId === item.id; });
-    var chatBox = el("div", "item-chat");
     if (!chatMsgs.length) {
-      chatBox.appendChild(el("div", "chat-empty", { text: "No messages yet." }));
+      wrap.appendChild(el("div", "chat-empty", { text: "No messages yet." }));
     } else {
-      chatMsgs.forEach(function (m) { chatBox.appendChild(renderChatMsg(m)); });
+      chatMsgs.forEach(function (m) { wrap.appendChild(renderChatMsg(m)); });
     }
-    panel.appendChild(chatBox);
-
-    var chatForm = el("form", "chat-input-row");
-    var chatInput = el("input", "", { type: "text", placeholder: "Message about this task\u2026 use @name to mention", enterkeyhint: "send" });
-    chatForm.appendChild(chatInput);
-    var chatSend = el("button", "", { type: "submit", text: "Send" });
-    chatForm.appendChild(chatSend);
-    chatForm.addEventListener("submit", function (e) {
-      e.preventDefault();
-      if (chatInput.value.trim()) { socket.emit("addMessage", { scope: "item", scopeId: item.id, text: chatInput.value.trim() }); chatInput.value = ""; }
-    });
-    attachMentionAutocomplete(chatInput, function () { return team; });
-    panel.appendChild(chatForm);
-
-    return panel;
+    return wrap;
   }
 
   function renderChatMsg(m) {
@@ -807,15 +808,59 @@
       .catch(function () { window.alert("Couldn't reach the server."); });
   }
 
+  // The right-side panel shows one of two things: the chat for the currently
+  // selected board, or — once a task's notes icon is clicked — that task's
+  // notes/files/chat. Selecting a task always takes over the panel; closing
+  // it (the back button) returns to the board chat.
+  function renderSidePanel(board) {
+    var aside = document.getElementById("boardChat");
+    aside.style.display = "flex";
+    var head = document.getElementById("boardChatHead");
+    var body = document.getElementById("boardChatBody");
+    var input = document.getElementById("boardChatInput");
+    var sendBtn = document.getElementById("boardChatSend");
+
+    var selectedItem = selectedItemId ? state.items.find(function (i) { return i.id === selectedItemId; }) : null;
+    if (selectedItemId && !selectedItem) selectedItemId = null; // task no longer visible (deleted/filtered) — fall back
+
+    if (selectedItem) {
+      head.innerHTML = "";
+      head.appendChild(el("span", "head-title", { text: selectedItem.title }));
+      var backBtn = el("button", "board-chat-back", { type: "button", text: "\u2190 Board chat" });
+      backBtn.addEventListener("click", function () { selectedItemId = null; render(); });
+      head.appendChild(backBtn);
+
+      body.innerHTML = "";
+      body.appendChild(renderTaskPanelBody(selectedItem));
+      body.scrollTop = body.scrollHeight;
+
+      input.disabled = false; sendBtn.disabled = false;
+      input.placeholder = "Message about this task\u2026 use @name to mention";
+      var newSendBtn2 = sendBtn.cloneNode(true); sendBtn.parentNode.replaceChild(newSendBtn2, sendBtn);
+      var newInput2 = input.cloneNode(true); newInput2.value = input.value; input.parentNode.replaceChild(newInput2, input);
+      function sendItemMsg() {
+        if (newInput2.value.trim()) { socket.emit("addMessage", { scope: "item", scopeId: selectedItem.id, text: newInput2.value.trim() }); newInput2.value = ""; }
+      }
+      newSendBtn2.addEventListener("click", sendItemMsg);
+      newInput2.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); sendItemMsg(); } });
+      attachMentionAutocomplete(newInput2, function () { return team; });
+      return;
+    }
+
+    renderBoardChat(board);
+  }
+
   function renderBoardChat(board) {
     var aside = document.getElementById("boardChat");
     aside.style.display = "flex";
+    var head = document.getElementById("boardChatHead");
     var body = document.getElementById("boardChatBody");
     var input = document.getElementById("boardChatInput");
     var sendBtn = document.getElementById("boardChatSend");
 
     if (!board) {
-      document.getElementById("boardChatSub").textContent = "";
+      head.innerHTML = "";
+      head.appendChild(el("span", "head-title", { text: "Board chat" }));
       body.innerHTML = "";
       body.appendChild(el("div", "board-chat-placeholder", { text: "Pick a specific board above to see and send its chat." }));
       input.disabled = true; sendBtn.disabled = true;
@@ -825,7 +870,11 @@
     input.disabled = false; sendBtn.disabled = false;
     input.placeholder = "Message this board\u2026 use @name to mention";
 
-    document.getElementById("boardChatSub").textContent = board.name;
+    head.innerHTML = "";
+    var headTitles = el("span", "head-titles");
+    headTitles.appendChild(el("span", "head-title", { text: "Board chat" }));
+    headTitles.appendChild(el("span", "sub", { text: board.name }));
+    head.appendChild(headTitles);
     var msgs = state.messages.filter(function (m) { return m.scope === "board" && m.scopeId === board.id; });
     body.innerHTML = "";
     if (!msgs.length) {

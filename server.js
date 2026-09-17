@@ -901,6 +901,20 @@ io.on("connection", (socket) => {
     broadcastState();
   });
 
+  socket.on("updateTaskStep", ({ itemId, stepId, text }) => {
+    const item = state.items.find((x) => x.id === itemId);
+    if (!item) return;
+    const group = groupById(item.groupId);
+    if (!canTouchGroup(group)) return;
+    const step = item.steps.find((s) => s.id === stepId);
+    if (!step || typeof text !== "string" || !text.trim()) return;
+    step.text = text.trim().slice(0, 1000);
+    item.updatedBy = actorName();
+    item.updatedAt = nowIso();
+    persist();
+    broadcastState();
+  });
+
   socket.on("deleteTaskStep", ({ itemId, stepId }) => {
     const item = state.items.find((x) => x.id === itemId);
     if (!item) return;
