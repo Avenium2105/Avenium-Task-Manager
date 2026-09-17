@@ -61,7 +61,7 @@ function loadState() {
       const firstBoardId = boards[0].id;
       // memberIds === null/undefined means "open to everyone" — how every
       // board created before access control existed keeps working.
-      boards.forEach((b) => { if (!("memberIds" in b)) b.memberIds = null; if (typeof b.tabOrder !== "number") b.tabOrder = b.order || 0; });
+      boards.forEach((b) => { if (!("memberIds" in b)) b.memberIds = null; if (typeof b.tabOrder !== "number") b.tabOrder = b.order || 0; if (typeof b.private !== "boolean") b.private = false; });
       const groups = (Array.isArray(raw.groups) ? raw.groups : []).map((g) => ({
         visibility: "shared",
         boardId: firstBoardId,
@@ -138,11 +138,12 @@ function logActivity(text) {
 function groupById(id) { return state.groups.find((g) => g.id === id); }
 function boardById(id) { return state.boards.find((b) => b.id === id); }
 // null/undefined memberIds = open to everyone (legacy boards, and the default behavior
-// unless an admin has deliberately restricted the board).
+// unless the board has been deliberately restricted). Restricted boards — including
+// private ones — require actual membership; admins get no automatic bypass, so a
+// private board stays private even from other admins who aren't on it.
 function canSeeBoard(board, user) {
   if (!board) return false;
   if (!board.memberIds) return true;
-  if (user.role === "admin") return true;
   return board.memberIds.includes(user.id);
 }
 
@@ -686,12 +687,13 @@ io.on("connection", (socket) => {
     const board = {
       id: uid("b"), name: name.trim().slice(0, 100) || "Untitled board",
       order: state.boards.length, tabOrder: state.boards.length,
-      createdAt: Date.now(), createdBy: actorName(),
+      createdAt: Date.now(), createdBy: actorName(), createdById: user.id,
       // Admins create boards open to everyone by default (matches how shared company
       // boards have always worked); anyone else's board starts private to just them,
       // until an admin grants access to others. Checking "Private" forces it private
       // regardless of role, and its creation is never announced to anyone else.
-      memberIds: isPrivate ? [user.id] : (user.role === "admin" ? null : [user.id])
+      memberIds: isPrivate ? [user.id] : (user.role === "admin" ? null : [user.id]),
+      private: !!isPrivate
     };
     state.boards.push(board);
     if (!isPrivate) logActivity(`${actorName()} created the board "${board.name}"`);
@@ -699,15 +701,19 @@ io.on("connection", (socket) => {
     broadcastState();
   });
 
-  socket.on("updateBoardAccess", ({ id, memberIds }) => {
+  socket.on("updateBoardAccess", ({ id, memberIds, isPrivate }) => {
     if (user.role !== "admin") return;
     const board = boardById(id);
     if (!board) return;
     if (memberIds === null) {
       board.memberIds = null; // open to everyone
+      board.private = false;
     } else if (Array.isArray(memberIds)) {
       const validIds = new Set(users.map((u) => u.id));
-      board.memberIds = memberIds.filter((mid) => validIds.has(mid)).slice(0, 500);
+      const next = new Set(memberIds.filter((mid) => validIds.has(mid)));
+      next.add(user.id); // never let the admin making this change lock themselves out
+      board.memberIds = [...next].slice(0, 500);
+      board.private = !!isPrivate;
     } else {
       return;
     }
@@ -837,7 +843,7 @@ io.on("connection", (socket) => {
       notes: "", priority: "low",
       assigneeIds: [], steps: [], archived: false, files: [],
       order: typeof order === "number" ? order : state.items.length,
-      createdAt: Date.now(), createdBy: actorName(), updatedBy: actorName(), updatedAt: nowIso()
+      createdAt: Date.now(), createdBy: actorName(), createdById: user.id, updatedBy: actorName(), updatedAt: nowIso()
     };
     state.items.push(item);
     if (group.visibility !== "private") logActivity(`${actorName()} added "${item.title}" to ${group.name}`);
@@ -903,6 +909,10 @@ io.on("connection", (socket) => {
     if (!item) return;
     const group = groupById(item.groupId);
     if (!canTouchGroup(group)) return;
+    // Only an admin or whoever created the task can delete it. Tasks created
+    // before this restriction existed (no createdById on record) can still be
+    // deleted by anyone with access, so nothing old gets permanently stuck.
+    if (item.createdById && item.createdById !== user.id && user.role !== "admin") return;
     state.items = state.items.filter((x) => x.id !== id);
     state.messages = state.messages.filter((m) => !(m.scope === "item" && m.scopeId === id));
     if (group.visibility !== "private") logActivity(`${actorName()} deleted "${item.title}"`);
@@ -1002,15 +1012,14 @@ io.on("connection", (socket) => {
   });
 
   // ---- messages: per-board chat and per-task chat, with @mention notifications ----
-  socket.on("addMessage", async ({ scope, scopeId, text }) => {
+  socket.on("addMessage", async ({ scope, scopeId, text, mentionIds }) => {
     if (scope !== "board" && scope !== "item") return;
     if (!text || !String(text).trim()) return;
-    let boardForNotify = null;
     let label = null;
     if (scope === "board") {
       const board = boardById(scopeId);
       if (!board || !canSeeBoard(board, user)) return;
-      boardForNotify = board;
+      if (board.private) return; // private boards have no chat at all
       label = board.name;
     } else {
       const item = state.items.find((x) => x.id === scopeId);
@@ -1021,12 +1030,20 @@ io.on("connection", (socket) => {
     }
 
     const trimmed = String(text).trim().slice(0, 2000);
-    const mentionedIds = [];
-    for (const u of activeUsers()) {
-      const handles = [u.username, u.displayName].filter(Boolean);
-      for (const h of handles) {
-        const re = new RegExp("@" + h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i");
-        if (re.test(trimmed) && !mentionedIds.includes(u.id)) { mentionedIds.push(u.id); break; }
+    let mentionedIds;
+    if (Array.isArray(mentionIds)) {
+      // Explicit recipient selection from the client's checkbox list — the
+      // authoritative source now, no more parsing "@name" out of the text.
+      const validIds = new Set(users.map((u) => u.id));
+      mentionedIds = [...new Set(mentionIds.filter((mid) => validIds.has(mid)))];
+    } else {
+      mentionedIds = [];
+      for (const u of activeUsers()) {
+        const handles = [u.username, u.displayName].filter(Boolean);
+        for (const h of handles) {
+          const re = new RegExp("@" + h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "i");
+          if (re.test(trimmed) && !mentionedIds.includes(u.id)) { mentionedIds.push(u.id); break; }
+        }
       }
     }
 
@@ -1048,6 +1065,25 @@ io.on("connection", (socket) => {
         await sendMail(mentioned.email, `You were mentioned in ${label}`, `${actorName()} mentioned you:\n\n${trimmed}${link ? "\n\nOpen the board: " + link : ""}`);
       }
     }
+  });
+
+  socket.on("updateMessage", ({ id, text }) => {
+    const m = state.messages.find((x) => x.id === id);
+    if (!m || !text || !String(text).trim()) return;
+    if (m.byId !== user.id && user.role !== "admin") return;
+    m.text = String(text).trim().slice(0, 2000);
+    m.editedAt = nowIso();
+    persist();
+    broadcastState();
+  });
+
+  socket.on("deleteMessage", ({ id }) => {
+    const m = state.messages.find((x) => x.id === id);
+    if (!m) return;
+    if (m.byId !== user.id && user.role !== "admin") return;
+    state.messages = state.messages.filter((x) => x.id !== id);
+    persist();
+    broadcastState();
   });
 
   // Mark every message currently visible in a board/task chat as read by this
