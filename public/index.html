@@ -94,12 +94,6 @@
 
   .assignee-select { flex-shrink: 0; font-size: 11.5px; font-family: inherit; color: var(--grey-pill-ink); background: var(--grey-pill); border: none; border-radius: 20px; padding: 3px 6px; max-width: 84px; cursor: pointer; }
 
-  .due-btn { flex-shrink: 0; font-size: 12px; color: var(--ink-faint); background: transparent; border: none; cursor: pointer; padding: 3px 6px; border-radius: 5px; font-family: inherit; white-space: nowrap; min-width: 50px; text-align: right; }
-  .due-btn:hover { background: var(--bg); color: var(--ink-soft); }
-  .due-btn.overdue { color: var(--brick); font-weight: 500; }
-  .due-btn.today { color: var(--pine); font-weight: 500; }
-  .due-input { flex-shrink: 0; font-size: 12px; font-family: inherit; border: 1px solid var(--line); border-radius: 5px; background: var(--bg-raised); color: var(--ink); padding: 2px 4px; width: 110px; }
-
   .notify-btn, .notes-btn, .item-del { flex-shrink: 0; width: 20px; height: 20px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 5px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s, background 0.15s, color 0.15s; }
   .item:hover .notify-btn, .item:hover .notes-btn, .item:hover .item-del { opacity: 1; }
   .notify-btn:hover { background: var(--slate-soft); color: var(--slate); }
@@ -195,20 +189,6 @@
 
   function fmtDate(now) { return now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }); }
   function greetingWord(now) { var h = now.getHours(); if (h < 12) return "Good morning"; if (h < 18) return "Good afternoon"; return "Good evening"; }
-  function todayISO() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
-  function dueLabel(iso) {
-    if (!iso) return "";
-    var today = todayISO();
-    if (iso === today) return "Today";
-    var d = new Date(iso + "T00:00:00"), t = new Date(today + "T00:00:00");
-    var diffDays = Math.round((d - t) / 86400000);
-    if (diffDays === 1) return "Tomorrow";
-    if (diffDays === -1) return "Yesterday";
-    if (diffDays < 0) return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    if (diffDays < 6) return d.toLocaleDateString(undefined, { weekday: "short" });
-    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  }
-  function dueClass(iso) { if (!iso) return ""; var today = todayISO(); if (iso < today) return "overdue"; if (iso === today) return "today"; return ""; }
   function relTime(iso) {
     if (!iso) return "";
     var diff = Date.now() - new Date(iso).getTime();
@@ -282,7 +262,7 @@
       mount.appendChild(wrap);
     });
 
-    var addTab = el("button", "board-tab add-board", { type: "button", text: "+ New board" });
+    var addTab = el("button", "board-tab add-board", { type: "button", text: "+", title: "New board" });
     addTab.addEventListener("click", function () {
       var name = window.prompt("Name this board (e.g. a company or client name):");
       if (name && name.trim()) socket.emit("addBoard", { name: name.trim() });
@@ -440,17 +420,6 @@
     });
     main.appendChild(priBtn);
 
-    var dueBtn = el("button", "due-btn " + dueClass(item.dueDate), { type: "button", text: item.dueDate ? dueLabel(item.dueDate) : "+ date" });
-    dueBtn.addEventListener("click", function () {
-      var dateInput = el("input", "due-input", { type: "date" });
-      dateInput.value = item.dueDate || "";
-      dueBtn.replaceWith(dateInput);
-      dateInput.focus();
-      dateInput.addEventListener("change", function () { updateItem(item.id, { dueDate: dateInput.value || "" }); });
-      dateInput.addEventListener("blur", function () { render(); });
-    });
-    main.appendChild(dueBtn);
-
     var notesBtn = el("button", "notes-btn" + (item.notes ? " has-notes" : ""), { type: "button", "aria-label": "Notes", title: "Notes" });
     notesBtn.innerHTML = noteSvg();
     notesBtn.addEventListener("click", function () {
@@ -531,9 +500,15 @@
 
   function addItem(groupId, title, order) { socket.emit("addItem", { groupId: groupId, title: title, order: order }); }
   function updateItem(id, patch) { socket.emit("updateItem", { id: id, patch: patch }); }
-  function deleteItem(id) { socket.emit("deleteItem", { id: id }); }
+  function deleteItem(id) {
+    if (window.confirm("Delete this task? This can't be undone.")) socket.emit("deleteItem", { id: id });
+  }
   function updateGroup(id, patch) { socket.emit("updateGroup", { id: id, patch: patch }); }
-  function deleteGroup(id) { socket.emit("deleteGroup", { id: id }); }
+  function deleteGroup(id) {
+    var count = state.items.filter(function (i) { return i.groupId === id; }).length;
+    if (count > 0) { window.alert("This group still has " + count + " task" + (count === 1 ? "" : "s") + " in it. Remove or move them first."); return; }
+    if (window.confirm("Delete this empty group? This can't be undone.")) socket.emit("deleteGroup", { id: id });
+  }
 
   render();
 })();
