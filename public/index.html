@@ -46,9 +46,8 @@
   }
 
   .board-access-wrap { position: relative; }
-  .board-access-btn { font-family: inherit; font-size: 11px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 4px 6px 4px 0; opacity: 0; transition: opacity 0.15s, color 0.15s; }
-  .board-tab-wrap:hover .board-access-btn { opacity: 1; }
-  .board-access-btn:hover { color: var(--pine); }
+  .board-access-btn { font-family: inherit; font-size: 14px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 6px 8px; border-radius: 6px; }
+  .board-access-btn:hover { color: var(--pine); background: var(--bg-raised); }
   .board-access-popover { position: absolute; z-index: 30; top: 100%; left: 0; margin-top: 4px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 10px; min-width: 220px; }
   .board-access-popover label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 5px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
   .board-access-popover label:hover { background: var(--line-soft); }
@@ -75,12 +74,10 @@
   .board-tab.active { color: var(--ink); font-weight: 600; background: var(--bg-raised); box-shadow: 0 1px 3px rgba(34,38,31,0.12); }
   .board-tab.add-board { color: var(--ink-faint); font-weight: 600; }
   .board-tab.add-board:hover { color: var(--pine); background: var(--bg-raised); }
-  .board-tab-rename { font-family: inherit; font-size: 11px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 4px 4px 4px 0; opacity: 0; transition: opacity 0.15s, color 0.15s; }
-  .board-tab-wrap:hover .board-tab-rename { opacity: 1; }
-  .board-tab-rename:hover { color: var(--pine); }
-  .board-tab-delete { font-family: inherit; font-size: 11px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 4px 4px 4px 0; opacity: 0; transition: opacity 0.15s, color 0.15s; }
-  .board-tab-wrap:hover .board-tab-delete { opacity: 1; }
-  .board-tab-delete:hover { color: var(--brick); }
+  .board-tab-rename { font-family: inherit; font-size: 14px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 6px 6px; border-radius: 6px; }
+  .board-tab-rename:hover { color: var(--pine); background: var(--bg-raised); }
+  .board-tab-delete { font-family: inherit; font-size: 14px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 6px 6px; border-radius: 6px; }
+  .board-tab-delete:hover { color: var(--brick); background: var(--bg-raised); }
   .board-badge {
     display: inline-block; font-size: 10.5px; font-weight: 500; color: var(--ink-soft);
     background: var(--line-soft); padding: 1px 7px; border-radius: 10px; margin-left: 10px; vertical-align: middle;
@@ -95,8 +92,8 @@
   .group-name:hover, .group-name:focus { background: var(--line-soft); }
   .lock-icon { flex-shrink: 0; color: var(--ink-faint); display: flex; align-items: center; }
   .group-count { font-size: 12px; font-weight: 500; color: var(--ink-soft); font-variant-numeric: tabular-nums; flex-shrink: 0; background: var(--line-soft); padding: 2px 8px; border-radius: 20px; }
-  .group-del { flex-shrink: 0; width: 22px; height: 22px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 5px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s, background 0.15s, color 0.15s; }
-  .group-head:hover .group-del { opacity: 1; }
+  .group-del { flex-shrink: 0; width: 32px; height: 32px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+  .group-del svg { width: 15px; height: 15px; }
   .group-del:hover { background: var(--brick-soft); color: var(--brick); }
   .group-body { display: block; }
   .group.collapsed .group-body { display: none; }
@@ -135,37 +132,37 @@
   .assignee-popover-list label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 5px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
   .assignee-popover-list label:hover { background: var(--line-soft); }
 
-  .notify-btn, .details-btn, .item-del { flex-shrink: 0; width: 20px; height: 20px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 5px; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s, background 0.15s, color 0.15s; }
-  .item:hover .notify-btn, .item:hover .details-btn, .item:hover .item-del { opacity: 1; }
+  .notify-btn, .details-btn, .item-del { flex-shrink: 0; width: 32px; height: 32px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+  .notify-btn svg, .details-btn svg, .item-del svg { width: 15px; height: 15px; }
   .notify-btn:hover { background: var(--slate-soft); color: var(--slate); }
-  .notify-btn.sent { color: var(--pine); opacity: 1; }
-  .details-btn.has-content { opacity: 1; color: var(--ink-soft); }
-  .details-btn.active { opacity: 1; color: var(--slate); background: var(--slate-soft); }
+  .notify-btn.sent { color: var(--pine); }
+  .details-btn.has-content { color: var(--ink-soft); }
+  .details-btn.active { color: var(--slate); background: var(--slate-soft); }
   .details-btn:hover { background: var(--bg); color: var(--ink); }
   .item-del:hover { background: var(--brick-soft); color: var(--brick); }
 
-  .step-checklist { display: flex; flex-direction: column; gap: 3px; padding: 4px 0 2px 30px; width: calc(100% - 30px); }
+  .step-checklist { display: flex; flex-direction: column; gap: 6px; padding: 6px 0 4px 30px; width: calc(100% - 30px); }
   .step-row { display: flex; align-items: center; gap: 8px; }
-  .step-toggle { flex-shrink: 0; width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--slate); background: transparent; color: var(--bg-raised); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
-  .step-toggle svg { width: 10px; height: 10px; }
+  .step-toggle { flex-shrink: 0; width: 26px; height: 26px; border-radius: 7px; border: 2px solid var(--slate); background: transparent; color: var(--bg-raised); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; }
+  .step-toggle svg { width: 13px; height: 13px; }
   .step-row.done .step-toggle { background: var(--slate); }
-  .step-text { flex: 1; font-size: 13px; color: var(--ink-soft); background: transparent; border: none; outline: none; font-family: inherit; padding: 3px 4px; border-radius: 5px; min-width: 0; }
+  .step-text { flex: 1; font-size: 14px; color: var(--ink-soft); background: transparent; border: none; outline: none; font-family: inherit; padding: 6px 6px; border-radius: 6px; min-width: 0; }
   .step-text:hover, .step-text:focus { background: var(--bg); color: var(--ink); }
   .step-row.done .step-text { color: var(--ink-faint); text-decoration: line-through; }
-  .step-del { flex-shrink: 0; width: 16px; height: 16px; border: none; background: none; color: var(--ink-faint); cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.15s; }
-  .step-row:hover .step-del { opacity: 1; }
-  .step-del:hover { color: var(--brick); }
+  .step-del { flex-shrink: 0; width: 30px; height: 30px; border: none; background: none; color: var(--ink-faint); cursor: pointer; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+  .step-del svg { width: 13px; height: 13px; }
+  .step-del:hover { color: var(--brick); background: var(--brick-soft); }
 
-  .step-foot-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 3px 0; }
-  .step-add-btn { font-family: inherit; font-size: 12px; color: var(--ink-faint); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 3px 0; }
-  .step-add-btn svg { width: 10px; height: 10px; }
+  .step-foot-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 4px 0; }
+  .step-add-btn { font-family: inherit; font-size: 13px; color: var(--ink-faint); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 6px 4px; }
+  .step-add-btn svg { width: 12px; height: 12px; }
   .step-add-btn:hover { color: var(--pine); }
-  .step-complete-btn { font-family: inherit; font-size: 12px; font-weight: 500; color: var(--pine); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 3px 0; }
-  .step-complete-btn svg { width: 10px; height: 10px; }
+  .step-complete-btn { font-family: inherit; font-size: 13px; font-weight: 500; color: var(--pine); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 6px 4px; }
+  .step-complete-btn svg { width: 12px; height: 12px; }
   .step-complete-btn:hover { text-decoration: underline; }
   .step-add-row { display: flex; gap: 6px; padding: 2px 0; }
-  .step-add-row input { flex: 1; font-family: inherit; font-size: 13px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); outline: none; }
-  .step-add-row button { font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 6px 12px; border: none; border-radius: 6px; background: var(--pine); color: var(--bg-raised); cursor: pointer; white-space: nowrap; }
+  .step-add-row input { flex: 1; font-family: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; }
+  .step-add-row button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 14px; border: none; border-radius: 7px; background: var(--pine); color: var(--bg-raised); cursor: pointer; white-space: nowrap; }
 
   .task-panel-body { display: flex; flex-direction: column; gap: 10px; }
   .details-section-label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); margin-bottom: 4px; }
@@ -176,8 +173,9 @@
   .file-row a { color: var(--slate); text-decoration: none; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .file-row a:hover { text-decoration: underline; }
   .file-row .file-size { color: var(--ink-faint); font-size: 11px; white-space: nowrap; }
-  .file-row .file-del { flex-shrink: 0; width: 16px; height: 16px; border: none; background: none; color: var(--ink-faint); cursor: pointer; display: flex; align-items: center; justify-content: center; }
-  .file-row .file-del:hover { color: var(--brick); }
+  .file-row .file-del { flex-shrink: 0; width: 28px; height: 28px; border: none; background: none; color: var(--ink-faint); cursor: pointer; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+  .file-row .file-del svg { width: 13px; height: 13px; }
+  .file-row .file-del:hover { color: var(--brick); background: var(--brick-soft); }
   .file-drop { border: 1.5px dashed var(--line); border-radius: 6px; padding: 10px; text-align: center; font-size: 12px; color: var(--ink-faint); cursor: pointer; }
   .file-drop:hover, .file-drop.drag-over { border-color: var(--pine); color: var(--pine); background: var(--pine-soft); }
   .file-drop input[type=file] { display: none; }
