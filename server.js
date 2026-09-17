@@ -734,6 +734,17 @@ io.on("connection", (socket) => {
     broadcastState();
   });
 
+  socket.on("swapBoardOrder", ({ idA, idB }) => {
+    const a = boardById(idA);
+    const b = boardById(idB);
+    if (!a || !b || !canSeeBoard(a, user) || !canSeeBoard(b, user)) return;
+    const tmp = a.order;
+    a.order = b.order;
+    b.order = tmp;
+    persist();
+    broadcastState();
+  });
+
   // ---- groups ----
   socket.on("addGroup", ({ name, boardId, visibility }) => {
     if (!name || typeof name !== "string") return;

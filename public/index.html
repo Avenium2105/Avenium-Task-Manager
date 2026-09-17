@@ -30,7 +30,8 @@
   .page { display: flex; align-items: flex-start; justify-content: center; gap: 28px; max-width: 1440px; margin: 0 auto; padding: 0 28px; }
   .wrap { max-width: 900px; flex: 1 1 auto; margin: 0; padding: 20px 0 100px; min-width: 0; }
 
-  .board-chat { flex-shrink: 0; width: 340px; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: 20px; display: flex; flex-direction: column; max-height: calc(100vh - 40px); }
+  .board-chat { flex-shrink: 0; width: 340px; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: 20px; display: flex; flex-direction: column; max-height: calc(100vh - 40px); transition: width 0.15s; }
+  .board-chat.task-mode { width: 560px; }
   .board-chat-head { padding: 14px 16px; border-bottom: 1px solid var(--line-soft); font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .board-chat-head .head-titles { display: flex; flex-direction: column; min-width: 0; }
   .board-chat-head .head-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -45,7 +46,8 @@
   @media (max-width: 1100px) {
     .page { display: block; padding: 0 20px; }
     .wrap { max-width: none; padding: 20px 0 40px; }
-    .board-chat { width: auto; margin: 0 0 20px; position: static; max-height: none; }
+    .board-chat, .board-chat.task-mode { width: auto; margin: 0 0 20px; position: static; max-height: none; }
+    .task-panel-cols { grid-template-columns: 1fr; }
   }
 
   .board-access-wrap { position: relative; }
@@ -89,10 +91,13 @@
   .board-tab-rename:hover { color: var(--pine); background: var(--bg-raised); }
   .board-tab-delete { font-family: inherit; font-size: 14px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 6px 6px; border-radius: 6px; }
   .board-tab-delete:hover { color: var(--brick); background: var(--bg-raised); }
-  .board-badge {
-    display: inline-block; font-size: 10.5px; font-weight: 500; color: var(--ink-soft);
-    background: var(--line-soft); padding: 1px 7px; border-radius: 10px; margin-left: 10px; vertical-align: middle;
-  }
+  .board-section { margin-bottom: 30px; }
+  .board-section-head { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
+  .board-section-title { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 19px; color: var(--ink); letter-spacing: -0.01em; }
+  .board-section-reorder { display: flex; flex-direction: column; }
+  .board-section-move { width: 22px; height: 16px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 4px; padding: 0; }
+  .board-section-move:hover:not(:disabled) { background: var(--line-soft); color: var(--ink); }
+  .board-section-move:disabled { color: var(--line); cursor: default; }
 
   .group { margin-bottom: 20px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(34,38,31,0.05), 0 1px 8px rgba(34,38,31,0.04); transition: box-shadow 0.15s; }
   .group:hover { box-shadow: 0 2px 4px rgba(34,38,31,0.06), 0 4px 14px rgba(34,38,31,0.06); }
@@ -113,24 +118,19 @@
   .group-body { display: block; }
   .group.collapsed .group-body { display: none; }
 
-  .item { display: flex; flex-direction: column; padding: 10px 16px 9px 20px; border-top: 1px solid var(--line-soft); transition: background 0.1s; }
+  .item { display: flex; flex-direction: column; padding: 10px 16px 9px 20px; border-top: 1px solid var(--line-soft); transition: background 0.1s; cursor: pointer; }
   .item:hover { background: var(--line-soft); }
   .item.selected { background: var(--slate-soft); }
   .item-main { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
   .item-meta { font-size: 11px; color: var(--ink-faint); padding: 2px 0 0 30px; }
   .item-notes { font-size: 12.5px; color: var(--ink-soft); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin: 6px 0 0 30px; width: calc(100% - 30px); font-family: inherit; resize: vertical; min-height: 30px; outline: none; }
 
-  .status-btn { flex-shrink: 0; width: 20px; height: 20px; border-radius: 6px; border: 1.5px solid var(--ink-faint); background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; transition: all 0.15s ease; }
-  .status-btn svg { width: 12px; height: 12px; opacity: 0; transition: opacity 0.15s; }
-  .status-btn.next_step { border-color: var(--slate); background: var(--slate-soft); }
-  .status-btn.next_step svg { opacity: 1; stroke: var(--slate); }
-  .status-btn.in_progress { border-color: var(--ochre); background: var(--ochre-soft); }
-  .status-btn.in_progress svg { opacity: 1; stroke: var(--ochre); }
-  .status-btn.done { border-color: var(--pine); background: var(--pine); }
-  .status-btn.done svg { opacity: 1; stroke: var(--bg-raised); }
-  .status-label { flex-shrink: 0; font-size: 10.5px; color: var(--ink-faint); width: 64px; }
+  .item-collapse-btn { flex-shrink: 0; width: 22px; height: 22px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 5px; display: flex; align-items: center; justify-content: center; padding: 0; transition: transform 0.15s; }
+  .item-collapse-btn svg { width: 12px; height: 12px; }
+  .item-collapse-btn:hover { background: var(--bg); color: var(--ink); }
+  .item.item-collapsed .item-collapse-btn { transform: rotate(-90deg); }
 
-  .item-title { flex: 1; min-width: 60px; background: transparent; border: none; outline: none; color: var(--ink); font-size: 14px; padding: 3px 4px; border-radius: 5px; font-family: inherit; }
+  .item-title { flex: 1; min-width: 60px; background: transparent; border: none; outline: none; color: var(--ink); font-size: 14px; padding: 3px 4px; border-radius: 5px; font-family: inherit; cursor: text; }
   .item-title:hover, .item-title:focus { background: var(--bg); }
   .item.is-done .item-title { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: var(--ink-faint); }
 
@@ -147,13 +147,10 @@
   .assignee-popover-list label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 5px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
   .assignee-popover-list label:hover { background: var(--line-soft); }
 
-  .notify-btn, .details-btn, .item-del { flex-shrink: 0; width: 32px; height: 32px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
-  .notify-btn svg, .details-btn svg, .item-del svg { width: 15px; height: 15px; }
+  .notify-btn, .item-del { flex-shrink: 0; width: 32px; height: 32px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+  .notify-btn svg, .item-del svg { width: 15px; height: 15px; }
   .notify-btn:hover { background: var(--slate-soft); color: var(--slate); }
   .notify-btn.sent { color: var(--pine); }
-  .details-btn.has-content { color: var(--ink-soft); }
-  .details-btn.active { color: var(--slate); background: var(--slate-soft); }
-  .details-btn:hover { background: var(--bg); color: var(--ink); }
   .item-del:hover { background: var(--brick-soft); color: var(--brick); }
 
   .step-checklist { display: flex; flex-direction: column; gap: 6px; padding: 6px 0 4px 30px; width: calc(100% - 30px); }
@@ -182,8 +179,10 @@
   .step-add-row button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 14px; border: none; border-radius: 7px; background: var(--pine); color: var(--bg-raised); cursor: pointer; white-space: nowrap; }
 
   .task-panel-body { display: flex; flex-direction: column; gap: 10px; }
+  .task-panel-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; }
+  .task-panel-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
   .details-section-label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-faint); margin-bottom: 4px; }
-  .details-notes { font-size: 12.5px; color: var(--ink-soft); background: var(--bg-raised); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; width: 100%; font-family: inherit; resize: vertical; min-height: 50px; outline: none; }
+  .details-notes { font-size: 13px; color: var(--ink-soft); background: var(--bg-raised); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; width: 100%; font-family: inherit; resize: vertical; min-height: 220px; outline: none; line-height: 1.5; }
 
   .file-list { display: flex; flex-direction: column; gap: 4px; }
   .file-row { display: flex; align-items: center; gap: 6px; font-size: 12.5px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
@@ -254,16 +253,10 @@
 </div>
 <div class="page">
 <div class="wrap">
-  <header class="board-head">
-    <p class="quote-line" id="quoteLine"></p>
-  </header>
-
   <div class="board-tabs" id="boardTabs"></div>
 
   <main id="groupsMount"></main>
   <div id="addGroupMount"></div>
-
-  <p class="foot-note">Use the step button to move a task forward · 🔔 notifies assignees it's their turn</p>
 </div>
 
 <aside class="board-chat" id="boardChat" style="display:none;">
@@ -296,25 +289,8 @@
   var openAssigneePickers = {}; // itemId -> true while its assignee picker is open
   var openBoardAccess = {}; // boardId -> true while its access popover is open
   var openBoardMenus = {}; // boardId -> true while its 3-dot options menu is open
+  var collapsedItems = {}; // itemId -> true while collapsed to title-only
   var selectedItemId = null; // when set, the right-side panel shows this task's notes/files/chat instead of board chat
-
-  var QUOTES = [
-    "Small steps, done consistently, win.",
-    "Progress, not perfection.",
-    "Clear tasks make for a clear mind.",
-    "Focus on one thing at a time.",
-    "Done is better than perfect.",
-    "Great teams move one task at a time.",
-    "Today's effort is tomorrow's momentum.",
-    "Keep it simple, keep it moving.",
-    "A little progress each day adds up.",
-    "Good work starts with a clear list."
-  ];
-  function quoteOfDay(now) {
-    var start = new Date(now.getFullYear(), 0, 0);
-    var dayOfYear = Math.floor((now - start) / 86400000);
-    return QUOTES[dayOfYear % QUOTES.length];
-  }
 
   function getCollapsed() { try { var raw = localStorage.getItem(collapsedKey); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; } }
   function setCollapsed(map) { try { localStorage.setItem(collapsedKey, JSON.stringify(map)); } catch (e) {} }
@@ -507,7 +483,6 @@
   function render() {
     var now = new Date();
     document.getElementById("navDate").textContent = fmtDate(now);
-    document.getElementById("quoteLine").textContent = quoteOfDay(now);
     renderTabs();
 
     var showingAll = selectedBoardId === "__all__";
@@ -523,9 +498,8 @@
     mount.innerHTML = "";
 
     var sortedGroups = visibleGroups.slice().sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
-    var boardsById = {}; state.boards.forEach(function (b) { boardsById[b.id] = b; });
 
-    sortedGroups.forEach(function (g, gIndex) {
+    function renderGroupSection(g, reorderList, gIndex) {
       var allGroupItems = state.items.filter(function (i) { return i.groupId === g.id; }).sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
       var groupItems = showArchived ? allGroupItems : allGroupItems.filter(function (i) { return !i.archived; });
       var isCollapsed = !!collapsed[g.id];
@@ -548,8 +522,6 @@
       nameInput.addEventListener("change", function () { updateGroup(g.id, { name: nameInput.value.trim() || "Untitled" }); });
       head.appendChild(nameInput);
 
-      if (showingAll && boardsById[g.boardId]) head.appendChild(el("span", "board-badge", { text: boardsById[g.boardId].name }));
-
       var doneCount = allGroupItems.filter(function (i) { return i.archived; }).length;
       head.appendChild(el("span", "group-count", { text: allGroupItems.length ? (doneCount + "/" + allGroupItems.length) : "" }));
 
@@ -559,16 +531,16 @@
       if (gIndex === 0) upBtn.disabled = true;
       upBtn.addEventListener("click", function (e) {
         e.stopPropagation();
-        var prev = sortedGroups[gIndex - 1];
+        var prev = reorderList[gIndex - 1];
         if (prev) socket.emit("swapGroupOrder", { idA: g.id, idB: prev.id });
       });
       reorderWrap.appendChild(upBtn);
       var downBtn = el("button", "group-move", { type: "button", "aria-label": "Move group down" });
       downBtn.innerHTML = '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5L6 8L9.5 4.5"/></svg>';
-      if (gIndex === sortedGroups.length - 1) downBtn.disabled = true;
+      if (gIndex === reorderList.length - 1) downBtn.disabled = true;
       downBtn.addEventListener("click", function (e) {
         e.stopPropagation();
-        var next = sortedGroups[gIndex + 1];
+        var next = reorderList[gIndex + 1];
         if (next) socket.emit("swapGroupOrder", { idA: g.id, idB: next.id });
       });
       reorderWrap.appendChild(downBtn);
@@ -598,8 +570,45 @@
       body.appendChild(addRow);
 
       groupEl.appendChild(body);
-      mount.appendChild(groupEl);
-    });
+      return groupEl;
+    }
+
+    if (showingAll) {
+      var boardsInOrder = boardsToShow();
+      boardsInOrder.forEach(function (b, bIndex) {
+        var boardGroups = sortedGroups.filter(function (g) { return g.boardId === b.id; });
+        if (!boardGroups.length) return;
+
+        var section = el("div", "board-section");
+        var sHead = el("div", "board-section-head");
+        sHead.appendChild(el("span", "board-section-title", { text: b.name }));
+
+        var sReorder = el("span", "board-section-reorder");
+        var sUp = el("button", "board-section-move", { type: "button", "aria-label": "Move board up" });
+        sUp.innerHTML = '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5L6 4L9.5 7.5"/></svg>';
+        if (bIndex === 0) sUp.disabled = true;
+        sUp.addEventListener("click", function () {
+          var prev = boardsInOrder[bIndex - 1];
+          if (prev) socket.emit("swapBoardOrder", { idA: b.id, idB: prev.id });
+        });
+        sReorder.appendChild(sUp);
+        var sDown = el("button", "board-section-move", { type: "button", "aria-label": "Move board down" });
+        sDown.innerHTML = '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5L6 8L9.5 4.5"/></svg>';
+        if (bIndex === boardsInOrder.length - 1) sDown.disabled = true;
+        sDown.addEventListener("click", function () {
+          var next = boardsInOrder[bIndex + 1];
+          if (next) socket.emit("swapBoardOrder", { idA: b.id, idB: next.id });
+        });
+        sReorder.appendChild(sDown);
+        sHead.appendChild(sReorder);
+        section.appendChild(sHead);
+
+        boardGroups.forEach(function (g, gIndex) { section.appendChild(renderGroupSection(g, boardGroups, gIndex)); });
+        mount.appendChild(section);
+      });
+    } else {
+      sortedGroups.forEach(function (g, gIndex) { mount.appendChild(renderGroupSection(g, sortedGroups, gIndex)); });
+    }
 
     var addMount = document.getElementById("addGroupMount");
     if (!addMount.dataset.formOpen) {
@@ -644,8 +653,18 @@
   }
 
   function renderItem(item) {
-    var row = el("div", "item" + (item.archived ? " is-done" : "") + (item.id === selectedItemId ? " selected" : ""));
+    var isCollapsed = !!collapsedItems[item.id];
+    var row = el("div", "item" + (item.archived ? " is-done" : "") + (item.id === selectedItemId ? " selected" : "") + (isCollapsed ? " item-collapsed" : ""));
     var main = el("div", "item-main");
+
+    var collapseBtn = el("button", "item-collapse-btn", { type: "button", "aria-label": isCollapsed ? "Expand task" : "Collapse task" });
+    collapseBtn.innerHTML = chevronSvg();
+    collapseBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      collapsedItems[item.id] = !isCollapsed;
+      render();
+    });
+    main.appendChild(collapseBtn);
 
     var titleInput = el("input", "item-title");
     titleInput.value = item.title || "";
@@ -696,15 +715,6 @@
     });
     main.appendChild(priBtn);
 
-    var hasExtras = item.notes || (item.files && item.files.length);
-    var detailsBtn = el("button", "details-btn" + (hasExtras ? " has-content" : "") + (item.id === selectedItemId ? " active" : ""), { type: "button", "aria-label": "Notes & files", title: "Notes, files, chat (opens on the right)" });
-    detailsBtn.innerHTML = noteSvg();
-    detailsBtn.addEventListener("click", function () {
-      selectedItemId = (selectedItemId === item.id) ? null : item.id;
-      render();
-    });
-    main.appendChild(detailsBtn);
-
     var notifyBtn = el("button", "notify-btn" + (notifiedRecently[item.id] ? " sent" : ""), { type: "button", "aria-label": "Notify assignees", title: assigneeIds.length ? "Notify it's their turn" : "Assign someone first" });
     notifyBtn.innerHTML = bellSvg();
     if (!assigneeIds.length) notifyBtn.disabled = true;
@@ -723,15 +733,25 @@
 
     row.appendChild(main);
 
-    // ---- persistent step checklist: any number of steps, each independently
-    // completable, with a "+" to add more at any time ----
-    row.appendChild(renderStepChecklist(item));
+    if (!isCollapsed) {
+      // ---- persistent step checklist: any number of steps, each independently
+      // completable, with a "+" to add more at any time ----
+      row.appendChild(renderStepChecklist(item));
 
-    if (item.updatedBy) {
-      var everEdited = item.updatedBy !== item.createdBy;
-      var label = everEdited ? "Updated by " + item.updatedBy : "Added by " + (item.createdBy || item.updatedBy);
-      row.appendChild(el("div", "item-meta", { text: label + " \u00b7 " + relTime(item.updatedAt) }));
+      if (item.updatedBy) {
+        var everEdited = item.updatedBy !== item.createdBy;
+        var label = everEdited ? "Updated by " + item.updatedBy : "Added by " + (item.createdBy || item.updatedBy);
+        row.appendChild(el("div", "item-meta", { text: label + " \u00b7 " + relTime(item.updatedAt) }));
+      }
     }
+
+    // Clicking anywhere on the task (that isn't one of its interactive controls)
+    // opens this task's notes/files/chat in the right-side panel.
+    row.addEventListener("click", function (e) {
+      if (e.target.closest("input, button, textarea, a")) return;
+      selectedItemId = (selectedItemId === item.id) ? null : item.id;
+      render();
+    });
 
     return row;
   }
@@ -836,14 +856,16 @@
 
   function renderTaskPanelBody(item) {
     var wrap = el("div", "task-panel-body");
+    var cols = el("div", "task-panel-cols");
 
-    wrap.appendChild(el("div", "details-section-label", { text: "Notes" }));
+    var left = el("div", "task-panel-col");
+    left.appendChild(el("div", "details-section-label", { text: "Notes" }));
     var ta = el("textarea", "details-notes", { placeholder: "Notes\u2026" });
     ta.value = item.notes || "";
     ta.addEventListener("blur", function () { updateItem(item.id, { notes: ta.value }); });
-    wrap.appendChild(ta);
+    left.appendChild(ta);
 
-    wrap.appendChild(el("div", "details-section-label", { text: "Files" }));
+    left.appendChild(el("div", "details-section-label", { text: "Files" }));
     var fileList = el("div", "file-list");
     (item.files || []).forEach(function (f) {
       var row = el("div", "file-row");
@@ -860,7 +882,7 @@
       row.appendChild(delF);
       fileList.appendChild(row);
     });
-    wrap.appendChild(fileList);
+    left.appendChild(fileList);
 
     var drop = el("label", "file-drop", { text: "Click or drop a file to attach (up to 20MB)" });
     var fileInput = el("input", "", { type: "file" });
@@ -876,15 +898,19 @@
       drop.classList.remove("drag-over");
       if (e.dataTransfer.files[0]) uploadItemFile(item.id, e.dataTransfer.files[0]);
     });
-    wrap.appendChild(drop);
+    left.appendChild(drop);
+    cols.appendChild(left);
 
-    wrap.appendChild(el("div", "details-section-label", { text: "Task chat" }));
+    var right = el("div", "task-panel-col");
+    right.appendChild(el("div", "details-section-label", { text: "Chat" }));
     var chatMsgs = state.messages.filter(function (m) { return m.scope === "item" && m.scopeId === item.id; });
     if (!chatMsgs.length) {
-      wrap.appendChild(el("div", "chat-empty", { text: "No messages yet." }));
+      right.appendChild(el("div", "chat-empty", { text: "No messages yet." }));
     } else {
-      chatMsgs.forEach(function (m) { wrap.appendChild(renderChatMsg(m)); });
+      chatMsgs.forEach(function (m) { right.appendChild(renderChatMsg(m)); });
     }
+    cols.appendChild(right);
+    wrap.appendChild(cols);
     return wrap;
   }
 
@@ -920,6 +946,7 @@
     if (selectedItemId && !selectedItem) selectedItemId = null; // task no longer visible (deleted/filtered) — fall back
 
     if (selectedItem) {
+      aside.classList.add("task-mode");
       head.innerHTML = "";
       head.appendChild(el("span", "head-title", { text: selectedItem.title }));
       var backBtn = el("button", "board-chat-back", { type: "button", text: "\u2190 Board chat" });
@@ -949,6 +976,7 @@
   function renderBoardChat(board) {
     var aside = document.getElementById("boardChat");
     aside.style.display = "flex";
+    aside.classList.remove("task-mode");
     var head = document.getElementById("boardChatHead");
     var body = document.getElementById("boardChatBody");
     var input = document.getElementById("boardChatInput");
