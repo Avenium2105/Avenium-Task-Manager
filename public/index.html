@@ -144,8 +144,9 @@
   .priority-tag.high { background: var(--brick-soft); color: var(--brick); }
   .priority-tag.medium { background: var(--ochre-soft); color: var(--ochre); }
 
-  .assignee-chips { display: flex; align-items: center; gap: 3px; flex-shrink: 0; max-width: 160px; overflow: hidden; }
-  .assignee-chip { font-size: 11px; font-weight: 500; color: var(--grey-pill-ink); background: var(--grey-pill); border-radius: 20px; padding: 3px 8px; white-space: nowrap; }
+  .assignee-chips { display: flex; align-items: center; flex-shrink: 0; }
+  .assignee-avatar { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; font-size: 10.5px; font-weight: 700; color: #fff; border: 2px solid var(--bg-raised); margin-left: -8px; }
+  .assignee-avatar:first-child { margin-left: 0; }
   .assignee-picker-btn { flex-shrink: 0; font-size: 11.5px; font-family: inherit; color: var(--grey-pill-ink); background: var(--grey-pill); border: none; border-radius: 20px; padding: 3px 8px; cursor: pointer; white-space: nowrap; }
   .assignee-picker-btn:hover { background: var(--line-soft); }
   .assignee-popover { position: relative; }
@@ -153,12 +154,13 @@
   .assignee-popover-list label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 5px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
   .assignee-popover-list label:hover { background: var(--line-soft); }
 
-  .notify-btn, .item-del, .details-btn { flex-shrink: 0; width: 32px; height: 32px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
-  .notify-btn svg, .item-del svg, .details-btn svg { width: 15px; height: 15px; }
+  .notify-btn, .item-del { flex-shrink: 0; width: 32px; height: 32px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+  .notify-btn svg, .item-del svg { width: 15px; height: 15px; }
   .notify-btn:hover { background: var(--slate-soft); color: var(--slate); }
   .notify-btn.sent { color: var(--pine); }
-  .details-btn:hover { background: var(--bg); color: var(--ink); }
-  .details-btn.active { color: var(--slate); background: var(--slate-soft); }
+  .details-btn { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; color: var(--ink-soft); background: var(--line-soft); border: none; border-radius: 20px; padding: 5px 11px; cursor: pointer; white-space: nowrap; }
+  .details-btn:hover { color: var(--ink); background: var(--line); }
+  .details-btn.active { color: var(--bg-raised); background: var(--slate); }
   .item-del { opacity: 0; transition: opacity 0.15s; }
   .item:hover .item-del, .item.selected .item-del { opacity: 1; }
   .item-del:hover { background: var(--brick-soft); color: var(--brick); }
@@ -174,13 +176,9 @@
   .step-completed-toggle { align-self: flex-start; font-family: inherit; font-size: 12.5px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 4px; }
   .step-completed-toggle:hover { color: var(--pine); }
 
-  .step-foot-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 4px 0; }
-  .step-add-btn { font-family: inherit; font-size: 13px; color: var(--ink-faint); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 6px 4px; }
-  .step-add-btn svg { width: 12px; height: 12px; }
-  .step-add-btn:hover { color: var(--pine); }
-  .step-complete-btn { font-family: inherit; font-size: 13px; font-weight: 500; color: var(--pine); background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 6px 4px; }
-  .step-complete-btn svg { width: 12px; height: 12px; }
-  .step-complete-btn:hover { text-decoration: underline; }
+  .step-menu-wrap { align-self: flex-start; margin-top: 2px; }
+  .step-menu-btn { font-family: inherit; font-size: 13px; font-weight: 500; color: var(--bg-raised); background: var(--slate); border: none; border-radius: 20px; padding: 6px 14px; cursor: pointer; }
+  .step-menu-btn:hover { background: var(--pine); }
 
   .floating-popover { position: fixed; z-index: 1000; }
   .step-menu { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 4px; min-width: 170px; }
@@ -192,6 +190,7 @@
   .step-add-row { display: flex; gap: 6px; padding: 2px 0; }
   .step-add-row input { flex: 1; font-family: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; }
   .step-add-row button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 14px; border: none; border-radius: 7px; background: var(--pine); color: var(--bg-raised); cursor: pointer; white-space: nowrap; }
+  .step-add-row button.cancel { background: none; color: var(--ink-soft); }
 
   .task-panel-body { display: flex; flex-direction: column; gap: 10px; }
   .task-panel-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: stretch; }
@@ -223,9 +222,9 @@
   .chat-text { font-size: 13px; color: var(--ink); line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
   .chat-when { font-size: 10px; color: var(--ink-faint); margin-top: 3px; text-align: right; }
   .chat-empty { color: var(--ink-faint); font-size: 12px; font-style: italic; }
-  .chat-input-row { display: flex; gap: 6px; flex-shrink: 0; margin-top: 8px; }
-  .chat-input-row input { flex: 1; font-family: inherit; font-size: 12.5px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-raised); color: var(--ink); outline: none; }
-  .chat-input-row button { font-family: inherit; font-size: 12px; font-weight: 500; padding: 6px 10px; border: none; border-radius: 6px; background: var(--slate); color: var(--bg-raised); cursor: pointer; }
+  .chat-input-row { display: flex; gap: 6px; flex-shrink: 0; margin-top: 8px; flex-wrap: wrap; }
+  .chat-input-row input { flex: 1; min-width: 60px; font-family: inherit; font-size: 12.5px; padding: 6px 9px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-raised); color: var(--ink); outline: none; }
+  .chat-input-row button { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; padding: 6px 10px; border: none; border-radius: 6px; background: var(--slate); color: var(--bg-raised); cursor: pointer; }
 
   .read-receipt-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 8px 10px; min-width: 170px; font-size: 12px; }
   .read-receipt-title { font-weight: 600; color: var(--ink); margin-bottom: 4px; }
@@ -429,6 +428,19 @@
     if (cr.bottom > window.innerHeight - 8) contentEl.style.top = Math.max(8, r.top - cr.height - 4) + "px";
   }
 
+  var AVATAR_COLORS = ["#C68A2E", "#4C7A9E", "#7D6BAE", "#B24A3C", "#3C5A46", "#B5860B", "#5E7CE2", "#9C4F96"];
+  function initialsFor(name) {
+    var parts = String(name || "?").trim().split(/\s+/);
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+  function colorForUser(id) {
+    var hash = 0;
+    var s = String(id || "");
+    for (var i = 0; i < s.length; i++) hash = (hash * 31 + s.charCodeAt(i)) >>> 0;
+    return AVATAR_COLORS[hash % AVATAR_COLORS.length];
+  }
+
   function escapeHtml(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c];
@@ -617,6 +629,11 @@
   }
 
   function render() {
+    // Floating popovers (anchorPopover) are appended straight to document.body,
+    // outside anything render() normally clears — remove any leftovers from the
+    // previous render before rebuilding, or they pile up and get "stuck" on screen.
+    document.querySelectorAll(".floating-popover").forEach(function (n) { n.remove(); });
+
     var now = new Date();
     document.getElementById("navDate").textContent = fmtDate(now);
     renderTabs();
@@ -781,8 +798,7 @@
     titleInput.addEventListener("change", function () { updateItem(item.id, { title: titleInput.value.trim() || "Untitled task" }); });
     main.appendChild(titleInput);
 
-    var detailsBtn = el("button", "details-btn" + (item.id === selectedItemId ? " active" : ""), { type: "button", "aria-label": "Task details", title: "Task details (notes, files, chat)" });
-    detailsBtn.innerHTML = noteSvg();
+    var detailsBtn = el("button", "details-btn" + (item.id === selectedItemId ? " active" : ""), { type: "button", text: "Details", title: "Notes, files, and chat for this task" });
     detailsBtn.addEventListener("click", function (e) {
       e.stopPropagation();
       selectedItemId = (selectedItemId === item.id) ? null : item.id;
@@ -797,7 +813,10 @@
       var chips = el("span", "assignee-chips");
       assigneeIds.forEach(function (aid) {
         var t = team.find(function (x) { return x.id === aid; });
-        chips.appendChild(el("span", "assignee-chip", { text: t ? t.displayName : "?" }));
+        var name = t ? t.displayName : "?";
+        var avatar = el("span", "assignee-avatar", { title: name, text: initialsFor(name) });
+        avatar.style.background = colorForUser(aid);
+        chips.appendChild(avatar);
       });
       chips.addEventListener("click", function (e) { e.stopPropagation(); openAssigneePickers[item.id] = !openAssigneePickers[item.id]; render(); });
       chips.style.cursor = "pointer";
@@ -942,6 +961,9 @@
       form.appendChild(input);
       var saveBtn = el("button", "", { type: "submit", text: "Save" });
       form.appendChild(saveBtn);
+      var cancelAddBtn = el("button", "cancel", { type: "button", text: "Cancel" });
+      cancelAddBtn.addEventListener("click", function () { delete openStepAdders[item.id]; render(); });
+      form.appendChild(cancelAddBtn);
       form.addEventListener("submit", function (e) {
         e.preventDefault();
         if (input.value.trim()) { socket.emit("addTaskStep", { itemId: item.id, text: input.value.trim() }); delete openStepAdders[item.id]; render(); }
@@ -949,23 +971,60 @@
       wrap.appendChild(form);
       setTimeout(function () { input.focus(); }, 0);
     } else {
-      var footRow = el("div", "step-foot-row");
-      var addBtn = el("button", "step-add-btn", { type: "button" });
-      addBtn.innerHTML = plusSvg() + " Add step";
-      addBtn.addEventListener("click", function () { openStepAdders[item.id] = true; render(); });
-      footRow.appendChild(addBtn);
+      var updateWrap = el("span", "step-menu-wrap");
+      var updateBtn = el("button", "step-menu-btn", { type: "button", text: "Update \u25be" });
+      updateBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openStepMenus[item.id] = !openStepMenus[item.id];
+        render();
+      });
+      updateWrap.appendChild(updateBtn);
+      if (openStepMenus[item.id]) {
+        var menu = el("div", "step-menu");
+        menu.addEventListener("click", function (e) { e.stopPropagation(); });
 
-      if (!item.archived) {
-        var completeBtn = el("button", "step-complete-btn", { type: "button" });
-        completeBtn.innerHTML = checkSvg() + " Complete task";
-        completeBtn.addEventListener("click", function () {
-          if (window.confirm("Mark \"" + item.title + "\" as fully complete? It will move to Archived.")) {
-            socket.emit("completeTask", { itemId: item.id });
-          }
+        var addStepBtn = el("button", "", { type: "button", text: "Add Step" });
+        addStepBtn.addEventListener("click", function () {
+          delete openStepMenus[item.id];
+          openStepAdders[item.id] = true;
+          render();
         });
-        footRow.appendChild(completeBtn);
+        menu.appendChild(addStepBtn);
+
+        var completeStepBtn = el("button", "", { type: "button", text: "Complete Step" });
+        if (!openSteps.length) completeStepBtn.disabled = true;
+        completeStepBtn.addEventListener("click", function () {
+          delete openStepMenus[item.id];
+          if (openSteps.length) socket.emit("toggleTaskStep", { itemId: item.id, stepId: openSteps[0].id, done: true });
+          openStepAdders[item.id] = true; // trigger a new line for what's next
+          render();
+        });
+        menu.appendChild(completeStepBtn);
+
+        var deleteStepBtn2 = el("button", "danger", { type: "button", text: "Delete Step" });
+        if (!openSteps.length) deleteStepBtn2.disabled = true;
+        deleteStepBtn2.addEventListener("click", function () {
+          delete openStepMenus[item.id];
+          if (openSteps.length) socket.emit("deleteTaskStep", { itemId: item.id, stepId: openSteps[0].id });
+          render();
+        });
+        menu.appendChild(deleteStepBtn2);
+
+        if (!item.archived) {
+          var completeTaskBtn = el("button", "danger", { type: "button", text: "Complete Task" });
+          completeTaskBtn.addEventListener("click", function () {
+            delete openStepMenus[item.id];
+            if (window.confirm("Mark \"" + item.title + "\" as fully complete? It will move to Archived.")) {
+              socket.emit("completeTask", { itemId: item.id });
+            }
+            render();
+          });
+          menu.appendChild(completeTaskBtn);
+        }
+
+        anchorPopover(updateBtn, menu, "left");
       }
-      wrap.appendChild(footRow);
+      wrap.appendChild(updateWrap);
     }
 
     return wrap;
@@ -1264,9 +1323,9 @@
     var inputEl = el("input", "", { type: "text", enterkeyhint: "send" });
 
     function labelFor() {
-      if (sel.all) return "To: All \u25be";
-      if (sel.ids.length) return "To: " + sel.ids.length + " selected \u25be";
-      return "To: choose recipients \u25be";
+      if (sel.all) return "Recipients: All \u25be";
+      if (sel.ids.length) return "Recipients: " + sel.ids.length + " \u25be";
+      return "Recipients \u25be";
     }
     function refresh() {
       toBtn.textContent = labelFor();
@@ -1275,6 +1334,7 @@
     refresh();
 
     function openPicker() {
+      document.querySelectorAll(".floating-popover").forEach(function (n) { n.remove(); }); // never stack duplicates
       var pop = el("div", "recipient-popover");
       pop.addEventListener("click", function (e) { e.stopPropagation(); });
       var allLbl = el("label");
