@@ -122,7 +122,7 @@
   .item:hover { background: var(--line-soft); }
   .item.selected { background: var(--slate-soft); }
   .item-main { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
-  .item-meta { font-size: 11px; color: var(--ink-faint); padding: 2px 0 0 30px; }
+  .item-meta { font-size: 12px; color: var(--ink-faint); }
   .item-notes { font-size: 12.5px; color: var(--ink-soft); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin: 6px 0 0 30px; width: calc(100% - 30px); font-family: inherit; resize: vertical; min-height: 30px; outline: none; }
 
   .item-collapse-btn { flex-shrink: 0; width: 22px; height: 22px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 5px; display: flex; align-items: center; justify-content: center; padding: 0; transition: transform 0.15s; }
@@ -135,6 +135,7 @@
   .item.is-done .item-title { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: var(--ink-faint); }
 
   .priority-tag { flex-shrink: 0; font-size: 11.5px; font-weight: 500; padding: 3px 9px; border-radius: 20px; border: none; cursor: pointer; background: var(--grey-pill); color: var(--grey-pill-ink); font-family: inherit; white-space: nowrap; }
+  .priority-tag.low { background: var(--pine-soft); color: var(--pine); }
   .priority-tag.high { background: var(--brick-soft); color: var(--brick); }
   .priority-tag.medium { background: var(--ochre-soft); color: var(--ochre); }
 
@@ -151,16 +152,18 @@
   .notify-btn svg, .item-del svg { width: 15px; height: 15px; }
   .notify-btn:hover { background: var(--slate-soft); color: var(--slate); }
   .notify-btn.sent { color: var(--pine); }
+  .item-del { opacity: 0; transition: opacity 0.15s; }
+  .item:hover .item-del, .item.selected .item-del { opacity: 1; }
   .item-del:hover { background: var(--brick-soft); color: var(--brick); }
 
   .step-checklist { display: flex; flex-direction: column; gap: 6px; padding: 6px 0 4px 30px; width: calc(100% - 30px); }
-  .step-row { display: flex; align-items: center; gap: 8px; }
+  .step-row { display: flex; align-items: center; gap: 4px; }
   .step-text { flex: 1; font-size: 14px; color: var(--ink-soft); background: transparent; border: none; outline: none; font-family: inherit; padding: 6px 6px; border-radius: 6px; min-width: 0; }
   .step-text:hover, .step-text:focus { background: var(--bg); color: var(--ink); }
   .step-row.done .step-text { color: var(--ink-faint); text-decoration: line-through; }
-  .step-del { flex-shrink: 0; width: 30px; height: 30px; border: none; background: none; color: var(--ink-faint); cursor: pointer; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
-  .step-del svg { width: 13px; height: 13px; }
-  .step-del:hover { color: var(--brick); background: var(--brick-soft); }
+  .step-row-menu-wrap { position: relative; flex-shrink: 0; }
+  .step-row-menu-btn { width: 26px; height: 26px; border: none; background: none; color: var(--ink-faint); cursor: pointer; border-radius: 6px; display: flex; align-items: center; justify-content: center; }
+  .step-row-menu-btn:hover { background: var(--bg); color: var(--ink); }
 
   .step-completed-toggle { align-self: flex-start; font-family: inherit; font-size: 12.5px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 4px; }
   .step-completed-toggle:hover { color: var(--pine); }
@@ -285,6 +288,7 @@
   var showArchived = false;
   var openStepAdders = {};   // itemId -> true while its "add a step" input is showing
   var openStepMenus = {};    // itemId -> true while its Step menu (Next/Completed step/Completed task) is open
+  var openStepRowMenus = {}; // stepId -> true while that step's own \u22ee menu is open
   var openCompletedSteps = {}; // itemId -> true while its completed-steps list is expanded
   var openAssigneePickers = {}; // itemId -> true while its assignee picker is open
   var openBoardAccess = {}; // boardId -> true while its access popover is open
@@ -522,9 +526,6 @@
       nameInput.addEventListener("change", function () { updateGroup(g.id, { name: nameInput.value.trim() || "Untitled" }); });
       head.appendChild(nameInput);
 
-      var doneCount = allGroupItems.filter(function (i) { return i.archived; }).length;
-      head.appendChild(el("span", "group-count", { text: allGroupItems.length ? (doneCount + "/" + allGroupItems.length) : "" }));
-
       var reorderWrap = el("span", "group-reorder");
       var upBtn = el("button", "group-move", { type: "button", "aria-label": "Move group up" });
       upBtn.innerHTML = '<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.5L6 4L9.5 7.5"/></svg>';
@@ -737,12 +738,6 @@
       // ---- persistent step checklist: any number of steps, each independently
       // completable, with a "+" to add more at any time ----
       row.appendChild(renderStepChecklist(item));
-
-      if (item.updatedBy) {
-        var everEdited = item.updatedBy !== item.createdBy;
-        var label = everEdited ? "Updated by " + item.updatedBy : "Added by " + (item.createdBy || item.updatedBy);
-        row.appendChild(el("div", "item-meta", { text: label + " \u00b7 " + relTime(item.updatedAt) }));
-      }
     }
 
     // Clicking anywhere on the task (that isn't one of its interactive controls)
@@ -774,10 +769,35 @@
         }
       });
       stepRow.appendChild(textInput);
-      var delStep = el("button", "step-del", { type: "button", "aria-label": "Remove step" });
-      delStep.innerHTML = xSvg();
-      delStep.addEventListener("click", function () { socket.emit("deleteTaskStep", { itemId: item.id, stepId: s.id }); });
-      stepRow.appendChild(delStep);
+
+      var rowMenuWrap = el("span", "step-row-menu-wrap");
+      var rowMenuBtn = el("button", "step-row-menu-btn", { type: "button", "aria-label": "Step options" });
+      rowMenuBtn.innerHTML = '<svg viewBox="0 0 14 14" width="13" height="13" fill="none"><circle cx="3" cy="7" r="1.3" fill="currentColor"/><circle cx="7" cy="7" r="1.3" fill="currentColor"/><circle cx="11" cy="7" r="1.3" fill="currentColor"/></svg>';
+      rowMenuBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openStepRowMenus[s.id] = !openStepRowMenus[s.id];
+        render();
+      });
+      rowMenuWrap.appendChild(rowMenuBtn);
+      if (openStepRowMenus[s.id]) {
+        var rowMenu = el("div", "step-menu");
+        rowMenu.addEventListener("click", function (e) { e.stopPropagation(); });
+        var toggleDoneBtn = el("button", "", { type: "button", text: s.done ? "Mark not done" : "Mark done" });
+        toggleDoneBtn.addEventListener("click", function () {
+          delete openStepRowMenus[s.id];
+          socket.emit("toggleTaskStep", { itemId: item.id, stepId: s.id, done: !s.done });
+          render();
+        });
+        rowMenu.appendChild(toggleDoneBtn);
+        var deleteStepBtn = el("button", "danger", { type: "button", text: "Delete" });
+        deleteStepBtn.addEventListener("click", function () {
+          delete openStepRowMenus[s.id];
+          socket.emit("deleteTaskStep", { itemId: item.id, stepId: s.id });
+        });
+        rowMenu.appendChild(deleteStepBtn);
+        rowMenuWrap.appendChild(rowMenu);
+      }
+      stepRow.appendChild(rowMenuWrap);
       return stepRow;
     }
 
@@ -836,6 +856,15 @@
         render();
       });
       menu.appendChild(doneStepBtn);
+      var undoBtn = el("button", "", { type: "button", text: "Undo last step" });
+      var lastDone = doneSteps.slice().sort(function (a, b) { return new Date(b.doneAt || 0) - new Date(a.doneAt || 0); })[0];
+      if (!lastDone) undoBtn.disabled = true;
+      undoBtn.addEventListener("click", function () {
+        delete openStepMenus[item.id];
+        if (lastDone) socket.emit("toggleTaskStep", { itemId: item.id, stepId: lastDone.id, done: false });
+        render();
+      });
+      menu.appendChild(undoBtn);
       if (!item.archived) {
         var doneTaskBtn = el("button", "danger", { type: "button", text: "Completed task" });
         doneTaskBtn.addEventListener("click", function () {
@@ -856,6 +885,13 @@
 
   function renderTaskPanelBody(item) {
     var wrap = el("div", "task-panel-body");
+
+    if (item.updatedBy) {
+      var everEdited = item.updatedBy !== item.createdBy;
+      var label = everEdited ? "Updated by " + item.updatedBy : "Added by " + (item.createdBy || item.updatedBy);
+      wrap.appendChild(el("div", "item-meta", { text: label + " \u00b7 " + relTime(item.updatedAt) }));
+    }
+
     var cols = el("div", "task-panel-cols");
 
     var left = el("div", "task-panel-col");
@@ -1094,9 +1130,9 @@
 
   // Close any open step-menu / assignee-picker / board-access popover when clicking elsewhere.
   document.addEventListener("click", function () {
-    var changed = Object.keys(openAssigneePickers).length || Object.keys(openBoardAccess).length || Object.keys(openStepMenus).length || Object.keys(openBoardMenus).length;
+    var changed = Object.keys(openAssigneePickers).length || Object.keys(openBoardAccess).length || Object.keys(openStepMenus).length || Object.keys(openBoardMenus).length || Object.keys(openStepRowMenus).length;
     if (changed) {
-      openAssigneePickers = {}; openBoardAccess = {}; openStepMenus = {}; openBoardMenus = {};
+      openAssigneePickers = {}; openBoardAccess = {}; openStepMenus = {}; openBoardMenus = {}; openStepRowMenus = {};
       render();
     }
   });
