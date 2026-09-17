@@ -349,13 +349,14 @@
       var body = el("div", "group-body");
       groupItems.forEach(function (item) { body.appendChild(renderItem(item)); });
 
-      var addRow = el("div", "add-row");
+      var addRow = el("form", "add-row");
       var plus = el("div", "plus"); plus.innerHTML = plusSvg(); addRow.appendChild(plus);
-      var addInput = el("input", "add-input", { placeholder: "Add a task", type: "text" });
-      addInput.addEventListener("keydown", function (e) {
-        if (e.key === "Enter" && addInput.value.trim()) { addItem(g.id, addInput.value.trim(), groupItems.length); addInput.value = ""; }
-      });
+      var addInput = el("input", "add-input", { placeholder: "Add a task", type: "text", enterkeyhint: "done" });
       addRow.appendChild(addInput);
+      addRow.addEventListener("submit", function (e) {
+        e.preventDefault();
+        if (addInput.value.trim()) { addItem(g.id, addInput.value.trim(), groupItems.length); addInput.value = ""; addInput.focus(); }
+      });
       body.appendChild(addRow);
 
       groupEl.appendChild(body);
@@ -379,23 +380,23 @@
   function renderAddGroupForm() {
     var addMount = document.getElementById("addGroupMount");
     addMount.innerHTML = "";
-    var form = el("div", "new-group-form");
-    var input = el("input", "", { placeholder: "Group name", type: "text" });
+    var form = el("form", "new-group-form");
+    var input = el("input", "", { placeholder: "Group name", type: "text", enterkeyhint: "done" });
     form.appendChild(input);
     var privLabel = el("label");
     var privCheck = el("input", "", { type: "checkbox" });
     privLabel.appendChild(privCheck);
     privLabel.appendChild(document.createTextNode("Private (only visible to you)"));
     form.appendChild(privLabel);
-    var saveBtn = el("button", "", { type: "button", text: "Add" });
-    saveBtn.addEventListener("click", commit);
+    var saveBtn = el("button", "", { type: "submit", text: "Add" });
     form.appendChild(saveBtn);
     var cancelBtn = el("button", "cancel", { type: "button", text: "Cancel" });
     cancelBtn.addEventListener("click", function () { delete addMount.dataset.formOpen; render(); });
     form.appendChild(cancelBtn);
     addMount.appendChild(form);
     input.focus();
-    input.addEventListener("keydown", function (e) { if (e.key === "Enter") commit(); if (e.key === "Escape") { delete addMount.dataset.formOpen; render(); } });
+    form.addEventListener("submit", function (e) { e.preventDefault(); commit(); });
+    input.addEventListener("keydown", function (e) { if (e.key === "Escape") { delete addMount.dataset.formOpen; render(); } });
     function commit() {
       var name = input.value.trim();
       if (!name) { delete addMount.dataset.formOpen; render(); return; }
