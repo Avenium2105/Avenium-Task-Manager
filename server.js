@@ -764,6 +764,22 @@ io.on("connection", (socket) => {
       g.updatedAt = nowIso();
       if (oldName !== g.name && g.visibility !== "private") logActivity(`${actorName()} renamed the group "${oldName}" to "${g.name}"`);
     }
+    if (typeof patch.order === "number" && Number.isFinite(patch.order)) {
+      g.order = patch.order;
+    }
+    persist();
+    broadcastState();
+  });
+
+  // Swap the display order of two groups at once (used for the up/down
+  // reorder controls, including when viewing "All boards" mixed together).
+  socket.on("swapGroupOrder", ({ idA, idB }) => {
+    const a = groupById(idA);
+    const b = groupById(idB);
+    if (!a || !b || !canTouchGroup(a) || !canTouchGroup(b)) return;
+    const tmp = a.order;
+    a.order = b.order;
+    b.order = tmp;
     persist();
     broadcastState();
   });
