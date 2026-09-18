@@ -155,6 +155,12 @@
   .notify-btn svg, .item-del svg { width: 15px; height: 15px; }
   .notify-btn:hover { background: var(--slate-soft); color: var(--slate); }
   .notify-btn.sent { color: var(--pine); }
+  .task-complete-btn { flex-shrink: 0; width: 22px; height: 22px; border: 1.5px solid var(--line); background: var(--bg-raised); color: transparent; cursor: pointer; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; }
+  .task-complete-btn svg { width: 11px; height: 11px; stroke: currentColor; }
+  .task-complete-btn:hover { border-color: var(--pine); }
+  .task-complete-btn.done { background: var(--pine); border-color: var(--pine); color: var(--bg-raised); }
+  .task-archive-btn { flex-shrink: 0; font-family: inherit; font-size: 11.5px; font-weight: 500; color: var(--ink-soft); background: var(--line-soft); border: none; border-radius: 20px; padding: 5px 11px; cursor: pointer; white-space: nowrap; }
+  .task-archive-btn:hover { background: var(--brick-soft); color: var(--brick); }
   .details-btn { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; color: var(--ink-soft); background: var(--line-soft); border: none; border-radius: 20px; padding: 5px 11px; cursor: pointer; white-space: nowrap; }
   .details-btn:hover { color: var(--ink); background: var(--line); }
   .details-btn.active { color: var(--bg-raised); background: var(--slate); }
@@ -225,7 +231,8 @@
   .chat-empty { color: var(--ink-faint); font-size: 12px; font-style: italic; }
   .chat-input-row { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; margin-top: 8px; }
   .chat-input-row > input { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg-raised); color: var(--ink); outline: none; }
-  .chat-input-bottom { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .chat-input-bottom { display: flex; align-items: center; gap: 6px; }
+  .chat-input-bottom .chat-to-btn, .chat-input-bottom .chat-send-btn { flex: 1; text-align: center; }
   .chat-send-btn { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; padding: 8px 18px; border: none; border-radius: 20px; background: var(--slate); color: var(--bg-raised); cursor: pointer; }
   .chat-send-btn:disabled { background: var(--line-soft); color: var(--ink-faint); cursor: not-allowed; }
 
@@ -401,6 +408,7 @@
   var selectedBoardId = localStorage.getItem("daily-board-selected-board") || "__all__";
   var allBoardsChatBoardId = null; // which board's chat is previewed in the right-hand column while on "All boards"
   var collapsedKey = "daily-board-collapsed";
+  var collapsedItemsKey = "daily-board-collapsed-items"; // separate localStorage key for per-task (not per-group) collapse state
   var notifiedRecently = {};
   var showArchived = false;
   var openStepAdders = {};   // itemId -> true while its "add a step" input is showing
@@ -410,7 +418,7 @@
   var openAssigneePickers = {}; // itemId -> true while its assignee picker is open
   var openBoardAccess = {}; // boardId -> true while its access popover is open
   var openBoardMenus = {}; // boardId -> true while its 3-dot options menu is open
-  var collapsedItems = {}; // itemId -> true while collapsed to title-only
+  // (per-task collapse state now lives in localStorage — see getCollapsedItems/setCollapsedItems above)
   var dragState = { type: null, id: null }; // in-progress native drag (group / item / board-section / board-tab)
   var openMessagePopovers = {}; // messageId -> true while its "read by" popover is open
   var openNewBoardForm = false; // true while the "+ new board" popover form is showing
@@ -531,6 +539,11 @@
 
   function getCollapsed() { try { var raw = localStorage.getItem(collapsedKey); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; } }
   function setCollapsed(map) { try { localStorage.setItem(collapsedKey, JSON.stringify(map)); } catch (e) {} }
+  // Task-level (title-only) collapse used to live only in memory and forgot itself on
+  // every reload — group collapse already persisted via localStorage, so this now
+  // follows the exact same pattern for consistency.
+  function getCollapsedItems() { try { var raw = localStorage.getItem(collapsedItemsKey); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; } }
+  function setCollapsedItems(map) { try { localStorage.setItem(collapsedItemsKey, JSON.stringify(map)); } catch (e) {} }
 
   function fmtDate(now) { return now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }); }
   function greetingWord(now) { var h = now.getHours(); if (h < 12) return "Good morning"; if (h < 18) return "Good afternoon"; return "Good evening"; }
@@ -1053,7 +1066,7 @@
   }
 
   function renderItem(item) {
-    var isCollapsed = !!collapsedItems[item.id];
+    var isCollapsed = !!getCollapsedItems()[item.id];
     var row = el("div", "item" + ((item.archived || item.completed) ? " is-done" : "") + (item.id === selectedItemId ? " selected" : "") + (isCollapsed ? " item-collapsed" : ""));
     var main = el("div", "item-main");
 
@@ -1061,7 +1074,9 @@
     collapseBtn.innerHTML = chevronSvg();
     collapseBtn.addEventListener("click", function (e) {
       e.stopPropagation();
-      collapsedItems[item.id] = !isCollapsed;
+      var map = getCollapsedItems();
+      map[item.id] = !isCollapsed;
+      setCollapsedItems(map);
       render();
     });
     makeDragSource(collapseBtn, "item", item.id);
@@ -1130,6 +1145,31 @@
       updateItem(item.id, { priority: next });
     });
     main.appendChild(priBtn);
+
+    // Task-level complete/undo/archive — independent of steps, so a task with
+    // no steps at all still has a way to be marked done. (A step's own Update
+    // menu offers the same three actions too, as a convenience once a task
+    // has steps, but this is the only path for a task that never gets any.)
+    if (!item.archived) {
+      var completeBtn = el("button", "task-complete-btn" + (item.completed ? " done" : ""), { type: "button", "aria-label": item.completed ? "Undo complete" : "Mark complete", title: item.completed ? "Undo complete" : "Mark complete" });
+      completeBtn.innerHTML = item.completed ? checkSvg() : "";
+      completeBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        socket.emit(item.completed ? "uncompleteTask" : "completeTask", { itemId: item.id });
+      });
+      main.appendChild(completeBtn);
+
+      if (item.completed) {
+        var archiveBtn = el("button", "task-archive-btn", { type: "button", text: "Archive" });
+        archiveBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          if (window.confirm("Move \"" + item.title + "\" to Archived?")) {
+            socket.emit("archiveTask", { itemId: item.id });
+          }
+        });
+        main.appendChild(archiveBtn);
+      }
+    }
 
     var notifyBtn = el("button", "notify-btn" + (notifiedRecently[item.id] ? " sent" : ""), { type: "button", "aria-label": "Notify assignees", title: assigneeIds.length ? "Notify it's their turn" : "Assign someone first" });
     notifyBtn.innerHTML = bellSvg();
@@ -1433,8 +1473,8 @@
       bubble.addEventListener("mouseleave", hideMsgTooltip);
       bubble.addEventListener("contextmenu", function (e) {
         e.preventDefault();
-        if (!canModify) return;
         hideMsgTooltip();
+        if (!canModify) return;
         openMessagePopovers[m.id] = !openMessagePopovers[m.id];
         render();
       });
@@ -1659,7 +1699,7 @@
     function isReady() { return !!(sel.all || sel.ids.length); }
 
     function refresh() {
-      toBtn.textContent = "To";
+      toBtn.textContent = "Recipients";
       toBtn.classList.toggle("chosen", isReady());
       // Typing is never blocked — only actually sending requires a recipient. Anything
       // that wants to gate on that (the Send button) registers via onReadyChange below.

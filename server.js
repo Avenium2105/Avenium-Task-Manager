@@ -722,7 +722,7 @@ io.on("connection", (socket) => {
   socket.on("addBoard", ({ name, isPrivate }) => {
     if (!name || typeof name !== "string") return;
     const board = {
-      id: uid("b"), name: name.trim().slice(0, 100) || "Untitled board",
+      id: uid("b"), name: autoCapitalize(name.trim().slice(0, 100)) || "Untitled board",
       order: state.boards.length, tabOrder: state.boards.length,
       createdAt: Date.now(), createdBy: actorName(), createdById: user.id,
       // Admins create boards open to everyone by default (matches how shared company
@@ -764,7 +764,7 @@ io.on("connection", (socket) => {
     const board = state.boards.find((b) => b.id === id);
     if (!board || !name || typeof name !== "string" || !name.trim()) return;
     const oldName = board.name;
-    board.name = name.trim().slice(0, 100);
+    board.name = autoCapitalize(name.trim().slice(0, 100));
     if (board.name !== oldName) logActivity(`${actorName()} renamed the board "${oldName}" to "${board.name}"`);
     persist();
     broadcastState();
@@ -816,7 +816,7 @@ io.on("connection", (socket) => {
     const isPrivate = visibility === "private";
     const order = state.groups.filter((g) => g.boardId === boardId).length;
     const group = {
-      id: uid("g"), boardId, name: name.trim().slice(0, 200) || "Untitled",
+      id: uid("g"), boardId, name: autoCapitalize(name.trim().slice(0, 200)) || "Untitled",
       color: GROUP_COLORS[order % GROUP_COLORS.length], order,
       visibility: isPrivate ? "private" : "shared",
       ownerId: isPrivate ? user.id : undefined,
@@ -833,7 +833,7 @@ io.on("connection", (socket) => {
     if (!g || !patch || !canTouchGroup(g)) return;
     if (typeof patch.name === "string") {
       const oldName = g.name;
-      g.name = patch.name.trim().slice(0, 200) || "Untitled";
+      g.name = autoCapitalize(patch.name.trim().slice(0, 200)) || "Untitled";
       g.updatedBy = actorName();
       g.updatedAt = nowIso();
       if (oldName !== g.name && g.visibility !== "private") logActivity(`${actorName()} renamed the group "${oldName}" to "${g.name}"`);
@@ -969,7 +969,7 @@ io.on("connection", (socket) => {
     if (!text || !String(text).trim()) return;
 
     const step = {
-      id: uid("s"), text: String(text).trim().slice(0, 1000), done: false,
+      id: uid("s"), text: autoCapitalize(String(text).trim().slice(0, 1000)), done: false,
       byId: user.id, byName: actorName(), createdAt: nowIso()
     };
     item.steps.push(step);
@@ -1016,7 +1016,7 @@ io.on("connection", (socket) => {
     if (!canTouchGroup(group)) return;
     const step = item.steps.find((s) => s.id === stepId);
     if (!step || typeof text !== "string" || !text.trim()) return;
-    step.text = text.trim().slice(0, 1000);
+    step.text = autoCapitalize(text.trim().slice(0, 1000));
     item.updatedBy = actorName();
     item.updatedAt = nowIso();
     persist();
