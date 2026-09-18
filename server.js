@@ -878,7 +878,7 @@ io.on("connection", (socket) => {
       id: uid("i"), groupId,
       title: autoCapitalize(title.trim().slice(0, 500) || "Untitled task"),
       notes: "", priority: "low",
-      assigneeIds: [], steps: [], archived: false, files: [],
+      assigneeIds: [], steps: [], archived: false, completed: false, files: [],
       order: typeof order === "number" ? order : state.items.length,
       createdAt: Date.now(), createdBy: actorName(), createdById: user.id, updatedBy: actorName(), updatedAt: nowIso()
     };
@@ -1035,15 +1035,48 @@ io.on("connection", (socket) => {
     broadcastState();
   });
 
+  // "Complete" and "Archive" are two separate steps now, not one: completing a
+  // task just marks it done in place (still visible, still in its group, still
+  // reorderable) — it does NOT move anywhere. Archiving is a distinct, explicit
+  // action that only makes sense (and is only offered client-side) once a task
+  // is already complete, and moving it to Archived is what actually hides it
+  // from the normal view behind "Show archived".
   socket.on("completeTask", ({ itemId }) => {
     const item = state.items.find((x) => x.id === itemId);
     if (!item) return;
     const group = groupById(item.groupId);
     if (!canTouchGroup(group)) return;
-    item.archived = true;
+    item.completed = true;
     item.updatedBy = actorName();
     item.updatedAt = nowIso();
     if (group.visibility !== "private") logActivity(`${actorName()} completed "${item.title}"`);
+    persist();
+    broadcastState();
+  });
+
+  socket.on("uncompleteTask", ({ itemId }) => {
+    const item = state.items.find((x) => x.id === itemId);
+    if (!item) return;
+    const group = groupById(item.groupId);
+    if (!canTouchGroup(group)) return;
+    item.completed = false;
+    item.updatedBy = actorName();
+    item.updatedAt = nowIso();
+    if (group.visibility !== "private") logActivity(`${actorName()} marked "${item.title}" not complete`);
+    persist();
+    broadcastState();
+  });
+
+  socket.on("archiveTask", ({ itemId }) => {
+    const item = state.items.find((x) => x.id === itemId);
+    if (!item) return;
+    const group = groupById(item.groupId);
+    if (!canTouchGroup(group)) return;
+    if (!item.completed) return; // archiving only makes sense once a task is complete
+    item.archived = true;
+    item.updatedBy = actorName();
+    item.updatedAt = nowIso();
+    if (group.visibility !== "private") logActivity(`${actorName()} archived "${item.title}"`);
     persist();
     broadcastState();
   });
@@ -1101,7 +1134,11 @@ io.on("connection", (socket) => {
       if (mid === user.id) continue;
       const mentioned = findUserById(mid);
       if (mentioned && mentioned.email) {
-        await sendMail(mentioned.email, `You were mentioned in ${label}`, `${actorName()} mentioned you:\n\n${trimmed}${linkUrl ? "\n\nOpen this chat: " + linkUrl : ""}`);
+        // Append the specific message's own id so the link lands right on the
+        // message that triggered the notification instead of just the chat it
+        // came from — the client scrolls to and highlights it on load.
+        const msgLink = linkUrl ? linkUrl + "&message=" + encodeURIComponent(message.id) : "";
+        await sendMail(mentioned.email, `You were mentioned in ${label}`, `${actorName()} mentioned you:\n\n${trimmed}${msgLink ? "\n\nOpen this message: " + msgLink : ""}`);
       }
     }
   });

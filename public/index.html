@@ -211,6 +211,11 @@
   /* WhatsApp-style chat bubbles: own messages right-aligned/green, others left-aligned/white */
   .task-chat-messages { display: flex; flex-direction: column; gap: 6px; flex: 1; min-height: 120px; max-height: 420px; overflow-y: auto; padding: 4px 2px; }
   .chat-row { display: flex; position: relative; }
+  .chat-row-highlight .chat-bubble { animation: chatRowFlash 2.6s ease-out; }
+  @keyframes chatRowFlash {
+    0% { box-shadow: 0 0 0 2px var(--slate); background: var(--slate-soft); }
+    100% { box-shadow: 0 0 0 0 transparent; }
+  }
   .chat-row.mine { justify-content: flex-end; }
   .chat-bubble { max-width: 78%; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 12px 12px 12px 3px; padding: 7px 10px; cursor: pointer; }
   .chat-row.mine .chat-bubble { background: var(--pine-soft); border-color: var(--pine-soft); border-radius: 12px 12px 3px 12px; }
@@ -412,27 +417,48 @@
   var messageRecipients = {}; // "board:id" / "item:id" -> { all: bool, ids: [] } — who a new message goes to
   var openMessageEdits = {}; // messageId -> true while inline-editing that message
   var selectedItemId = null; // when set, the right-side panel shows this task's notes/files/chat instead of board chat
+  var pendingMessageHighlightId = null; // a message id to scroll to + flash once its chat renders (from an email deep link), cleared after first use
 
-  // Deep links from notification emails ("?board=...&item=...") take priority
-  // over whatever board was last open in this browser, so clicking a link in
-  // an email lands directly on that task/board instead of wherever this
-  // browser happened to be. Strip the params from the visible URL afterward
-  // so a later refresh goes back to normal (remembered-board) behavior
-  // rather than getting stuck on the emailed task forever.
+  // Deep links from notification emails ("?board=...&item=...&message=...")
+  // take priority over whatever board was last open in this browser, so
+  // clicking a link in an email lands directly on that task/board — and, for
+  // mention emails, the specific message — instead of wherever this browser
+  // happened to be. Strip the params from the visible URL afterward so a
+  // later refresh goes back to normal (remembered-board) behavior rather
+  // than getting stuck on the emailed task forever.
   (function applyDeepLinkFromUrl() {
     var params = new URLSearchParams(window.location.search);
     var boardParam = params.get("board");
     var itemParam = params.get("item");
-    if (!boardParam && !itemParam) return;
+    var messageParam = params.get("message");
+    if (!boardParam && !itemParam && !messageParam) return;
     if (boardParam) {
       selectedBoardId = boardParam;
       localStorage.setItem("daily-board-selected-board", selectedBoardId);
     }
     if (itemParam) selectedItemId = itemParam; // validated against state.items once it loads; cleared automatically if not found
+    if (messageParam) pendingMessageHighlightId = messageParam;
     if (window.history && window.history.replaceState) {
       window.history.replaceState(null, "", window.location.pathname);
     }
   })();
+
+  // Called right after a chat's messages have been appended into `container`
+  // (board chat, task chat, or the "All boards" preview chat). If an email
+  // deep link asked for a specific message, this is where it actually gets
+  // scrolled to and flashed — and it self-clears so it only ever fires once,
+  // even though all three chat surfaces call it on every render.
+  function maybeHighlightPendingMessage(container) {
+    if (!pendingMessageHighlightId) return;
+    var target = container.querySelector('[data-message-id="' + pendingMessageHighlightId + '"]');
+    if (!target) return;
+    pendingMessageHighlightId = null;
+    setTimeout(function () {
+      target.scrollIntoView({ block: "center" });
+      target.classList.add("chat-row-highlight");
+      setTimeout(function () { target.classList.remove("chat-row-highlight"); }, 2600);
+    }, 0);
+  }
 
   // ---------------- client-side router (Boards <-> Admin, no page reload) ----------------
   // The two views used to be separate HTML documents (index.html / users.html),
@@ -1335,6 +1361,7 @@
       chatMsgsWrap.appendChild(el("div", "chat-empty", { text: "No messages yet." }));
     } else {
       chatMsgs.forEach(function (m) { chatMsgsWrap.appendChild(renderChatMsg(m)); });
+      maybeHighlightPendingMessage(chatMsgsWrap);
     }
     right.appendChild(chatMsgsWrap);
 
@@ -1369,6 +1396,7 @@
     var isMine = currentUser && m.byId === currentUser.id;
     var canModify = isMine; // messages can only ever be edited/deleted by their own author — no admin override
     var row = el("div", "chat-row" + (isMine ? " mine" : ""));
+    row.dataset.messageId = m.id; // lets maybeHighlightPendingMessage() find this specific message after an email deep link
     var bubble = el("div", "chat-bubble");
     if (!isMine) bubble.appendChild(el("div", "chat-who", { text: m.byName }));
 
@@ -1529,6 +1557,7 @@
           chatMsgsWrap.appendChild(el("div", "chat-empty", { text: "No messages yet on this board." }));
         } else {
           msgsAll.forEach(function (m) { chatMsgsWrap.appendChild(renderChatMsg(m)); });
+          maybeHighlightPendingMessage(chatMsgsWrap);
         }
         chatCol.appendChild(chatMsgsWrap);
 
@@ -1580,7 +1609,9 @@
       body.appendChild(el("div", "chat-empty", { text: "No messages yet on this board." }));
     } else {
       msgs.forEach(function (m) { body.appendChild(renderChatMsg(m)); });
-      body.scrollTop = body.scrollHeight;
+      var hadPendingHighlight = !!pendingMessageHighlightId;
+      maybeHighlightPendingMessage(body);
+      if (!hadPendingHighlight) body.scrollTop = body.scrollHeight; // only default to "jump to newest" when there's no specific message to land on instead
     }
 
     var compose = buildComposeControls("board", board.id, function () {
