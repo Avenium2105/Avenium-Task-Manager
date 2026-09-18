@@ -220,6 +220,8 @@
   .chat-empty { color: var(--ink-faint); font-size: 12px; font-style: italic; }
   .chat-input-row { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: nowrap; margin-top: 8px; }
   .chat-input-row input { flex: 1 1 auto; min-width: 0; font-family: inherit; font-size: 13px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg-raised); color: var(--ink); outline: none; }
+  .chat-input-row input:disabled { background: var(--line-soft); color: var(--ink-faint); cursor: not-allowed; }
+  .chat-input-row input:disabled::placeholder { color: var(--ink-faint); }
   .chat-input-row button { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; padding: 8px 15px; border: none; border-radius: 20px; background: var(--slate); color: var(--bg-raised); cursor: pointer; }
 
   .read-receipt-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 8px 10px; min-width: 170px; font-size: 12px; }
@@ -925,8 +927,30 @@
       if (openStepRowMenus[s.id]) {
         var rowMenu = el("div", "step-menu");
         rowMenu.addEventListener("click", function (e) { e.stopPropagation(); });
+        var toggleDoneBtn = el("button", "", { type: "button", text: s.done ? "Mark Not Complete" : "Step Complete" });
+        toggleDoneBtn.addEventListener("click", function () {
+          delete openStepRowMenus[s.id];
+          socket.emit("toggleTaskStep", { itemId: item.id, stepId: s.id, done: !s.done });
+          if (!s.done) openStepAdders[item.id] = true; // marking a step done immediately opens the next line
+          render();
+        });
+        rowMenu.appendChild(toggleDoneBtn);
+        var addStepBtn = el("button", "", { type: "button", text: "Add Step" });
+        addStepBtn.addEventListener("click", function () {
+          delete openStepRowMenus[s.id];
+          openStepAdders[item.id] = true;
+          render();
+        });
+        rowMenu.appendChild(addStepBtn);
+        var deleteStepBtn = el("button", "danger", { type: "button", text: "Delete Step" });
+        deleteStepBtn.addEventListener("click", function () {
+          delete openStepRowMenus[s.id];
+          socket.emit("deleteTaskStep", { itemId: item.id, stepId: s.id });
+          render();
+        });
+        rowMenu.appendChild(deleteStepBtn);
         if (!item.archived) {
-          var completeTaskBtn2 = el("button", "danger", { type: "button", text: "Complete Task" });
+          var completeTaskBtn2 = el("button", "danger", { type: "button", text: "Task Complete" });
           completeTaskBtn2.addEventListener("click", function () {
             delete openStepRowMenus[s.id];
             if (window.confirm("Mark \"" + item.title + "\" as fully complete? It will move to Archived.")) {
@@ -936,28 +960,6 @@
           });
           rowMenu.appendChild(completeTaskBtn2);
         }
-        var deleteStepBtn = el("button", "danger", { type: "button", text: "Delete Step" });
-        deleteStepBtn.addEventListener("click", function () {
-          delete openStepRowMenus[s.id];
-          socket.emit("deleteTaskStep", { itemId: item.id, stepId: s.id });
-          render();
-        });
-        rowMenu.appendChild(deleteStepBtn);
-        var addStepBtn = el("button", "", { type: "button", text: "+ Add step" });
-        addStepBtn.addEventListener("click", function () {
-          delete openStepRowMenus[s.id];
-          openStepAdders[item.id] = true;
-          render();
-        });
-        rowMenu.appendChild(addStepBtn);
-        var toggleDoneBtn = el("button", "", { type: "button", text: s.done ? "Mark not done" : "Mark done" });
-        toggleDoneBtn.addEventListener("click", function () {
-          delete openStepRowMenus[s.id];
-          socket.emit("toggleTaskStep", { itemId: item.id, stepId: s.id, done: !s.done });
-          if (!s.done) openStepAdders[item.id] = true; // marking a step done immediately opens the next line
-          render();
-        });
-        rowMenu.appendChild(toggleDoneBtn);
         anchorPopover(rowUpdateBtn, rowMenu, "left");
       }
 
@@ -978,25 +980,30 @@
       wrap.appendChild(toggleCompleted);
     }
 
-    if (openStepAdders[item.id]) {
-      var form = el("form", "step-add-row");
-      var input = el("input", "", { type: "text", placeholder: "What's the next step?", enterkeyhint: "done" });
-      form.appendChild(input);
-      var saveBtn = el("button", "", { type: "submit", text: "Save" });
-      form.appendChild(saveBtn);
-      var cancelAddBtn = el("button", "cancel", { type: "button", text: "Cancel" });
-      cancelAddBtn.addEventListener("click", function () { delete openStepAdders[item.id]; render(); });
-      form.appendChild(cancelAddBtn);
-      form.addEventListener("submit", function (e) {
-        e.preventDefault();
-        if (input.value.trim()) { socket.emit("addTaskStep", { itemId: item.id, text: input.value.trim() }); delete openStepAdders[item.id]; render(); }
-      });
-      wrap.appendChild(form);
-      setTimeout(function () { input.focus(); }, 0);
-    } else {
-      var addStepLink = el("button", "step-add-link", { type: "button", text: "+ Add step" });
-      addStepLink.addEventListener("click", function () { openStepAdders[item.id] = true; render(); });
-      wrap.appendChild(addStepLink);
+    if (openStepAdders[item.id] || steps.length === 0) {
+      if (openStepAdders[item.id]) {
+        var form = el("form", "step-add-row");
+        var input = el("input", "", { type: "text", placeholder: "What's the next step?", enterkeyhint: "done" });
+        form.appendChild(input);
+        var saveBtn = el("button", "", { type: "submit", text: "Save" });
+        form.appendChild(saveBtn);
+        var cancelAddBtn = el("button", "cancel", { type: "button", text: "Cancel" });
+        cancelAddBtn.addEventListener("click", function () { delete openStepAdders[item.id]; render(); });
+        form.appendChild(cancelAddBtn);
+        form.addEventListener("submit", function (e) {
+          e.preventDefault();
+          if (input.value.trim()) { socket.emit("addTaskStep", { itemId: item.id, text: input.value.trim() }); delete openStepAdders[item.id]; render(); }
+        });
+        wrap.appendChild(form);
+        setTimeout(function () { input.focus(); }, 0);
+      } else {
+        // Standalone link only shows up when there are no steps yet (so there's no
+        // per-step Update menu to add one from); once a task has at least one step,
+        // "Add Step" lives in that step's Update menu instead.
+        var addStepLink = el("button", "step-add-link", { type: "button", text: "Add Step" });
+        addStepLink.addEventListener("click", function () { openStepAdders[item.id] = true; render(); });
+        wrap.appendChild(addStepLink);
+      }
     }
 
     return wrap;
@@ -1073,7 +1080,7 @@
     chatForm.appendChild(compose.inputEl);
     var chatSend = el("button", "", { type: "button", text: "Send" });
     function sendTaskMsg() {
-      if (compose.inputEl.value.trim() && !compose.inputEl.readOnly) {
+      if (compose.inputEl.value.trim() && !compose.inputEl.disabled) {
         socket.emit("addMessage", { scope: "item", scopeId: item.id, text: compose.inputEl.value.trim(), mentionIds: compose.getMentionIds() });
         compose.inputEl.value = "";
       }
@@ -1274,7 +1281,7 @@
         rowAll.appendChild(composeAll.inputEl);
         var sendBtnAll = el("button", "", { type: "button", text: "Send" });
         function sendAll() {
-          if (composeAll.inputEl.value.trim() && !composeAll.inputEl.readOnly) {
+          if (composeAll.inputEl.value.trim() && !composeAll.inputEl.disabled) {
             socket.emit("addMessage", { scope: "board", scopeId: previewBoard.id, text: composeAll.inputEl.value.trim(), mentionIds: composeAll.getMentionIds() });
             composeAll.inputEl.value = "";
           }
@@ -1322,7 +1329,7 @@
     row.appendChild(compose.inputEl);
     var sendBtn = el("button", "", { type: "button", text: "Send" });
     function send() {
-      if (compose.inputEl.value.trim() && !compose.inputEl.readOnly) {
+      if (compose.inputEl.value.trim() && !compose.inputEl.disabled) {
         socket.emit("addMessage", { scope: "board", scopeId: board.id, text: compose.inputEl.value.trim(), mentionIds: compose.getMentionIds() });
         compose.inputEl.value = "";
       }
@@ -1335,10 +1342,15 @@
     socket.emit("markMessagesRead", { scope: "board", scopeId: board.id });
   }
 
-  // Recipient picker: replaces free-text "@name" mentions. Clicking the "To:"
-  // control (or focusing the message input before anyone's been picked) opens
-  // a checklist of everyone relevant to this chat, plus "All". The input stays
-  // read-only until at least one recipient (or "All") is checked.
+  // Recipient picker: replaces free-text "@name" mentions. Clicking "Recipients"
+  // opens a checklist of everyone relevant to this chat, plus "All". Until at
+  // least one recipient (or "All") is checked, the message input is disabled
+  // outright (not just read-only) and shows a placeholder saying so — it used
+  // to also open the picker on focus, but that click both opened the picker
+  // AND (on its way bubbling up) tripped the generic "close any open popover"
+  // handler in the same click, so the picker flashed open and immediately
+  // closed again. Simpler and more reliable: the input does nothing at all
+  // until a recipient is picked via the button.
   function buildComposeControls(scopeType, scopeId, getRelevantUsers) {
     var key = scopeType + ":" + scopeId;
     if (!messageRecipients[key]) messageRecipients[key] = { all: false, ids: [] };
@@ -1350,7 +1362,9 @@
     function refresh() {
       toBtn.textContent = "Recipients";
       toBtn.classList.toggle("chosen", !!(sel.all || sel.ids.length));
-      inputEl.readOnly = !(sel.all || sel.ids.length);
+      var ready = !!(sel.all || sel.ids.length);
+      inputEl.disabled = !ready;
+      inputEl.placeholder = ready ? "" : "Select recipients to send a message";
     }
     refresh();
 
@@ -1396,7 +1410,6 @@
       anchorPopover(toBtn, pop, "left");
     }
     toBtn.addEventListener("click", function (e) { e.stopPropagation(); openPicker(); });
-    inputEl.addEventListener("focus", function () { if (inputEl.readOnly) openPicker(); });
 
     return {
       toBtn: toBtn,
