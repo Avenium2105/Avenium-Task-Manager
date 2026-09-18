@@ -216,6 +216,22 @@ function makeToken() { return crypto.randomBytes(24).toString("hex"); }
 function makeCode() { return String(crypto.randomInt(100000, 999999)); }
 function inviteLink(token) { return (PUBLIC_URL || "") + "/accept-invite.html?token=" + token; }
 
+// Deep links for notification emails: land the person straight on the board
+// (and, when there's a specific task, that task's panel) instead of just the
+// bare app URL — the client (public/index.html) reads these query params on
+// load and selects the right board/task automatically. Empty string when
+// PUBLIC_URL isn't configured, same as the existing inviteLink behavior.
+function boardLink(boardId) {
+  if (!PUBLIC_URL || !boardId) return "";
+  return PUBLIC_URL + "/?board=" + encodeURIComponent(boardId);
+}
+function itemLink(item) {
+  if (!PUBLIC_URL || !item) return "";
+  const group = groupById(item.groupId);
+  if (!group) return "";
+  return boardLink(group.boardId) + "&item=" + encodeURIComponent(item.id);
+}
+
 // ---------- email (optional — configured via environment variables) ----------
 // Sending and receiving are independent: a relay like SMTP2GO only handles
 // SENDING, so IMAP (for turning incoming mail into tasks) still needs its own
@@ -336,7 +352,10 @@ app.use(sessionMiddleware);
 function requireAuth(req, res, next) {
   if (req.session && req.session.userId && findUserById(req.session.userId)) return next();
   if (req.path.startsWith("/api/")) return res.status(401).json({ error: "not_authenticated" });
-  return res.redirect("/login.html");
+  // Preserve the originally-requested URL (path + query, e.g. a notification
+  // email's "?board=...&item=..." deep link) so it can be restored after
+  // signing in, instead of always dropping back to the bare board list.
+  return res.redirect("/login.html?next=" + encodeURIComponent(req.originalUrl));
 }
 function requireAdmin(req, res, next) {
   const u = req.session && findUserById(req.session.userId);
@@ -347,6 +366,16 @@ function requireAdmin(req, res, next) {
 
 // ---- static brand assets (logo etc. — public, needed on pre-auth pages too) ----
 app.use("/assets", express.static(path.join(__dirname, "public", "assets")));
+
+// ---- shared nav bar (used by both index.html and users.html) ----
+// This was the actual reason the nav bar never showed up, no matter how many
+// times the page was hard-refreshed: nothing in this file ever served these
+// two files, so every request for them 404'd and the browser silently gave
+// up on both the <script src="/nav.js"> and <link rel="stylesheet" href="/nav.css">
+// tags. Nav bar content and layout are just missing on the page in that case
+// — not a caching issue, so no amount of refreshing could have fixed it.
+app.get("/nav.js", (req, res) => res.sendFile(path.join(__dirname, "public", "nav.js")));
+app.get("/nav.css", (req, res) => res.sendFile(path.join(__dirname, "public", "nav.css")));
 
 // ---- pages ----
 app.get("/login.html", (req, res) => res.sendFile(path.join(__dirname, "public", "login.html")));
@@ -943,12 +972,12 @@ io.on("connection", (socket) => {
     broadcastState();
 
     if (item.assigneeIds.length) {
-      const link = PUBLIC_URL || "";
+      const link = itemLink(item);
       for (const aid of item.assigneeIds) {
         if (aid === user.id) continue;
         const u = findUserById(aid);
         if (u && u.email) {
-          await sendMail(u.email, `New step on: ${item.title}`, `${actorName()} added a step on "${item.title}":\n\n${step.text}${link ? "\n\nOpen the board: " + link : ""}`);
+          await sendMail(u.email, `New step on: ${item.title}`, `${actorName()} added a step on "${item.title}":\n\n${step.text}${link ? "\n\nOpen this task: " + link : ""}`);
         }
       }
     }
@@ -1016,17 +1045,20 @@ io.on("connection", (socket) => {
     if (scope !== "board" && scope !== "item") return;
     if (!text || !String(text).trim()) return;
     let label = null;
+    let linkUrl = "";
     if (scope === "board") {
       const board = boardById(scopeId);
       if (!board || !canSeeBoard(board, user)) return;
       if (board.private) return; // private boards have no chat at all
       label = board.name;
+      linkUrl = boardLink(board.id);
     } else {
       const item = state.items.find((x) => x.id === scopeId);
       if (!item) return;
       const group = groupById(item.groupId);
       if (!canTouchGroup(group)) return;
       label = item.title;
+      linkUrl = itemLink(item);
     }
 
     const trimmed = String(text).trim().slice(0, 2000);
@@ -1061,8 +1093,7 @@ io.on("connection", (socket) => {
       if (mid === user.id) continue;
       const mentioned = findUserById(mid);
       if (mentioned && mentioned.email) {
-        const link = PUBLIC_URL || "";
-        await sendMail(mentioned.email, `You were mentioned in ${label}`, `${actorName()} mentioned you:\n\n${trimmed}${link ? "\n\nOpen the board: " + link : ""}`);
+        await sendMail(mentioned.email, `You were mentioned in ${label}`, `${actorName()} mentioned you:\n\n${trimmed}${linkUrl ? "\n\nOpen this chat: " + linkUrl : ""}`);
       }
     }
   });
@@ -1122,9 +1153,9 @@ io.on("connection", (socket) => {
     if (group.visibility !== "private") logActivity(`${actorName()} notified ${assignees.map((a) => a.displayName).join(", ")} that it's their turn on "${item.title}"`);
     persist();
     broadcastState();
-    const link = PUBLIC_URL ? ("\n\nOpen the board: " + PUBLIC_URL) : "";
+    const link = itemLink(item);
     for (const assignee of assignees) {
-      if (assignee.email) await sendMail(assignee.email, `It's your turn: ${item.title}`, `${actorName()} says it's your turn on "${item.title}".${link}`);
+      if (assignee.email) await sendMail(assignee.email, `It's your turn: ${item.title}`, `${actorName()} says it's your turn on "${item.title}".${link ? "\n\nOpen this task: " + link : ""}`);
     }
   });
 });

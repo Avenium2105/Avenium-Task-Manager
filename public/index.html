@@ -321,6 +321,27 @@
   var openMessageEdits = {}; // messageId -> true while inline-editing that message
   var selectedItemId = null; // when set, the right-side panel shows this task's notes/files/chat instead of board chat
 
+  // Deep links from notification emails ("?board=...&item=...") take priority
+  // over whatever board was last open in this browser, so clicking a link in
+  // an email lands directly on that task/board instead of wherever this
+  // browser happened to be. Strip the params from the visible URL afterward
+  // so a later refresh goes back to normal (remembered-board) behavior
+  // rather than getting stuck on the emailed task forever.
+  (function applyDeepLinkFromUrl() {
+    var params = new URLSearchParams(window.location.search);
+    var boardParam = params.get("board");
+    var itemParam = params.get("item");
+    if (!boardParam && !itemParam) return;
+    if (boardParam) {
+      selectedBoardId = boardParam;
+      localStorage.setItem("daily-board-selected-board", selectedBoardId);
+    }
+    if (itemParam) selectedItemId = itemParam; // validated against state.items once it loads; cleared automatically if not found
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  })();
+
   function getCollapsed() { try { var raw = localStorage.getItem(collapsedKey); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; } }
   function setCollapsed(map) { try { localStorage.setItem(collapsedKey, JSON.stringify(map)); } catch (e) {} }
 
@@ -632,6 +653,13 @@
   }
 
   function render() {
+    // Every render tears down and rebuilds the whole task list (mount.innerHTML = "",
+    // then re-append everything), which some browsers treat as reason enough to reset
+    // scroll position to the top of the page. Capture and restore it so clicking a
+    // task (or any other action that triggers a re-render) doesn't yank the page
+    // back to the top out from under whoever's reading further down.
+    var savedScrollX = window.scrollX, savedScrollY = window.scrollY;
+
     // Floating popovers (anchorPopover) are appended straight to document.body,
     // outside anything render() normally clears — remove any leftovers from the
     // previous render before rebuilding, or they pile up and get "stuck" on screen.
@@ -749,6 +777,9 @@
         addMount.appendChild(addGroupBtn);
       }
     }
+
+    window.scrollTo(savedScrollX, savedScrollY);
+    requestAnimationFrame(function () { window.scrollTo(savedScrollX, savedScrollY); }); // catches any scroll the browser applies after this paints
   }
 
   function renderAddGroupForm() {
