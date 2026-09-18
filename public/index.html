@@ -26,7 +26,7 @@
   .page { display: flex; align-items: flex-start; justify-content: center; gap: 28px; max-width: 1440px; margin: 0 auto; padding: 0 28px; }
   .wrap { max-width: 900px; flex: 1 1 auto; margin: 0; padding: 20px 0 100px; min-width: 0; }
 
-  .board-chat { flex-shrink: 0; width: 400px; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: 20px; display: flex; flex-direction: column; max-height: calc(100vh - 40px); transition: width 0.15s; }
+  .board-chat { flex-shrink: 0; width: 400px; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: calc(var(--nav-h, 67px) + var(--tabs-h, 54px) + 12px); display: flex; flex-direction: column; max-height: calc(100vh - var(--nav-h, 67px) - var(--tabs-h, 54px) - 32px); transition: width 0.15s; }
   .board-chat.task-mode { width: 560px; }
   .board-chat.all-mode { width: 620px; }
   .board-chat-head { padding: 14px 16px; border-bottom: 1px solid var(--line-soft); font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -78,7 +78,7 @@
   .board-head .quote-line { color: var(--ink-faint); font-size: 13px; font-style: italic; margin: 6px 0 0; }
 
   /* board tabs — a modern segmented control instead of underlined text tabs */
-  .board-tabs { display: flex; align-items: flex-end; gap: 3px; flex-wrap: wrap; margin: 0; background: var(--line-soft); border-bottom: 2px solid var(--line); padding: 10px 32px 0; }
+  .board-tabs { display: flex; align-items: flex-end; gap: 3px; flex-wrap: wrap; margin: 0; background: var(--line-soft); border-bottom: 2px solid var(--line); padding: 10px 32px 0; position: sticky; top: var(--nav-h, 67px); z-index: 400; }
   .board-tab-wrap { display: inline-flex; align-items: center; border-radius: 9px 9px 0 0; cursor: grab; position: relative; }
   .board-tab-wrap:active { cursor: grabbing; }
   .board-tab-wrap.drag-over { box-shadow: inset 0 0 0 2px var(--slate); }
@@ -218,11 +218,14 @@
   .chat-text { font-size: 13px; color: var(--ink); line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
   .chat-when { font-size: 10px; color: var(--ink-faint); margin-top: 3px; text-align: right; }
   .chat-empty { color: var(--ink-faint); font-size: 12px; font-style: italic; }
-  .chat-input-row { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: nowrap; margin-top: 8px; }
-  .chat-input-row input { flex: 1 1 auto; min-width: 0; font-family: inherit; font-size: 13px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg-raised); color: var(--ink); outline: none; }
-  .chat-input-row input:disabled { background: var(--line-soft); color: var(--ink-faint); cursor: not-allowed; }
-  .chat-input-row input:disabled::placeholder { color: var(--ink-faint); }
-  .chat-input-row button { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; padding: 8px 15px; border: none; border-radius: 20px; background: var(--slate); color: var(--bg-raised); cursor: pointer; }
+  .chat-input-row { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; margin-top: 8px; }
+  .chat-input-row > input { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg-raised); color: var(--ink); outline: none; }
+  .chat-input-bottom { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .chat-send-btn { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; padding: 8px 18px; border: none; border-radius: 20px; background: var(--slate); color: var(--bg-raised); cursor: pointer; }
+  .chat-send-btn:disabled { background: var(--line-soft); color: var(--ink-faint); cursor: not-allowed; }
+
+  .msg-tooltip { background: var(--ink); color: var(--bg-raised); border-radius: 7px; padding: 8px 10px; font-size: 11.5px; line-height: 1.5; max-width: 240px; box-shadow: 0 4px 16px rgba(34,38,31,0.25); }
+  .msg-tooltip .faint { opacity: 0.75; }
 
   .read-receipt-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 8px 10px; min-width: 170px; font-size: 12px; }
   .read-receipt-title { font-weight: 600; color: var(--ink); margin-bottom: 4px; }
@@ -431,6 +434,75 @@
     }
   })();
 
+  // ---------------- client-side router (Boards <-> Admin, no page reload) ----------------
+  // The two views used to be separate HTML documents (index.html / users.html),
+  // so switching between them was a real navigation — full reload, nav bar
+  // flashing back in, everything torn down and rebuilt from scratch. Now
+  // they're both just visibility-toggled sections of this one page, and the
+  // URL is updated with history.pushState so the address bar and back/forward
+  // still behave like real navigation even though nothing actually reloads.
+  //
+  // This whole block is deliberately set up as early as possible in the
+  // script — right after the two var-declaration blocks above it — and
+  // before any other top-level (non-function) code runs. window.AveniumRouter
+  // is what nav.js checks on every Boards/Admin click to decide whether it
+  // can intercept the click; if an unrelated error anywhere later in this
+  // script were to throw before that assignment happened, the router would
+  // simply never exist and every click would silently fall through to a
+  // real page navigation instead — which looks exactly like "two separate
+  // pages" (full reload, nav bar flash) rather than one page with a view
+  // that switches instantly. Defining it this early means that can't happen:
+  // it's set up before almost anything else in the file gets a chance to run.
+
+  function showBoardsView() {
+    currentView = "boards";
+    document.getElementById("boardsView").style.display = "";
+    document.getElementById("adminView").style.display = "none";
+    document.title = "Avenium";
+    render();
+  }
+
+  function showAdminView() {
+    if (!currentUser || currentUser.role !== "admin") { showBoardsView(); return; } // defensive — the Admin link is hidden for non-admins anyway
+    currentView = "admin";
+    document.getElementById("boardsView").style.display = "none";
+    document.getElementById("adminView").style.display = "";
+    document.title = "Admin \u00b7 Avenium";
+    loadAdminUsers();
+    loadAdminActivity();
+  }
+
+  function routeTo(path, replace) {
+    var view = (path === "/admin" || path === "/users.html") ? "admin" : "boards";
+    var url = view === "admin" ? "/admin" : "/";
+    if (window.history) {
+      if (replace) window.history.replaceState(null, "", url);
+      else window.history.pushState(null, "", url);
+    }
+    currentView = view;
+    // Whether we can actually SHOW the admin view yet depends on knowing the
+    // person's role, which — on a cold page load — hasn't come back from
+    // /api/me yet. In that case just record the intent (currentView) and
+    // hide both sections for the instant it takes for that request to
+    // resolve; applyMe() (defined further down, called once /api/me
+    // resolves) finishes the job once the role is known. On every later
+    // call (nav clicks, back/forward) currentUser is already set, so this
+    // resolves immediately with no visible delay.
+    if (view === "admin" && !currentUser) { document.getElementById("boardsView").style.display = "none"; return; }
+    if (view === "admin") showAdminView(); else showBoardsView();
+  }
+
+  window.AveniumRouter = {
+    go: function (path) { routeTo(path, false); }
+  };
+
+  window.addEventListener("popstate", function () { routeTo(window.location.pathname, true); });
+
+  // Land on whichever view the URL actually asked for (a direct visit to
+  // /admin, or the back/forward button) instead of always starting on Boards.
+  routeTo(window.location.pathname, true);
+
+
   function getCollapsed() { try { var raw = localStorage.getItem(collapsedKey); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; } }
   function setCollapsed(map) { try { localStorage.setItem(collapsedKey, JSON.stringify(map)); } catch (e) {} }
 
@@ -538,6 +610,55 @@
       if (cr.bottom > window.innerHeight - 8) contentEl.style.top = Math.max(8, r.top - cr.height - 4) + "px";
       contentEl.style.visibility = "";
     });
+  }
+
+  // Hover tooltip for a chat message: who it was sent to and who's read it so
+  // far. Deliberately separate from anchorPopover's floating-popover mechanism
+  // (which is click-driven and gets cleaned up at the start of every render())
+  // since a hover tooltip needs to disappear on mouseleave regardless of
+  // whether a render happens in between, and there's never more than one open
+  // at a time.
+  var msgTooltipEl = null;
+  function hideMsgTooltip() {
+    if (msgTooltipEl) { msgTooltipEl.remove(); msgTooltipEl = null; }
+  }
+  function showMsgTooltip(bubble, m) {
+    hideMsgTooltip();
+    var tip = el("div", "msg-tooltip");
+    var recipientNames;
+    if (m.mentions && m.mentions.length) {
+      recipientNames = m.mentions.map(function (id) {
+        var u = team.find(function (t) { return t.id === id; });
+        return u ? u.displayName : "Someone";
+      }).join(", ");
+    } else {
+      recipientNames = "Everyone";
+    }
+    tip.appendChild(el("div", "", { text: "Sent to: " + recipientNames }));
+    var readers = (m.readBy || []).filter(function (r) { return r.userId !== m.byId; });
+    if (!readers.length) {
+      tip.appendChild(el("div", "faint", { text: "Not read yet" }));
+    } else {
+      tip.appendChild(el("div", "faint", { text: "Read by:" }));
+      readers.forEach(function (r) {
+        tip.appendChild(el("div", "faint", { text: r.userName + " \u00b7 " + relTime(r.at) }));
+      });
+    }
+    document.body.appendChild(tip);
+    tip.style.position = "fixed";
+    tip.style.zIndex = "1000";
+    tip.style.visibility = "hidden";
+    var r = bubble.getBoundingClientRect();
+    Promise.resolve().then(function () {
+      if (tip !== msgTooltipEl) return; // hidden again before this had a chance to position
+      tip.style.top = (r.bottom + 4) + "px";
+      tip.style.left = r.left + "px";
+      var cr = tip.getBoundingClientRect();
+      if (cr.right > window.innerWidth - 8) tip.style.left = Math.max(8, window.innerWidth - cr.width - 8) + "px";
+      if (cr.bottom > window.innerHeight - 8) tip.style.top = Math.max(8, r.top - cr.height - 4) + "px";
+      tip.style.visibility = "";
+    });
+    msgTooltipEl = tip;
   }
 
   var AVATAR_COLORS = ["#C68A2E", "#4C7A9E", "#7D6BAE", "#B24A3C", "#3C5A46", "#B5860B", "#5E7CE2", "#9C4F96"];
@@ -739,6 +860,11 @@
       setTimeout(function () { nameInput2.focus(); }, 0);
     }
     mount.appendChild(addWrap);
+
+    // Same idea as nav.js's --nav-h: record this bar's real height so the
+    // chat sidebar (sticky, positioned below both bars) always clears it
+    // exactly, even as the tab count changes or tabs wrap to a second line.
+    document.documentElement.style.setProperty("--tabs-h", mount.offsetHeight + "px");
   }
 
   function render() {
@@ -753,6 +879,7 @@
     // outside anything render() normally clears — remove any leftovers from the
     // previous render before rebuilding, or they pile up and get "stuck" on screen.
     document.querySelectorAll(".floating-popover").forEach(function (n) { n.remove(); });
+    hideMsgTooltip(); // same idea — a hover tooltip pointing at a bubble that's about to be torn down and rebuilt
 
     var now = new Date();
     renderTabs();
@@ -901,7 +1028,7 @@
 
   function renderItem(item) {
     var isCollapsed = !!collapsedItems[item.id];
-    var row = el("div", "item" + (item.archived ? " is-done" : "") + (item.id === selectedItemId ? " selected" : "") + (isCollapsed ? " item-collapsed" : ""));
+    var row = el("div", "item" + ((item.archived || item.completed) ? " is-done" : "") + (item.id === selectedItemId ? " selected" : "") + (isCollapsed ? " item-collapsed" : ""));
     var main = el("div", "item-main");
 
     var collapseBtn = el("button", "item-collapse-btn", { type: "button", "aria-label": isCollapsed ? "Expand task" : "Collapse task", title: "Click to collapse \u00b7 drag to reorder" });
@@ -1069,13 +1196,30 @@
           render();
         });
         rowMenu.appendChild(deleteStepBtn);
-        if (!item.archived) {
+        if (item.archived) {
+          // fully archived — no complete/undo/archive actions left to offer here
+        } else if (item.completed) {
+          var undoCompleteBtn = el("button", "", { type: "button", text: "Undo Complete" });
+          undoCompleteBtn.addEventListener("click", function () {
+            delete openStepRowMenus[s.id];
+            socket.emit("uncompleteTask", { itemId: item.id });
+            render();
+          });
+          rowMenu.appendChild(undoCompleteBtn);
+          var archiveTaskBtn = el("button", "danger", { type: "button", text: "Archive Task" });
+          archiveTaskBtn.addEventListener("click", function () {
+            delete openStepRowMenus[s.id];
+            if (window.confirm("Move \"" + item.title + "\" to Archived?")) {
+              socket.emit("archiveTask", { itemId: item.id });
+            }
+            render();
+          });
+          rowMenu.appendChild(archiveTaskBtn);
+        } else {
           var completeTaskBtn2 = el("button", "danger", { type: "button", text: "Task Complete" });
           completeTaskBtn2.addEventListener("click", function () {
             delete openStepRowMenus[s.id];
-            if (window.confirm("Mark \"" + item.title + "\" as fully complete? It will move to Archived.")) {
-              socket.emit("completeTask", { itemId: item.id });
-            }
+            socket.emit("completeTask", { itemId: item.id }); // just marks it done in place — archiving is a separate, later step
             render();
           });
           rowMenu.appendChild(completeTaskBtn2);
@@ -1196,18 +1340,21 @@
 
     var chatForm = el("div", "chat-input-row task-chat-input");
     var compose = buildComposeControls("item", item.id, function () { return team; });
-    chatForm.appendChild(compose.toBtn);
     chatForm.appendChild(compose.inputEl);
-    var chatSend = el("button", "", { type: "button", text: "Send" });
+    var chatBottom = el("div", "chat-input-bottom");
+    chatBottom.appendChild(compose.toBtn);
+    var chatSend = el("button", "chat-send-btn", { type: "button", text: "Send" });
+    compose.onReadyChange(function (ready) { chatSend.disabled = !ready; });
     function sendTaskMsg() {
-      if (compose.inputEl.value.trim() && !compose.inputEl.disabled) {
+      if (compose.inputEl.value.trim() && compose.isReady()) {
         socket.emit("addMessage", { scope: "item", scopeId: item.id, text: compose.inputEl.value.trim(), mentionIds: compose.getMentionIds() });
         compose.inputEl.value = "";
       }
     }
     chatSend.addEventListener("click", sendTaskMsg);
     compose.inputEl.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); sendTaskMsg(); } });
-    chatForm.appendChild(chatSend);
+    chatBottom.appendChild(chatSend);
+    chatForm.appendChild(chatBottom);
     right.appendChild(chatForm);
 
     cols.appendChild(right);
@@ -1251,48 +1398,40 @@
       textEl.innerHTML = renderMentionText(m.text) + (m.editedAt ? ' <span class="chat-edited">(edited)</span>' : "");
       bubble.appendChild(textEl);
       bubble.appendChild(el("div", "chat-when", { text: relTime(m.at) }));
-      bubble.addEventListener("click", function (e) {
-        e.stopPropagation();
+      // Hover shows who it was sent to and who's read it; right-click (own
+      // messages only) opens Edit/Delete. Two separate, lighter-weight
+      // interactions instead of one click doing both.
+      bubble.addEventListener("mouseenter", function () { showMsgTooltip(bubble, m); });
+      bubble.addEventListener("mouseleave", hideMsgTooltip);
+      bubble.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+        if (!canModify) return;
+        hideMsgTooltip();
         openMessagePopovers[m.id] = !openMessagePopovers[m.id];
         render();
       });
     }
     row.appendChild(bubble);
 
-    if (openMessagePopovers[m.id]) {
-      var readers = (m.readBy || []).filter(function (r) { return r.userId !== m.byId; });
+    if (openMessagePopovers[m.id] && canModify) {
       var pop = el("div", "read-receipt-popover");
       pop.addEventListener("click", function (e) { e.stopPropagation(); });
-      if (!readers.length) {
-        pop.appendChild(el("div", "read-receipt-empty", { text: "Not read by anyone else yet." }));
-      } else {
-        pop.appendChild(el("div", "read-receipt-title", { text: "Read by" }));
-        readers.forEach(function (r) {
-          var line = el("div", "read-receipt-line");
-          line.appendChild(el("span", "", { text: r.userName }));
-          line.appendChild(el("span", "read-receipt-time", { text: relTime(r.at) }));
-          pop.appendChild(line);
-        });
-      }
-      if (canModify) {
-        pop.appendChild(el("hr"));
-        var actions = el("div", "read-receipt-actions");
-        var editBtn = el("button", "", { type: "button", text: "Edit" });
-        editBtn.addEventListener("click", function () {
-          delete openMessagePopovers[m.id];
-          openMessageEdits[m.id] = true;
-          render();
-        });
-        actions.appendChild(editBtn);
-        var delMsgBtn = el("button", "danger", { type: "button", text: "Delete" });
-        delMsgBtn.addEventListener("click", function () {
-          if (window.confirm("Delete this message? This can't be undone.")) {
-            socket.emit("deleteMessage", { id: m.id });
-          }
-        });
-        actions.appendChild(delMsgBtn);
-        pop.appendChild(actions);
-      }
+      var actions = el("div", "read-receipt-actions");
+      var editBtn = el("button", "", { type: "button", text: "Edit" });
+      editBtn.addEventListener("click", function () {
+        delete openMessagePopovers[m.id];
+        openMessageEdits[m.id] = true;
+        render();
+      });
+      actions.appendChild(editBtn);
+      var delMsgBtn = el("button", "danger", { type: "button", text: "Delete" });
+      delMsgBtn.addEventListener("click", function () {
+        if (window.confirm("Delete this message? This can't be undone.")) {
+          socket.emit("deleteMessage", { id: m.id });
+        }
+      });
+      actions.appendChild(delMsgBtn);
+      pop.appendChild(actions);
       anchorPopover(bubble, pop, isMine ? "right" : "left");
     }
     return row;
@@ -1397,18 +1536,21 @@
           return team.filter(function (t) { return !previewBoard.memberIds || previewBoard.memberIds.includes(t.id); });
         });
         var rowAll = el("div", "chat-input-row");
-        rowAll.appendChild(composeAll.toBtn);
         rowAll.appendChild(composeAll.inputEl);
-        var sendBtnAll = el("button", "", { type: "button", text: "Send" });
+        var bottomAll = el("div", "chat-input-bottom");
+        bottomAll.appendChild(composeAll.toBtn);
+        var sendBtnAll = el("button", "chat-send-btn", { type: "button", text: "Send" });
+        composeAll.onReadyChange(function (ready) { sendBtnAll.disabled = !ready; });
         function sendAll() {
-          if (composeAll.inputEl.value.trim() && !composeAll.inputEl.disabled) {
+          if (composeAll.inputEl.value.trim() && composeAll.isReady()) {
             socket.emit("addMessage", { scope: "board", scopeId: previewBoard.id, text: composeAll.inputEl.value.trim(), mentionIds: composeAll.getMentionIds() });
             composeAll.inputEl.value = "";
           }
         }
         sendBtnAll.addEventListener("click", sendAll);
         composeAll.inputEl.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); sendAll(); } });
-        rowAll.appendChild(sendBtnAll);
+        bottomAll.appendChild(sendBtnAll);
+        rowAll.appendChild(bottomAll);
         chatCol.appendChild(rowAll);
 
         socket.emit("markMessagesRead", { scope: "board", scopeId: previewBoard.id });
@@ -1445,18 +1587,21 @@
       return team.filter(function (t) { return !board.memberIds || board.memberIds.includes(t.id); });
     });
     var row = el("div", "chat-input-row");
-    row.appendChild(compose.toBtn);
     row.appendChild(compose.inputEl);
-    var sendBtn = el("button", "", { type: "button", text: "Send" });
+    var bottom = el("div", "chat-input-bottom");
+    bottom.appendChild(compose.toBtn);
+    var sendBtn = el("button", "chat-send-btn", { type: "button", text: "Send" });
+    compose.onReadyChange(function (ready) { sendBtn.disabled = !ready; });
     function send() {
-      if (compose.inputEl.value.trim() && !compose.inputEl.disabled) {
+      if (compose.inputEl.value.trim() && compose.isReady()) {
         socket.emit("addMessage", { scope: "board", scopeId: board.id, text: compose.inputEl.value.trim(), mentionIds: compose.getMentionIds() });
         compose.inputEl.value = "";
       }
     }
     sendBtn.addEventListener("click", send);
     compose.inputEl.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); send(); } });
-    row.appendChild(sendBtn);
+    bottom.appendChild(sendBtn);
+    row.appendChild(bottom);
     foot.appendChild(row);
 
     socket.emit("markMessagesRead", { scope: "board", scopeId: board.id });
@@ -1475,16 +1620,19 @@
     var key = scopeType + ":" + scopeId;
     if (!messageRecipients[key]) messageRecipients[key] = { all: false, ids: [] };
     var sel = messageRecipients[key];
+    var readyListeners = [];
 
     var toBtn = el("button", "chat-to-btn", { type: "button" });
-    var inputEl = el("input", "", { type: "text", enterkeyhint: "send" });
+    var inputEl = el("input", "", { type: "text", enterkeyhint: "send", placeholder: "Type a message\u2026" });
+
+    function isReady() { return !!(sel.all || sel.ids.length); }
 
     function refresh() {
-      toBtn.textContent = "Recipients";
-      toBtn.classList.toggle("chosen", !!(sel.all || sel.ids.length));
-      var ready = !!(sel.all || sel.ids.length);
-      inputEl.disabled = !ready;
-      inputEl.placeholder = ready ? "" : "Select recipients to send a message";
+      toBtn.textContent = "To";
+      toBtn.classList.toggle("chosen", isReady());
+      // Typing is never blocked — only actually sending requires a recipient. Anything
+      // that wants to gate on that (the Send button) registers via onReadyChange below.
+      readyListeners.forEach(function (cb) { cb(isReady()); });
     }
     refresh();
 
@@ -1516,14 +1664,7 @@
         sel.all = allChk.checked;
         sel.ids = sel.all ? [] : userChecks.filter(function (c) { return c.checked; }).map(function (c) { return c.dataset.uid; });
         refresh();
-        if (sel.all || sel.ids.length) {
-          // Close the picker the moment there's a valid selection, instead of leaving it
-          // open until the person clicks elsewhere: the popover sits right over the input,
-          // so leaving it open meant a click on the input actually landed on the popover
-          // first (closing it) and only a second click reached the input to focus it.
-          pop.remove();
-          inputEl.focus();
-        }
+        if (sel.all || sel.ids.length) { pop.remove(); inputEl.focus(); } // close the moment there's a valid selection, rather than waiting for an outside click
       }
       allChk.addEventListener("change", function () { userChecks.forEach(function (c) { c.disabled = allChk.checked; }); commit(); });
       userChecks.forEach(function (c) { c.addEventListener("change", commit); });
@@ -1534,6 +1675,11 @@
     return {
       toBtn: toBtn,
       inputEl: inputEl,
+      isReady: isReady,
+      // Registers a callback that fires immediately and again on every recipient
+      // change — used to keep a Send button's disabled state in sync without that
+      // button needing to know anything about how recipients are tracked.
+      onReadyChange: function (cb) { readyListeners.push(cb); cb(isReady()); },
       getMentionIds: function () { return sel.all ? [] : sel.ids.slice(); }
     };
   }
@@ -1781,61 +1927,6 @@
     this.textContent = isOpen ? "Show recent activity" : "Hide recent activity";
   });
 
-  // ---------------- client-side router (Boards <-> Admin, no page reload) ----------------
-  // The two views used to be separate HTML documents (index.html / users.html),
-  // so switching between them was a real navigation — full reload, nav bar
-  // flashing back in, everything torn down and rebuilt from scratch. Now
-  // they're both just visibility-toggled sections of this one page, and the
-  // URL is updated with history.pushState so the address bar and back/forward
-  // still behave like real navigation even though nothing actually reloads.
-
-  function showBoardsView() {
-    currentView = "boards";
-    document.getElementById("boardsView").style.display = "";
-    document.getElementById("adminView").style.display = "none";
-    document.title = "Avenium";
-    render();
-  }
-
-  function showAdminView() {
-    if (!currentUser || currentUser.role !== "admin") { showBoardsView(); return; } // defensive — the Admin link is hidden for non-admins anyway
-    currentView = "admin";
-    document.getElementById("boardsView").style.display = "none";
-    document.getElementById("adminView").style.display = "";
-    document.title = "Admin \u00b7 Avenium";
-    loadAdminUsers();
-    loadAdminActivity();
-  }
-
-  function routeTo(path, replace) {
-    var view = (path === "/admin" || path === "/users.html") ? "admin" : "boards";
-    var url = view === "admin" ? "/admin" : "/";
-    if (window.history) {
-      if (replace) window.history.replaceState(null, "", url);
-      else window.history.pushState(null, "", url);
-    }
-    currentView = view;
-    // Whether we can actually SHOW the admin view yet depends on knowing the
-    // person's role, which — on a cold page load — hasn't come back from
-    // /api/me yet. In that case just record the intent (currentView) and
-    // hide both sections for the instant it takes for that request to
-    // resolve; applyMe() below finishes the job once the role is known. On
-    // every later call (nav clicks, back/forward) currentUser is already
-    // set, so this resolves immediately.
-    if (view === "admin" && !currentUser) { document.getElementById("boardsView").style.display = "none"; return; }
-    if (view === "admin") showAdminView(); else showBoardsView();
-  }
-
-  window.AveniumRouter = {
-    go: function (path) { routeTo(path, false); }
-  };
-
-  window.addEventListener("popstate", function () { routeTo(window.location.pathname, true); });
-
-  // Land on whichever view the URL actually asked for (a direct visit to
-  // /admin, or the back/forward button) instead of always starting on Boards.
-  routeTo(window.location.pathname, true);
-
   // ---------------- auth / topbar wiring ----------------
 
   function applyMe(user) {
@@ -1875,6 +1966,7 @@
   // this catch every popover, including ones like the recipient picker that
   // aren't tied to one of the flags below.
   document.addEventListener("click", function () {
+    hideMsgTooltip();
     var changed = Object.keys(openAssigneePickers).length || Object.keys(openBoardAccess).length || Object.keys(openStepMenus).length || Object.keys(openBoardMenus).length || Object.keys(openStepRowMenus).length || Object.keys(openMessagePopovers).length || openNewBoardForm || document.querySelectorAll(".floating-popover").length;
     if (changed) {
       openAssigneePickers = {}; openBoardAccess = {}; openStepMenus = {}; openBoardMenus = {}; openStepRowMenus = {}; openMessagePopovers = {}; openNewBoardForm = false;
