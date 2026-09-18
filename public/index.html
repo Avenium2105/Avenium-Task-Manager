@@ -155,10 +155,6 @@
   .notify-btn svg, .item-del svg { width: 15px; height: 15px; }
   .notify-btn:hover { background: var(--slate-soft); color: var(--slate); }
   .notify-btn.sent { color: var(--pine); }
-  .task-complete-btn { flex-shrink: 0; width: 22px; height: 22px; border: 1.5px solid var(--line); background: var(--bg-raised); color: transparent; cursor: pointer; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding: 0; }
-  .task-complete-btn svg { width: 11px; height: 11px; stroke: currentColor; }
-  .task-complete-btn:hover { border-color: var(--pine); }
-  .task-complete-btn.done { background: var(--pine); border-color: var(--pine); color: var(--bg-raised); }
   .task-archive-btn { flex-shrink: 0; font-family: inherit; font-size: 11.5px; font-weight: 500; color: var(--ink-soft); background: var(--line-soft); border: none; border-radius: 20px; padding: 5px 11px; cursor: pointer; white-space: nowrap; }
   .task-archive-btn:hover { background: var(--brick-soft); color: var(--brick); }
   .details-btn { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; color: var(--ink-soft); background: var(--line-soft); border: none; border-radius: 20px; padding: 5px 11px; cursor: pointer; white-space: nowrap; }
@@ -254,7 +250,7 @@
   .chat-edit-form button.cancel { background: none; color: var(--ink-soft); }
 
   .chat-to-btn { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; color: var(--ink-soft); background: var(--line-soft); border: none; border-radius: 20px; padding: 8px 14px; cursor: pointer; white-space: nowrap; }
-  .chat-to-btn.chosen { color: var(--slate); background: var(--slate-soft); }
+  .chat-to-btn.chosen { color: var(--bg-raised); background: var(--slate); }
   .chat-to-btn:hover { background: var(--slate); color: var(--bg-raised); }
   .recipient-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 8px 10px; min-width: 190px; max-height: 260px; overflow-y: auto; }
   .recipient-popover label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 5px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
@@ -941,7 +937,7 @@
     function renderGroupSection(g, reorderList, gIndex) {
       var allGroupItems = state.items.filter(function (i) { return i.groupId === g.id; }).sort(function (a, b) { return (a.order || 0) - (b.order || 0); });
       var groupItems = showArchived ? allGroupItems : allGroupItems.filter(function (i) { return !i.archived; });
-      var isCollapsed = !!collapsed[g.id];
+      var isCollapsed = !!collapsed[selectedBoardId + ":" + g.id];
 
       var groupEl = el("section", "group" + (isCollapsed ? " collapsed" : ""));
       groupEl.style.setProperty("--accent", g.color || "#3C5A46");
@@ -976,7 +972,13 @@
         head.appendChild(delBtn);
       }
 
-      head.addEventListener("click", function () { var c = getCollapsed(); c[g.id] = !c[g.id]; setCollapsed(c); render(); });
+      head.addEventListener("click", function () {
+        var c = getCollapsed();
+        var key = selectedBoardId + ":" + g.id; // separate collapse state per context: this group's own board tab vs "All boards" — collapsing it one place no longer affects the other
+        c[key] = !c[key];
+        setCollapsed(c);
+        render();
+      });
       groupEl.appendChild(head);
 
       var body = el("div", "group-body");
@@ -1147,10 +1149,10 @@
     });
     main.appendChild(priBtn);
 
-    // Task-level complete/undo/archive/unarchive — independent of steps, so a
-    // task with no steps at all still has a way to be marked done. (A step's
-    // own Update menu offers the same actions too, as a convenience once a
-    // task has steps, but this is the only path for a task that never gets any.)
+    // Archive / Unarchive still show directly on the row (once a task is
+    // complete or archived), but the "mark complete" circle itself was
+    // removed from here per request — completing a task now only happens via
+    // the step's own Update menu ("Task Complete").
     if (item.archived) {
       var unarchiveBtn = el("button", "task-archive-btn", { type: "button", text: "Unarchive" });
       unarchiveBtn.addEventListener("click", function (e) {
@@ -1158,34 +1160,15 @@
         socket.emit("unarchiveTask", { itemId: item.id });
       });
       main.appendChild(unarchiveBtn);
-    } else {
-      var completeBtn = el("button", "task-complete-btn" + (item.completed ? " done" : ""), { type: "button", "aria-label": item.completed ? "Undo complete" : "Mark complete", title: item.completed ? "Undo complete" : "Mark complete" });
-      completeBtn.innerHTML = item.completed ? checkSvg() : "";
-      completeBtn.addEventListener("click", function (e) {
+    } else if (item.completed) {
+      var archiveBtn = el("button", "task-archive-btn", { type: "button", text: "Archive" });
+      archiveBtn.addEventListener("click", function (e) {
         e.stopPropagation();
-        if (item.completed) {
-          socket.emit("uncompleteTask", { itemId: item.id });
-        } else {
-          socket.emit("completeTask", { itemId: item.id });
-          // Archiving is still a separate, explicit choice — this just asks right
-          // away instead of making it a second trip back to the task later.
-          if (window.confirm("\"" + item.title + "\" marked complete. Archive it now?")) {
-            socket.emit("archiveTask", { itemId: item.id });
-          }
+        if (window.confirm("Move \"" + item.title + "\" to Archived?")) {
+          socket.emit("archiveTask", { itemId: item.id });
         }
       });
-      main.appendChild(completeBtn);
-
-      if (item.completed) {
-        var archiveBtn = el("button", "task-archive-btn", { type: "button", text: "Archive" });
-        archiveBtn.addEventListener("click", function (e) {
-          e.stopPropagation();
-          if (window.confirm("Move \"" + item.title + "\" to Archived?")) {
-            socket.emit("archiveTask", { itemId: item.id });
-          }
-        });
-        main.appendChild(archiveBtn);
-      }
+      main.appendChild(archiveBtn);
     }
 
     var notifyBtn = el("button", "notify-btn" + (notifiedRecently[item.id] ? " sent" : ""), { type: "button", "aria-label": "Notify assignees", title: assigneeIds.length ? "Notify it's their turn" : "Assign someone first" });
@@ -1505,8 +1488,14 @@
       bubble.appendChild(el("div", "chat-when", { text: relTime(m.at) }));
       // Hover shows who it was sent to and who's read it; right-click (own
       // messages only) opens Edit/Delete. Two separate, lighter-weight
-      // interactions instead of one click doing both.
-      bubble.addEventListener("mouseenter", function () { showMsgTooltip(bubble, m); });
+      // interactions instead of one click doing both. The mouseenter guard
+      // matters more than it looks: some browsers resynthesize a mouseenter
+      // on whatever element ends up under an unmoved cursor right after a
+      // render() swaps the old bubble for a new one (which is exactly what
+      // happens here right after a right-click opens the Edit/Delete
+      // popover) — without the guard, that phantom mouseenter would bring
+      // the just-dismissed tooltip right back.
+      bubble.addEventListener("mouseenter", function () { if (openMessagePopovers[m.id]) return; showMsgTooltip(bubble, m); });
       bubble.addEventListener("mouseleave", hideMsgTooltip);
       bubble.addEventListener("contextmenu", function (e) {
         e.preventDefault();
@@ -2090,16 +2079,13 @@
     }
   });
 
-  // The right-side panel follows whatever was last clicked instead of requiring
-  // an explicit "back to board chat" button: opening a task shows its panel (see
-  // the row click handler), and clicking anything that isn't part of a task row,
-  // the panel itself, or an open popover falls back to board chat automatically.
-  document.addEventListener("click", function (e) {
-    if (!selectedItemId) return;
-    if (e.target.closest(".item, .board-chat, .floating-popover")) return;
-    selectedItemId = null;
-    render();
-  });
+  // Clicking anywhere that isn't a specific control does nothing beyond closing
+  // whatever popover was open (handled above) — it deliberately does NOT also
+  // close the task detail panel back to board chat. (That auto-close-on-any-click
+  // behavior used to live here and was removed: clicking blank space should only
+  // ever dismiss popups, nothing else.) Leaving the task panel open until the
+  // person explicitly picks something else (another task, or a board tab) is the
+  // whole point.
 
   function addItem(groupId, title, order) { socket.emit("addItem", { groupId: groupId, title: title, order: order }); }
   function updateItem(id, patch) { socket.emit("updateItem", { id: id, patch: patch }); }
