@@ -25,6 +25,18 @@
 
   var adminLink, adminDot;
 
+  // If the current page has registered a client-side router (index.html does,
+  // for the merged Boards/Admin single-page view), clicking these two links
+  // goes through it instead of doing a real navigation — that's what makes
+  // switching views instant with no reload/flash. Any other page (or index.html
+  // before that router has set itself up) just falls back to a normal link.
+  function routedClick(e, href) {
+    if (window.AveniumRouter) {
+      e.preventDefault();
+      window.AveniumRouter.go(href);
+    }
+  }
+
   function build(root) {
     root.innerHTML = "";
 
@@ -35,9 +47,12 @@
     root.appendChild(brand);
 
     var bar = el("div", "topbar");
-    bar.appendChild(el("a", "", { href: "/", text: "Boards" }));
+    var boardsLink = el("a", "", { href: "/", text: "Boards" });
+    boardsLink.addEventListener("click", function (e) { routedClick(e, "/"); });
+    bar.appendChild(boardsLink);
     bar.appendChild(el("span", "dot", { text: "\u00b7" }));
-    adminLink = el("a", "", { href: "/users.html", text: "Admin" });
+    adminLink = el("a", "", { href: "/admin", text: "Admin" });
+    adminLink.addEventListener("click", function (e) { routedClick(e, "/admin"); });
     adminLink.style.display = "none";
     bar.appendChild(adminLink);
     adminDot = el("span", "dot", { text: "\u00b7" });

@@ -380,7 +380,15 @@ app.get("/nav.css", (req, res) => res.sendFile(path.join(__dirname, "public", "n
 // ---- pages ----
 app.get("/login.html", (req, res) => res.sendFile(path.join(__dirname, "public", "login.html")));
 app.get(["/", "/index.html"], requireAuth, (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
-app.get("/users.html", requireAuth, requireAdmin, (req, res) => res.sendFile(path.join(__dirname, "public", "users.html")));
+// Admin is now a client-side view inside index.html itself (see the router in
+// its <script>), not a separate page — this serves the very same file. Direct
+// visits, refreshes, and bookmarks all still work: requireAdmin gates it here
+// server-side exactly as it did for the old standalone users.html, and the
+// page's own JS reads the "/admin" URL on load to show the right view.
+// /users.html is kept as a redirect so any existing bookmarks still land
+// somewhere sensible instead of 404ing.
+app.get("/admin", requireAuth, requireAdmin, (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
+app.get("/users.html", (req, res) => res.redirect(301, "/admin"));
 app.get("/accept-invite.html", (req, res) => res.sendFile(path.join(__dirname, "public", "accept-invite.html")));
 
 function isValidEmail(s) { return typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim()); }
