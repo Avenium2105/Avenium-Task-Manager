@@ -33,8 +33,6 @@
   .board-chat-head .head-titles { display: flex; flex-direction: column; min-width: 0; }
   .board-chat-head .head-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .board-chat-head .sub { font-weight: 400; color: var(--ink-faint); font-size: 11.5px; display: block; margin-top: 2px; }
-  .board-chat-back { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; color: var(--ink-soft); background: var(--line-soft); border: none; border-radius: 20px; padding: 5px 11px; cursor: pointer; white-space: nowrap; }
-  .board-chat-back:hover { color: var(--ink); background: var(--line); }
   .board-chat-body { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; min-height: 160px; }
   .board-chat-foot { padding: 12px 16px; border-top: 1px solid var(--line-soft); }
   .board-chat-foot .chat-input-row input { background: var(--bg); }
@@ -220,9 +218,9 @@
   .chat-text { font-size: 13px; color: var(--ink); line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
   .chat-when { font-size: 10px; color: var(--ink-faint); margin-top: 3px; text-align: right; }
   .chat-empty { color: var(--ink-faint); font-size: 12px; font-style: italic; }
-  .chat-input-row { display: flex; gap: 6px; flex-shrink: 0; margin-top: 8px; flex-wrap: wrap; }
-  .chat-input-row input { flex: 1 1 160px; min-width: 140px; font-family: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-raised); color: var(--ink); outline: none; }
-  .chat-input-row button { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; padding: 6px 10px; border: none; border-radius: 6px; background: var(--slate); color: var(--bg-raised); cursor: pointer; }
+  .chat-input-row { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: nowrap; margin-top: 8px; }
+  .chat-input-row input { flex: 1 1 auto; min-width: 0; font-family: inherit; font-size: 13px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg-raised); color: var(--ink); outline: none; }
+  .chat-input-row button { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; padding: 8px 15px; border: none; border-radius: 20px; background: var(--slate); color: var(--bg-raised); cursor: pointer; }
 
   .read-receipt-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 8px 10px; min-width: 170px; font-size: 12px; }
   .read-receipt-title { font-weight: 600; color: var(--ink); margin-bottom: 4px; }
@@ -238,7 +236,7 @@
   .chat-edit-form button { font-family: inherit; font-size: 11px; font-weight: 500; padding: 4px 7px; border: none; border-radius: 5px; background: var(--pine); color: var(--bg-raised); cursor: pointer; }
   .chat-edit-form button.cancel { background: none; color: var(--ink-soft); }
 
-  .chat-to-btn { flex-shrink: 0; font-family: inherit; font-size: 11.5px; font-weight: 500; color: var(--ink-soft); background: var(--line-soft); border: none; border-radius: 20px; padding: 6px 10px; cursor: pointer; white-space: nowrap; }
+  .chat-to-btn { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; color: var(--ink-soft); background: var(--line-soft); border: none; border-radius: 20px; padding: 8px 14px; cursor: pointer; white-space: nowrap; }
   .chat-to-btn.chosen { color: var(--slate); background: var(--slate-soft); }
   .chat-to-btn:hover { background: var(--slate); color: var(--bg-raised); }
   .recipient-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 8px 10px; min-width: 190px; max-height: 260px; overflow-y: auto; }
@@ -400,21 +398,34 @@
   // ancestor's `overflow: hidden` clipping it — the previous approach (plain
   // CSS position:absolute inside the row/card) kept getting cut off by
   // whichever card happened to contain it.
+  //
+  // Positioning is deferred to a microtask: anchorPopover is usually called
+  // while the row/card that holds the trigger button is still being built
+  // as a detached tree (before it's appended into the live document), so
+  // measuring the trigger's position synchronously here would read (0,0)
+  // and the popover would land pinned to the top-left corner of the page.
+  // Waiting a tick lets the calling render() pass finish attaching that
+  // tree first. The popover stays invisible in the meantime so there's no
+  // visible flash at the wrong spot.
   function anchorPopover(triggerEl, contentEl, align) {
     document.body.appendChild(contentEl);
     contentEl.classList.add("floating-popover");
-    var r = triggerEl.getBoundingClientRect();
-    contentEl.style.top = (r.bottom + 4) + "px";
-    if (align === "right") {
-      contentEl.style.left = "";
-      contentEl.style.right = (window.innerWidth - r.right) + "px";
-    } else {
-      contentEl.style.left = r.left + "px";
-    }
-    // after it's sized, nudge back on-screen if it overflows the viewport
-    var cr = contentEl.getBoundingClientRect();
-    if (cr.right > window.innerWidth - 8) contentEl.style.left = Math.max(8, window.innerWidth - cr.width - 8) + "px";
-    if (cr.bottom > window.innerHeight - 8) contentEl.style.top = Math.max(8, r.top - cr.height - 4) + "px";
+    contentEl.style.visibility = "hidden";
+    Promise.resolve().then(function () {
+      var r = triggerEl.getBoundingClientRect();
+      contentEl.style.top = (r.bottom + 4) + "px";
+      if (align === "right") {
+        contentEl.style.left = "";
+        contentEl.style.right = (window.innerWidth - r.right) + "px";
+      } else {
+        contentEl.style.left = r.left + "px";
+      }
+      // after it's sized, nudge back on-screen if it overflows the viewport
+      var cr = contentEl.getBoundingClientRect();
+      if (cr.right > window.innerWidth - 8) contentEl.style.left = Math.max(8, window.innerWidth - cr.width - 8) + "px";
+      if (cr.bottom > window.innerHeight - 8) contentEl.style.top = Math.max(8, r.top - cr.height - 4) + "px";
+      contentEl.style.visibility = "";
+    });
   }
 
   var AVATAR_COLORS = ["#C68A2E", "#4C7A9E", "#7D6BAE", "#B24A3C", "#3C5A46", "#B5860B", "#5E7CE2", "#9C4F96"];
@@ -838,7 +849,7 @@
     main.appendChild(pickerWrap);
 
     var priorityLabels = { low: "Low", medium: "Medium", high: "High" };
-    var priBtn = el("button", "priority-tag " + item.priority, { type: "button", text: priorityLabels[item.priority] || "Low" });
+    var priBtn = el("button", "priority-tag " + (item.priority || ""), { type: "button", text: priorityLabels[item.priority] || "Priority" });
     priBtn.addEventListener("click", function () {
       var next = item.priority === "low" ? "medium" : item.priority === "medium" ? "high" : "low";
       updateItem(item.id, { priority: next });
@@ -892,6 +903,14 @@
     function renderStepRow(s) {
       var stepRow = el("div", "step-row" + (s.done ? " done" : ""));
 
+      var rowUpdateBtn = el("button", "step-row-update-btn", { type: "button", text: "Update" });
+      rowUpdateBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openStepRowMenus[s.id] = !openStepRowMenus[s.id];
+        render();
+      });
+      stepRow.appendChild(rowUpdateBtn);
+
       var textInput = el("input", "step-text", { type: "text" });
       textInput.value = s.text || "";
       textInput.addEventListener("change", function () {
@@ -903,31 +922,9 @@
       });
       stepRow.appendChild(textInput);
 
-      var rowUpdateBtn = el("button", "step-row-update-btn", { type: "button", text: "Update" });
-      rowUpdateBtn.addEventListener("click", function (e) {
-        e.stopPropagation();
-        openStepRowMenus[s.id] = !openStepRowMenus[s.id];
-        render();
-      });
-      stepRow.appendChild(rowUpdateBtn);
       if (openStepRowMenus[s.id]) {
         var rowMenu = el("div", "step-menu");
         rowMenu.addEventListener("click", function (e) { e.stopPropagation(); });
-        var toggleDoneBtn = el("button", "", { type: "button", text: s.done ? "Mark not done" : "Mark done" });
-        toggleDoneBtn.addEventListener("click", function () {
-          delete openStepRowMenus[s.id];
-          socket.emit("toggleTaskStep", { itemId: item.id, stepId: s.id, done: !s.done });
-          if (!s.done) openStepAdders[item.id] = true; // marking a step done immediately opens the next line
-          render();
-        });
-        rowMenu.appendChild(toggleDoneBtn);
-        var deleteStepBtn = el("button", "danger", { type: "button", text: "Delete Step" });
-        deleteStepBtn.addEventListener("click", function () {
-          delete openStepRowMenus[s.id];
-          socket.emit("deleteTaskStep", { itemId: item.id, stepId: s.id });
-          render();
-        });
-        rowMenu.appendChild(deleteStepBtn);
         if (!item.archived) {
           var completeTaskBtn2 = el("button", "danger", { type: "button", text: "Complete Task" });
           completeTaskBtn2.addEventListener("click", function () {
@@ -939,6 +936,28 @@
           });
           rowMenu.appendChild(completeTaskBtn2);
         }
+        var deleteStepBtn = el("button", "danger", { type: "button", text: "Delete Step" });
+        deleteStepBtn.addEventListener("click", function () {
+          delete openStepRowMenus[s.id];
+          socket.emit("deleteTaskStep", { itemId: item.id, stepId: s.id });
+          render();
+        });
+        rowMenu.appendChild(deleteStepBtn);
+        var addStepBtn = el("button", "", { type: "button", text: "+ Add step" });
+        addStepBtn.addEventListener("click", function () {
+          delete openStepRowMenus[s.id];
+          openStepAdders[item.id] = true;
+          render();
+        });
+        rowMenu.appendChild(addStepBtn);
+        var toggleDoneBtn = el("button", "", { type: "button", text: s.done ? "Mark not done" : "Mark done" });
+        toggleDoneBtn.addEventListener("click", function () {
+          delete openStepRowMenus[s.id];
+          socket.emit("toggleTaskStep", { itemId: item.id, stepId: s.id, done: !s.done });
+          if (!s.done) openStepAdders[item.id] = true; // marking a step done immediately opens the next line
+          render();
+        });
+        rowMenu.appendChild(toggleDoneBtn);
         anchorPopover(rowUpdateBtn, rowMenu, "left");
       }
 
@@ -1182,9 +1201,9 @@
       foot.style.display = "none"; // task mode has its own input under the chat column instead
       head.innerHTML = "";
       head.appendChild(el("span", "head-title", { text: selectedItem.title }));
-      var backBtn = el("button", "board-chat-back", { type: "button", text: "\u2190 Board chat" });
-      backBtn.addEventListener("click", function () { selectedItemId = null; render(); });
-      head.appendChild(backBtn);
+      // No explicit "back to board chat" button: the sidebar follows whatever
+      // was last clicked (see the document-level click handler below), so
+      // clicking elsewhere on the page returns here on its own.
 
       body.innerHTML = "";
       body.appendChild(renderTaskPanelBody(selectedItem));
@@ -1363,7 +1382,14 @@
         sel.all = allChk.checked;
         sel.ids = sel.all ? [] : userChecks.filter(function (c) { return c.checked; }).map(function (c) { return c.dataset.uid; });
         refresh();
-        if (sel.all || sel.ids.length) inputEl.focus();
+        if (sel.all || sel.ids.length) {
+          // Close the picker the moment there's a valid selection, instead of leaving it
+          // open until the person clicks elsewhere: the popover sits right over the input,
+          // so leaving it open meant a click on the input actually landed on the popover
+          // first (closing it) and only a second click reached the input to focus it.
+          pop.remove();
+          inputEl.focus();
+        }
       }
       allChk.addEventListener("change", function () { userChecks.forEach(function (c) { c.disabled = allChk.checked; }); commit(); });
       userChecks.forEach(function (c) { c.addEventListener("change", commit); });
@@ -1418,6 +1444,17 @@
       openAssigneePickers = {}; openBoardAccess = {}; openStepMenus = {}; openBoardMenus = {}; openStepRowMenus = {}; openMessagePopovers = {}; openNewBoardForm = false;
       render();
     }
+  });
+
+  // The right-side panel follows whatever was last clicked instead of requiring
+  // an explicit "back to board chat" button: opening a task shows its panel (see
+  // the row click handler), and clicking anything that isn't part of a task row,
+  // the panel itself, or an open popover falls back to board chat automatically.
+  document.addEventListener("click", function (e) {
+    if (!selectedItemId) return;
+    if (e.target.closest(".item, .board-chat, .floating-popover")) return;
+    selectedItemId = null;
+    render();
   });
 
   function addItem(groupId, title, order) { socket.emit("addItem", { groupId: groupId, title: title, order: order }); }
