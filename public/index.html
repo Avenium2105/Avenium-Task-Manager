@@ -402,6 +402,7 @@
   "use strict";
 
   var state = { boards: [], groups: [], items: [], messages: [] };
+  var stateLoaded = false; // true once the first real "state" socket event has arrived — see renderSidePanel
   var team = [];
   var currentUser = null;
   var currentView = "boards"; // "boards" | "admin" — which top-level view is showing right now
@@ -1146,16 +1147,32 @@
     });
     main.appendChild(priBtn);
 
-    // Task-level complete/undo/archive — independent of steps, so a task with
-    // no steps at all still has a way to be marked done. (A step's own Update
-    // menu offers the same three actions too, as a convenience once a task
-    // has steps, but this is the only path for a task that never gets any.)
-    if (!item.archived) {
+    // Task-level complete/undo/archive/unarchive — independent of steps, so a
+    // task with no steps at all still has a way to be marked done. (A step's
+    // own Update menu offers the same actions too, as a convenience once a
+    // task has steps, but this is the only path for a task that never gets any.)
+    if (item.archived) {
+      var unarchiveBtn = el("button", "task-archive-btn", { type: "button", text: "Unarchive" });
+      unarchiveBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        socket.emit("unarchiveTask", { itemId: item.id });
+      });
+      main.appendChild(unarchiveBtn);
+    } else {
       var completeBtn = el("button", "task-complete-btn" + (item.completed ? " done" : ""), { type: "button", "aria-label": item.completed ? "Undo complete" : "Mark complete", title: item.completed ? "Undo complete" : "Mark complete" });
       completeBtn.innerHTML = item.completed ? checkSvg() : "";
       completeBtn.addEventListener("click", function (e) {
         e.stopPropagation();
-        socket.emit(item.completed ? "uncompleteTask" : "completeTask", { itemId: item.id });
+        if (item.completed) {
+          socket.emit("uncompleteTask", { itemId: item.id });
+        } else {
+          socket.emit("completeTask", { itemId: item.id });
+          // Archiving is still a separate, explicit choice — this just asks right
+          // away instead of making it a second trip back to the task later.
+          if (window.confirm("\"" + item.title + "\" marked complete. Archive it now?")) {
+            socket.emit("archiveTask", { itemId: item.id });
+          }
+        }
       });
       main.appendChild(completeBtn);
 
@@ -1240,14 +1257,16 @@
       if (openStepRowMenus[s.id]) {
         var rowMenu = el("div", "step-menu");
         rowMenu.addEventListener("click", function (e) { e.stopPropagation(); });
-        var toggleDoneBtn = el("button", "", { type: "button", text: s.done ? "Mark Not Complete" : "Step Complete" });
-        toggleDoneBtn.addEventListener("click", function () {
-          delete openStepRowMenus[s.id];
-          socket.emit("toggleTaskStep", { itemId: item.id, stepId: s.id, done: !s.done });
-          if (!s.done) openStepAdders[item.id] = true; // marking a step done immediately opens the next line
-          render();
-        });
-        rowMenu.appendChild(toggleDoneBtn);
+        if (!s.done) {
+          var stepCompleteBtn = el("button", "", { type: "button", text: "Step Complete" });
+          stepCompleteBtn.addEventListener("click", function () {
+            delete openStepRowMenus[s.id];
+            socket.emit("toggleTaskStep", { itemId: item.id, stepId: s.id, done: true });
+            openStepAdders[item.id] = true; // marking a step done immediately opens the next line
+            render();
+          });
+          rowMenu.appendChild(stepCompleteBtn);
+        }
         var addStepBtn = el("button", "", { type: "button", text: "Add Step" });
         addStepBtn.addEventListener("click", function () {
           delete openStepRowMenus[s.id];
@@ -1255,6 +1274,15 @@
           render();
         });
         rowMenu.appendChild(addStepBtn);
+        if (s.done) {
+          var undoStepBtn = el("button", "", { type: "button", text: "Undo Step" });
+          undoStepBtn.addEventListener("click", function () {
+            delete openStepRowMenus[s.id];
+            socket.emit("toggleTaskStep", { itemId: item.id, stepId: s.id, done: false }); // reverts the step back to not complete
+            render();
+          });
+          rowMenu.appendChild(undoStepBtn);
+        }
         var deleteStepBtn = el("button", "danger", { type: "button", text: "Delete Step" });
         deleteStepBtn.addEventListener("click", function () {
           delete openStepRowMenus[s.id];
@@ -1263,7 +1291,13 @@
         });
         rowMenu.appendChild(deleteStepBtn);
         if (item.archived) {
-          // fully archived — no complete/undo/archive actions left to offer here
+          var unarchiveTaskBtn = el("button", "", { type: "button", text: "Unarchive Task" });
+          unarchiveTaskBtn.addEventListener("click", function () {
+            delete openStepRowMenus[s.id];
+            socket.emit("unarchiveTask", { itemId: item.id });
+            render();
+          });
+          rowMenu.appendChild(unarchiveTaskBtn);
         } else if (item.completed) {
           var undoCompleteBtn = el("button", "", { type: "button", text: "Undo Complete" });
           undoCompleteBtn.addEventListener("click", function () {
@@ -1285,7 +1319,10 @@
           var completeTaskBtn2 = el("button", "danger", { type: "button", text: "Task Complete" });
           completeTaskBtn2.addEventListener("click", function () {
             delete openStepRowMenus[s.id];
-            socket.emit("completeTask", { itemId: item.id }); // just marks it done in place — archiving is a separate, later step
+            socket.emit("completeTask", { itemId: item.id });
+            if (window.confirm("\"" + item.title + "\" marked complete. Archive it now?")) {
+              socket.emit("archiveTask", { itemId: item.id });
+            }
             render();
           });
           rowMenu.appendChild(completeTaskBtn2);
@@ -1527,7 +1564,14 @@
     var foot = document.getElementById("boardChatFoot");
 
     var selectedItem = selectedItemId ? state.items.find(function (i) { return i.id === selectedItemId; }) : null;
-    if (selectedItemId && !selectedItem) selectedItemId = null; // task no longer visible (deleted/filtered) — fall back
+    // Only clear a deep-linked task selection once real data has actually loaded — the
+    // very first render() runs before the server's "state" event has arrived, so
+    // state.items is still empty at that point and every selection would look
+    // "not found" and get wiped out before it ever had a chance to resolve. That
+    // was silently breaking email links straight to a task: they'd set
+    // selectedItemId correctly, then this line would immediately clear it again on
+    // that first premature render, leaving the person on the board chat instead.
+    if (stateLoaded && selectedItemId && !selectedItem) selectedItemId = null; // genuinely deleted/filtered — fall back
 
     if (selectedItem) {
       aside.classList.add("task-mode");
@@ -2028,6 +2072,7 @@
     state.groups = s.groups || [];
     state.items = s.items || [];
     state.messages = s.messages || [];
+    stateLoaded = true;
     if (selectedBoardId !== "__all__" && !state.boards.some(function (b) { return b.id === selectedBoardId; })) selectedBoardId = "__all__";
     render();
   });

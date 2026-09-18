@@ -1081,6 +1081,19 @@ io.on("connection", (socket) => {
     broadcastState();
   });
 
+  socket.on("unarchiveTask", ({ itemId }) => {
+    const item = state.items.find((x) => x.id === itemId);
+    if (!item) return;
+    const group = groupById(item.groupId);
+    if (!canTouchGroup(group)) return;
+    item.archived = false;
+    item.updatedBy = actorName();
+    item.updatedAt = nowIso();
+    if (group.visibility !== "private") logActivity(`${actorName()} unarchived "${item.title}"`);
+    persist();
+    broadcastState();
+  });
+
   // ---- messages: per-board chat and per-task chat, with @mention notifications ----
   socket.on("addMessage", async ({ scope, scopeId, text, mentionIds }) => {
     if (scope !== "board" && scope !== "item") return;
