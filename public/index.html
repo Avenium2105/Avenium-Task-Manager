@@ -32,6 +32,7 @@
 
   .board-chat { flex-shrink: 0; width: 400px; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: 20px; display: flex; flex-direction: column; max-height: calc(100vh - 40px); transition: width 0.15s; }
   .board-chat.task-mode { width: 560px; }
+  .board-chat.all-mode { width: 620px; }
   .board-chat-head { padding: 14px 16px; border-bottom: 1px solid var(--line-soft); font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
   .board-chat-head .head-titles { display: flex; flex-direction: column; min-width: 0; }
   .board-chat-head .head-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -45,12 +46,20 @@
   .board-chat-link-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
   .board-chat-link { text-align: left; font-family: inherit; font-size: 13px; color: var(--slate); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; cursor: pointer; }
   .board-chat-link:hover { background: var(--slate-soft); border-color: var(--slate); }
+  .board-chat-link.active { background: var(--slate); color: var(--bg-raised); border-color: var(--slate); }
+
+  .all-boards-split { display: flex; gap: 14px; flex: 1; min-height: 0; }
+  .all-boards-links-col { flex: 0 0 140px; display: flex; flex-direction: column; gap: 4px; border-right: 1px solid var(--line); padding-right: 14px; overflow-y: auto; min-height: 0; }
+  .all-boards-chat-col { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .all-boards-chat-col .task-chat-messages { flex: 1; }
 
   @media (max-width: 1100px) {
     .page { display: block; padding: 0 20px; }
     .wrap { max-width: none; padding: 20px 0 40px; }
-    .board-chat, .board-chat.task-mode { width: auto; margin: 0 0 20px; position: static; max-height: none; }
+    .board-chat, .board-chat.task-mode, .board-chat.all-mode { width: auto; margin: 0 0 20px; position: static; max-height: none; }
     .task-panel-cols { grid-template-columns: 1fr; }
+    .all-boards-split { flex-direction: column; }
+    .all-boards-links-col { flex: 0 0 auto; flex-direction: row; flex-wrap: wrap; border-right: none; padding-right: 0; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
   }
 
   .board-access-wrap { display: inline-flex; }
@@ -312,6 +321,7 @@
   var team = [];
   var currentUser = null;
   var selectedBoardId = localStorage.getItem("daily-board-selected-board") || "__all__";
+  var allBoardsChatBoardId = null; // which board's chat is previewed in the right-hand column while on "All boards"
   var collapsedKey = "daily-board-collapsed";
   var notifiedRecently = {};
   var showArchived = false;
@@ -1188,6 +1198,7 @@
 
     if (selectedItem) {
       aside.classList.add("task-mode");
+      aside.classList.remove("all-mode");
       foot.style.display = "none"; // task mode has its own input under the chat column instead
       head.innerHTML = "";
       head.appendChild(el("span", "head-title", { text: selectedItem.title }));
@@ -1214,24 +1225,76 @@
     foot.innerHTML = "";
 
     if (!board) {
+      aside.classList.add("all-mode");
+      foot.style.display = "none"; // compose lives inside the chat column, not the footer, in this two-column layout
+
+      var chattableBoards = boardsToShow().filter(function (b) { return !b.private; });
+      if (allBoardsChatBoardId && !chattableBoards.some(function (b) { return b.id === allBoardsChatBoardId; })) {
+        allBoardsChatBoardId = null; // previewed board deleted or no longer visible — fall back
+      }
+      var previewBoard = allBoardsChatBoardId ? chattableBoards.find(function (b) { return b.id === allBoardsChatBoardId; }) : null;
+
       head.innerHTML = "";
-      head.appendChild(el("span", "head-title", { text: "Board chat" }));
+      var headTitles = el("span", "head-titles");
+      headTitles.appendChild(el("span", "head-title", { text: "Board chat" }));
+      if (previewBoard) headTitles.appendChild(el("span", "sub", { text: previewBoard.name }));
+      head.appendChild(headTitles);
+
       body.innerHTML = "";
-      body.appendChild(el("div", "board-chat-placeholder", { text: "Pick a board to see and send its chat:" }));
-      var linkList = el("div", "board-chat-link-list");
-      boardsToShow().filter(function (b) { return !b.private; }).forEach(function (b) {
-        var link = el("button", "board-chat-link", { type: "button", text: b.name });
+      var split = el("div", "all-boards-split");
+
+      var linksCol = el("div", "all-boards-links-col");
+      chattableBoards.forEach(function (b) {
+        var link = el("button", "board-chat-link" + (allBoardsChatBoardId === b.id ? " active" : ""), { type: "button", text: b.name });
         link.addEventListener("click", function () {
-          selectedBoardId = b.id;
-          localStorage.setItem("daily-board-selected-board", selectedBoardId);
-          render();
+          allBoardsChatBoardId = b.id;
+          renderSidePanel(null);
         });
-        linkList.appendChild(link);
+        linksCol.appendChild(link);
       });
-      body.appendChild(linkList);
+      split.appendChild(linksCol);
+
+      var chatCol = el("div", "all-boards-chat-col");
+      if (!previewBoard) {
+        chatCol.appendChild(el("div", "board-chat-placeholder", { text: "Pick a board to see and send its chat." }));
+      } else {
+        var chatMsgsWrap = el("div", "task-chat-messages");
+        var msgsAll = state.messages.filter(function (m) { return m.scope === "board" && m.scopeId === previewBoard.id; });
+        if (!msgsAll.length) {
+          chatMsgsWrap.appendChild(el("div", "chat-empty", { text: "No messages yet on this board." }));
+        } else {
+          msgsAll.forEach(function (m) { chatMsgsWrap.appendChild(renderChatMsg(m)); });
+        }
+        chatCol.appendChild(chatMsgsWrap);
+
+        var composeAll = buildComposeControls("board", previewBoard.id, function () {
+          return team.filter(function (t) { return !previewBoard.memberIds || previewBoard.memberIds.includes(t.id); });
+        });
+        var rowAll = el("div", "chat-input-row");
+        rowAll.appendChild(composeAll.toBtn);
+        rowAll.appendChild(composeAll.inputEl);
+        var sendBtnAll = el("button", "", { type: "button", text: "Send" });
+        function sendAll() {
+          if (composeAll.inputEl.value.trim() && !composeAll.inputEl.readOnly) {
+            socket.emit("addMessage", { scope: "board", scopeId: previewBoard.id, text: composeAll.inputEl.value.trim(), mentionIds: composeAll.getMentionIds() });
+            composeAll.inputEl.value = "";
+          }
+        }
+        sendBtnAll.addEventListener("click", sendAll);
+        composeAll.inputEl.addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); sendAll(); } });
+        rowAll.appendChild(sendBtnAll);
+        chatCol.appendChild(rowAll);
+
+        socket.emit("markMessagesRead", { scope: "board", scopeId: previewBoard.id });
+        setTimeout(function () { chatMsgsWrap.scrollTop = chatMsgsWrap.scrollHeight; }, 0);
+      }
+      split.appendChild(chatCol);
+      body.appendChild(split);
       return;
     }
 
+    aside.classList.remove("all-mode");
+    foot.style.display = "";
     head.innerHTML = "";
     var headTitles = el("span", "head-titles");
     headTitles.appendChild(el("span", "head-title", { text: "Board chat" }));
