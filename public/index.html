@@ -39,12 +39,16 @@
   .topnav .brand-mark { justify-self: center; display: inline-flex; align-items: center; margin: 0; }
   .topnav .brand-logo { height: 34px; width: auto; display: block; }
   .topnav .topbar { justify-self: end; display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--ink-soft); }
-  .topbar a, .topbar button.link { color: var(--ink-soft); text-decoration: none; background: none; border: none; font-family: inherit; font-size: 13px; cursor: pointer; padding: 0; }
-  .topbar a:hover, .topbar button.link:hover { color: var(--pine); }
-  .topbar .dot { color: var(--line); }
+  .topbar { gap: 10px; }
+  .topbar a, .topbar button.link { color: var(--bg-raised); background: var(--pine); text-decoration: none; border: none; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; padding: 7px 16px; border-radius: 8px; line-height: 1; }
+  .topbar a:hover, .topbar button.link:hover { background: #33503e; color: var(--bg-raised); }
+  .topbar a.active { background: #2e4736; }
+  .topbar button.logout { background: var(--brick); }
+  .topbar button.logout:hover { background: #9a3e32; }
+  .topbar .dot { display: none; }
 
-  .page { display: flex; align-items: flex-start; justify-content: center; gap: 28px; max-width: 1440px; margin: 0 auto; padding: 0 28px; }
-  .wrap { max-width: 900px; flex: 1 1 auto; margin: 0; padding: 20px 0 100px; min-width: 0; }
+  .page { display: flex; align-items: flex-start; justify-content: center; gap: 28px; max-width: 1800px; margin: 0 auto; padding: 0 28px; }
+  .wrap { max-width: none; flex: 1 1 auto; margin: 0; padding: 20px 0 100px; min-width: 0; }
 
   .board-chat { flex-shrink: 0; width: 400px; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: calc(var(--nav-h, 67px) + var(--tabs-h, 54px) + 12px); display: flex; flex-direction: column; max-height: calc(100vh - var(--nav-h, 67px) - var(--tabs-h, 54px) - 32px); transition: width 0.15s; }
 
@@ -446,7 +450,7 @@
     return new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
   }
 
-  var adminLink, adminDot;
+  var adminLink, adminDot, boardsNavLink;
 
   // If the current page has registered a client-side router (index.html does,
   // for the merged Boards/Admin single-page view), clicking these two links
@@ -470,29 +474,32 @@
     root.appendChild(brand);
 
     var bar = el("div", "topbar");
-    var boardsLink = el("a", "", { href: "#boards", text: "Boards" });
-    boardsLink.addEventListener("click", function (e) { routedClick(e, "#boards"); });
-    bar.appendChild(boardsLink);
-    bar.appendChild(el("span", "dot", { text: "\u00b7" }));
+    boardsNavLink = el("a", "", { href: "#boards", text: "Boards" });
+    boardsNavLink.addEventListener("click", function (e) { routedClick(e, "#boards"); });
+    bar.appendChild(boardsNavLink);
     adminLink = el("a", "", { href: "#admin", text: "Admin" });
     adminLink.addEventListener("click", function (e) { routedClick(e, "#admin"); });
     adminLink.style.display = "none";
     bar.appendChild(adminLink);
-    adminDot = el("span", "dot", { text: "\u00b7" });
-    adminDot.style.display = "none";
-    bar.appendChild(adminDot);
-    var logoutBtn = el("button", "link", { type: "button", text: "Log out" });
+    var logoutBtn = el("button", "link logout", { type: "button", text: "Log out" });
     logoutBtn.addEventListener("click", function () {
       fetch("/api/logout", { method: "POST" }).then(function () { window.location.href = "/login.html"; });
     });
     bar.appendChild(logoutBtn);
     root.appendChild(bar);
+    if (window.AveniumNav && window.AveniumNav.markActive) window.AveniumNav.markActive();
   }
 
   window.AveniumNav = {
     setAdmin: function (isAdmin) {
       if (adminLink) adminLink.style.display = isAdmin ? "" : "none";
-      if (adminDot) adminDot.style.display = isAdmin ? "" : "none";
+    },
+    // Highlights whichever of Boards/Admin matches the current URL hash, so the
+    // active view's button reads as "selected" the way tabs do.
+    markActive: function () {
+      var onAdmin = window.location.hash === "#admin";
+      if (boardsNavLink) boardsNavLink.classList.toggle("active", !onAdmin);
+      if (adminLink) adminLink.classList.toggle("active", onAdmin);
     }
   };
 
@@ -707,6 +714,7 @@
     // resolves) finishes the job once the role is known. On every later
     // call (nav clicks, back/forward) currentUser is already set, so this
     // resolves immediately with no visible delay.
+    if (window.AveniumNav && window.AveniumNav.markActive) window.AveniumNav.markActive();
     if (view === "admin" && !currentUser) { document.getElementById("boardsView").style.display = "none"; return; }
     if (view === "admin") showAdminView(); else showBoardsView();
   }
