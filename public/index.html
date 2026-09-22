@@ -751,7 +751,7 @@
 <div class="board-tabs" id="boardTabs"></div>
 <div class="page">
 <aside class="todo-sidebar" id="todoSidebar">
-  <div class="todo-sidebar-head">To-Do List</div>
+  <div class="todo-sidebar-head">Action Items</div>
   <div class="todo-list" id="todoList"></div>
   <div class="todo-add-mount" id="todoAddMount"></div>
 </aside>
@@ -931,6 +931,8 @@
   var openBoardMenus = {}; // boardId -> true while its 3-dot options menu is open
   // (per-task collapse state now lives in localStorage — see getCollapsedItems/setCollapsedItems above)
   var dragState = { type: null, id: null }; // in-progress native drag (group / item / board-section / board-tab)
+  var openNoteMenus = {};      // noteId -> true while that note's right-click menu is open
+  var openTodoDeleteMenus = {}; // todoId -> true while that action item's delete menu is open
   var openMessagePopovers = {}; // messageId -> true while its "read by" popover is open
   var openNewBoardForm = false; // true while the "+ new board" popover form is showing
   var messageRecipients = {}; // "board:id" / "item:id" -> { all: bool, ids: [] } — who a new message goes to
@@ -1253,6 +1255,13 @@
 
   // Renders @mentions inside chat text as bold, matching the same names the
   // server looks for when it decides who to notify.
+  // Turn raw URLs in already-escaped HTML into clickable links.
+  function linkifyHtml(html) {
+    return html.replace(/(https?:\/\/[^\s<>"']+)/gi, function (url) {
+      return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" style="color:var(--pine);text-decoration:underline;">' + url + '</a>';
+    });
+  }
+
   function renderMentionText(text) {
     var html = escapeHtml(text);
     team.forEach(function (t) {
@@ -1261,7 +1270,7 @@
         html = html.replace(re, function (m) { return "<strong>" + m + "</strong>"; });
       });
     });
-    return html;
+    return linkifyHtml(html);
   }
 
   // ---------------- render ----------------
@@ -1491,7 +1500,7 @@
     });
 
     if (!todos.length) {
-      list.appendChild(el("div", "todo-empty", { text: "Nothing on your list yet." }));
+      list.appendChild(el("div", "todo-empty", { text: "No action items yet." }));
     }
 
     todos.forEach(function (t) {
@@ -1504,20 +1513,26 @@
       row.appendChild(check);
 
       var main = el("div", "todo-main");
-      var textEl = el("textarea", "todo-text", { rows: "1" });
-      textEl.value = t.text;
-      textEl.disabled = !isMine; // only the creator can edit the text itself
-      function autoGrow() { textEl.style.height = "auto"; textEl.style.height = textEl.scrollHeight + "px"; }
-      textEl.addEventListener("input", autoGrow);
-      textEl.addEventListener("blur", function () {
-        if (isMine && textEl.value.trim() && textEl.value.trim() !== t.text) {
-          socket.emit("updateTodoText", { id: t.id, text: textEl.value });
-        } else {
-          textEl.value = t.text;
-        }
-      });
-      main.appendChild(textEl);
-      setTimeout(autoGrow, 0);
+      if (isMine) {
+        var textEl = el("textarea", "todo-text", { rows: "1" });
+        textEl.value = t.text;
+        function autoGrow() { textEl.style.height = "auto"; textEl.style.height = textEl.scrollHeight + "px"; }
+        textEl.addEventListener("input", autoGrow);
+        textEl.addEventListener("blur", function () {
+          if (textEl.value.trim() && textEl.value.trim() !== t.text) {
+            socket.emit("updateTodoText", { id: t.id, text: textEl.value });
+          } else {
+            textEl.value = t.text;
+          }
+        });
+        main.appendChild(textEl);
+        setTimeout(autoGrow, 0);
+      } else {
+        var textDiv = el("div", "todo-text");
+        textDiv.innerHTML = linkifyHtml(escapeHtml(t.text));
+        textDiv.style.cursor = "default";
+        main.appendChild(textDiv);
+      }
 
       var metaRow = el("div", "todo-meta-row");
       var sharedWith = t.sharedWith || [];
@@ -1541,13 +1556,39 @@
       main.appendChild(metaRow);
       row.appendChild(main);
 
-      if (isMine) {
-        var delBtn = el("button", "todo-del", { type: "button", "aria-label": "Delete to-do" });
-        delBtn.innerHTML = xSvg();
-        delBtn.addEventListener("click", function () {
-          if (window.confirm("Delete this to-do?")) socket.emit("deleteTodo", { id: t.id });
+      var delBtn = el("button", "todo-del", { type: "button", "aria-label": "Delete action item" });
+      delBtn.innerHTML = xSvg();
+      delBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var isShared = (t.sharedWith || []).length > 0;
+        if (!isShared) {
+          if (window.confirm("Delete this action item?")) socket.emit("deleteTodo", { id: t.id, forEveryone: true });
+        } else {
+          openTodoDeleteMenus[t.id] = !openTodoDeleteMenus[t.id];
+          render();
+        }
+      });
+      row.appendChild(delBtn);
+      if (openTodoDeleteMenus[t.id]) {
+        var delPop = el("div", "read-receipt-popover");
+        delPop.addEventListener("click", function (e) { e.stopPropagation(); });
+        var delActions = el("div", "read-receipt-actions");
+        var delForMe = el("button", "", { type: "button", text: "Delete for me" });
+        delForMe.addEventListener("click", function () {
+          delete openTodoDeleteMenus[t.id];
+          socket.emit("deleteTodo", { id: t.id, forEveryone: false });
         });
-        row.appendChild(delBtn);
+        delActions.appendChild(delForMe);
+        var delForAll = el("button", "danger", { type: "button", text: "Delete for everyone" });
+        delForAll.addEventListener("click", function () {
+          delete openTodoDeleteMenus[t.id];
+          if (window.confirm("Delete this action item for everyone?")) {
+            socket.emit("deleteTodo", { id: t.id, forEveryone: true });
+          }
+        });
+        delActions.appendChild(delForAll);
+        delPop.appendChild(delActions);
+        anchorPopover(delBtn, delPop, "left");
       }
 
       list.appendChild(row);
@@ -1602,7 +1643,7 @@
       addMount.appendChild(addRow);
       setTimeout(function () { addTa.focus(); }, 0);
     } else {
-      var addLink = el("button", "todo-add-link", { type: "button", text: "+ Add to-do" });
+      var addLink = el("button", "todo-add-link", { type: "button", text: "+ Add action item" });
       addLink.addEventListener("click", function () { openTodoAdder = true; render(); });
       addMount.appendChild(addLink);
     }
@@ -2023,7 +2064,7 @@
           });
           rowMenu.appendChild(completeTaskBtn2);
         }
-        var addTodoBtn = el("button", "", { type: "button", text: "Add to To-Do" });
+        var addTodoBtn = el("button", "", { type: "button", text: "Add to Action Items" });
         addTodoBtn.addEventListener("click", function () {
           delete openStepRowMenus[s.id];
           quickAddTodoFor(item);
@@ -2102,7 +2143,11 @@
       var noteEl = el("div", "note-item" + (isOpen ? " open" : ""));
       var noteHead = el("div", "note-head");
       var chev = el("div", "chevron"); chev.innerHTML = chevronSvg(); noteHead.appendChild(chev);
-      noteHead.appendChild(el("div", "note-preview", { text: n.text.replace(/\s+/g, " "), title: n.text }));
+      var notePreview = el("div", "note-preview");
+      notePreview.title = n.text;
+      notePreview.innerHTML = linkifyHtml(escapeHtml(n.text.replace(/\s+/g, " ")));
+      notePreview.addEventListener("click", function (e) { if (e.target.tagName === "A") e.stopPropagation(); }); // let link clicks through without toggling
+      noteHead.appendChild(notePreview);
       noteHead.appendChild(el("div", "note-meta", { text: relTime(n.updatedAt || n.createdAt) }));
       var delNoteBtn = el("button", "note-del", { type: "button", "aria-label": "Delete note" });
       delNoteBtn.innerHTML = xSvg();
@@ -2129,6 +2174,27 @@
         });
         noteBody.appendChild(noteTa);
         noteEl.appendChild(noteBody);
+      }
+      noteEl.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        openNoteMenus[n.id] = !openNoteMenus[n.id];
+        render();
+      });
+      if (openNoteMenus[n.id]) {
+        var notePop = el("div", "read-receipt-popover");
+        notePop.addEventListener("click", function (e) { e.stopPropagation(); });
+        var noteActions = el("div", "read-receipt-actions");
+        var addNoteAction = el("button", "", { type: "button", text: "Add to Action Items" });
+        addNoteAction.addEventListener("click", function () {
+          delete openNoteMenus[n.id];
+          var prefix = item.title ? item.title + " — " : "";
+          socket.emit("addTodo", { text: prefix + n.text.replace(/\s+/g, " ").slice(0, 400), sharedWith: [] });
+          render();
+        });
+        noteActions.appendChild(addNoteAction);
+        notePop.appendChild(noteActions);
+        anchorPopover(noteEl, notePop, "left");
       }
       notesWrap.appendChild(noteEl);
     });
@@ -2282,31 +2348,39 @@
       bubble.addEventListener("contextmenu", function (e) {
         e.preventDefault();
         hideMsgTooltip();
-        if (!canModify) return;
         openMessagePopovers[m.id] = !openMessagePopovers[m.id];
         render();
       });
     }
     row.appendChild(bubble);
 
-    if (openMessagePopovers[m.id] && canModify) {
+    if (openMessagePopovers[m.id]) {
       var pop = el("div", "read-receipt-popover");
       pop.addEventListener("click", function (e) { e.stopPropagation(); });
       var actions = el("div", "read-receipt-actions");
-      var editBtn = el("button", "", { type: "button", text: "Edit" });
-      editBtn.addEventListener("click", function () {
+      if (canModify) {
+        var editBtn = el("button", "", { type: "button", text: "Edit" });
+        editBtn.addEventListener("click", function () {
+          delete openMessagePopovers[m.id];
+          openMessageEdits[m.id] = true;
+          render();
+        });
+        actions.appendChild(editBtn);
+        var delMsgBtn = el("button", "danger", { type: "button", text: "Delete" });
+        delMsgBtn.addEventListener("click", function () {
+          if (window.confirm("Delete this message? This can't be undone.")) {
+            socket.emit("deleteMessage", { id: m.id });
+          }
+        });
+        actions.appendChild(delMsgBtn);
+      }
+      var addActionBtn = el("button", "", { type: "button", text: "Add to Action Items" });
+      addActionBtn.addEventListener("click", function () {
         delete openMessagePopovers[m.id];
-        openMessageEdits[m.id] = true;
+        socket.emit("addTodo", { text: m.text, sharedWith: [] });
         render();
       });
-      actions.appendChild(editBtn);
-      var delMsgBtn = el("button", "danger", { type: "button", text: "Delete" });
-      delMsgBtn.addEventListener("click", function () {
-        if (window.confirm("Delete this message? This can't be undone.")) {
-          socket.emit("deleteMessage", { id: m.id });
-        }
-      });
-      actions.appendChild(delMsgBtn);
+      actions.appendChild(addActionBtn);
       pop.appendChild(actions);
       anchorPopover(bubble, pop, isMine ? "right" : "left");
     }
@@ -3443,7 +3517,7 @@
       return;
     }
     if (!aiMessages.length) {
-      box.appendChild(el("div", "ai-empty", { text: "Claude can see your boards, tasks, to-dos and upcoming calendar. Try:\n\n\u2022 What should I focus on today?\n\u2022 Summarize what's open on Avenium Life\n\u2022 Draft a follow-up note to Larry about the funding agreement" }));
+      box.appendChild(el("div", "ai-empty", { text: "Claude can see your boards, tasks, action items and upcoming calendar. Try:\n\n\u2022 What should I focus on today?\n\u2022 Summarize what's open on Avenium Life\n\u2022 Draft a follow-up note to Larry about the funding agreement" }));
       return;
     }
     aiMessages.forEach(function (m) {

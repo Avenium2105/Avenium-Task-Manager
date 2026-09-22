@@ -1141,7 +1141,10 @@ function stateForUser(userId) {
   // creator, plus anyone specifically listed in sharedWith. This filtering happens
   // here (per-user, server-side) rather than client-side, so an unshared to-do
   // never even reaches another person's browser in the first place.
-  const visibleTodos = state.todos.filter((t) => t.createdById === userId || (t.sharedWith || []).includes(userId));
+  const visibleTodos = state.todos.filter((t) =>
+    (t.createdById === userId || (t.sharedWith || []).includes(userId)) &&
+    !(t.removedBy || []).includes(userId)
+  );
   return { boards: visibleBoards, groups: visibleGroups, items: visibleItems, activity: state.activity, messages: visibleMessages, todos: visibleTodos };
 }
 
@@ -1643,15 +1646,30 @@ io.on("connection", (socket) => {
     todo.sharedWith = Array.isArray(sharedWith)
       ? [...new Set(sharedWith.filter((sid) => validIds.has(sid) && sid !== user.id))].slice(0, 50)
       : [];
+    // Re-sharing restores visibility for anyone who "removed for me"
+    if (todo.removedBy) {
+      todo.removedBy = todo.removedBy.filter((uid) => !todo.sharedWith.includes(uid));
+      if (!todo.removedBy.length) delete todo.removedBy;
+    }
     todo.updatedAt = nowIso();
     persist();
     broadcastState();
   });
 
-  socket.on("deleteTodo", ({ id }) => {
+  socket.on("deleteTodo", ({ id, forEveryone }) => {
     const todo = state.todos.find((t) => t.id === id);
-    if (!todo || todo.createdById !== user.id) return; // owner only
-    state.todos = state.todos.filter((t) => t.id !== id);
+    if (!todo) return;
+    // Must be able to see it to delete it
+    const canSee = todo.createdById === user.id || (todo.sharedWith || []).includes(user.id);
+    if (!canSee) return;
+    if (forEveryone) {
+      state.todos = state.todos.filter((t) => t.id !== id);
+    } else {
+      // "Delete for me" — hide it from this user only via removedBy
+      if (!todo.removedBy) todo.removedBy = [];
+      if (!todo.removedBy.includes(user.id)) todo.removedBy.push(user.id);
+    }
+    todo.updatedAt = nowIso();
     persist();
     broadcastState();
   });
@@ -2036,7 +2054,7 @@ function buildAssistantContext(user) {
 
   const todos = (visible.todos || []).filter((t) => !t.done);
   if (todos.length) {
-    lines.push(`\nTO-DO LIST (open items):`);
+    lines.push(`\nACTION ITEMS (open items):`);
     todos.forEach((t) => lines.push(`- ${t.text}`));
   }
   return lines.join("\n");
