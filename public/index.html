@@ -551,39 +551,43 @@
   .cal-tooltip .dim { opacity: 0.75; }
   .cal-more { font-size: 10.5px; color: var(--ink-faint); cursor: pointer; }
   .cal-event-modal { position: fixed; inset: 0; background: rgba(34,38,31,0.45); z-index: 800; display: flex; align-items: center; justify-content: center; }
-  .cal-event-modal-box { background: var(--bg-raised); border-radius: 12px; box-shadow: 0 8px 32px rgba(34,38,31,0.25); width: 440px; max-width: calc(100vw - 32px); overflow: hidden; }
+  .cal-event-modal-box { background: var(--bg-raised); border-radius: 12px; box-shadow: 0 8px 32px rgba(34,38,31,0.25); width: 420px; max-width: calc(100vw - 32px); overflow: hidden; }
   .cal-event-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 15px; }
   .cal-event-modal-head button { background: none; border: none; font-size: 16px; cursor: pointer; color: var(--ink-faint); padding: 2px 6px; border-radius: 5px; }
   .cal-event-modal-head button:hover { background: var(--line-soft); }
-  .cal-event-modal-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
-  .cal-event-modal-body input, .cal-event-modal-body select { font-family: inherit; font-size: 13.5px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; width: 100%; box-sizing: border-box; }
-  /* min-width:0 is the fix for the overflowing date fields: a flex child won't
-     shrink below its natural width without it, and datetime inputs are wide. */
-  .cal-modal-row { display: flex; align-items: center; gap: 8px; }
-  .cal-modal-row input { flex: 1 1 0; min-width: 0; }
-  .cal-modal-row span { color: var(--ink-faint); font-size: 12px; flex-shrink: 0; }
-  .cal-end-row { margin-top: 4px; }
-  .cal-end-to { color: var(--ink-faint); font-size: 12px; flex-shrink: 0; margin-right: 2px; }
-  .cal-end-label { flex-shrink: 0; }
-  .cal-when-row { display: flex; gap: 16px; align-items: center; }
-  .cal-radio-label { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--ink-soft); cursor: pointer; }
-  .cal-radio-label input { width: auto !important; margin: 0; cursor: pointer; }
-  .cal-repeat-check-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); cursor: pointer; }
-  .cal-repeat-check-label input { width: auto !important; margin: 0; cursor: pointer; }
-  .cal-allday-row { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-soft); cursor: pointer; }
-  .cal-allday-row input { width: auto !important; margin: 0; cursor: pointer; }
+  .cal-event-modal-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+  .cal-event-modal-body input, .cal-event-modal-body select { font-family: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); outline: none; box-sizing: border-box; }
+  .cal-event-modal-body input:focus, .cal-event-modal-body select:focus { border-color: var(--pine); }
+  .cal-field-full { width: 100%; }
+  .cal-section { display: flex; flex-direction: column; gap: 8px; }
+  .cal-section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); }
+  .cal-when-row { display: flex; gap: 18px; align-items: center; margin-bottom: 2px; }
+  .cal-radio-label { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--ink-soft); cursor: pointer; user-select: none; }
+  .cal-radio-label input[type="radio"] { width: auto !important; margin: 0; cursor: pointer; accent-color: var(--pine); }
+  .cal-date-group { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+  .cal-date-row { display: flex; align-items: center; gap: 8px; }
+  .cal-date-row input { flex: 1 1 0; min-width: 0; width: auto; }
+  .cal-date-row-label { font-size: 11px; color: var(--ink-faint); flex-shrink: 0; min-width: 28px; }
   .cal-repeat-row { display: flex; flex-direction: column; gap: 8px; }
-  #calRepeatOptions { display: flex; align-items: center; gap: 8px; }
-  #calRepeatOptions select { flex: 1 1 0; min-width: 0; }
-  .cal-calendar-pick { display: flex; flex-direction: column; gap: 6px; }
-  .cal-calendar-pick label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); cursor: pointer; padding: 4px 0; }
-  .cal-calendar-pick label input { width: auto !important; margin: 0; cursor: pointer; }
-  .cal-calendar-pick .cal-swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .cal-repeat-check-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); cursor: pointer; user-select: none; }
+  .cal-repeat-check-label input[type="checkbox"] { width: auto !important; margin: 0; cursor: pointer; accent-color: var(--pine); }
+  .cal-repeat-options { display: flex; align-items: center; gap: 8px; padding-left: 22px; }
+  .cal-repeat-options select { flex: 1 1 0; min-width: 0; width: auto; }
+  .cal-repeat-options input[type="date"] { flex: 1 1 0; min-width: 0; width: auto; }
+  .cal-details-group { display: flex; flex-direction: column; gap: 8px; }
+  .cal-details-group input { width: 100%; }
+  .cal-calendar-pick { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+  .cal-calendar-pick-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); margin-bottom: 4px; }
+  .cal-calendar-pick label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); cursor: pointer; padding: 3px 0; }
+  .cal-calendar-pick label input[type="radio"] { width: auto !important; margin: 0; cursor: pointer; accent-color: var(--pine); }
+  .cal-calendar-pick .cal-swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
   .cal-event-modal-foot { padding: 14px 20px; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: flex-end; }
   .cal-event-modal-foot button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 18px; border: none; border-radius: 7px; cursor: pointer; }
   #calModalSave { background: var(--pine); color: var(--bg-raised); }
+  #calModalSave:hover { opacity: 0.9; }
   #calModalDelete { background: var(--brick-soft); color: var(--brick); }
   #calModalCancel { background: var(--line-soft); color: var(--ink-soft); }
+  #calModalCancel:hover { background: var(--line); }
   .cal-loading { text-align: center; padding: 60px; color: var(--ink-faint); font-size: 14px; }
   .cal-no-calendar { text-align: center; padding: 60px 20px; color: var(--ink-faint); }
   .cal-no-calendar p { margin: 8px 0; font-size: 14px; }
@@ -893,34 +897,41 @@
           <button type="button" data-type="appointment" class="cal-type-btn">Appointment</button>
           <button type="button" data-type="call" class="cal-type-btn">Call</button>
         </div>
-        <input id="calModalName" type="text" placeholder="Title" autocomplete="off">
-        <div class="cal-when-row">
-          <label class="cal-radio-label"><input type="radio" name="calWhen" value="timed" id="calWhenTimed" checked> Date &amp; Time</label>
-          <label class="cal-radio-label"><input type="radio" name="calWhen" value="allday" id="calWhenAllDay"> All Day</label>
+
+        <input id="calModalName" type="text" placeholder="Title" autocomplete="off" class="cal-field-full">
+
+        <div class="cal-section">
+          <div class="cal-when-row">
+            <label class="cal-radio-label"><input type="radio" name="calWhen" value="timed" id="calWhenTimed" checked> Date &amp; Time</label>
+            <label class="cal-radio-label"><input type="radio" name="calWhen" value="allday" id="calWhenAllDay"> All Day</label>
+          </div>
+          <div id="calTimedFields" class="cal-date-group">
+            <div class="cal-date-row">
+              <span class="cal-date-row-label">Start</span>
+              <input id="calModalStartDate2" type="date">
+              <input id="calModalStartTime" type="time">
+            </div>
+            <div class="cal-date-row">
+              <span class="cal-date-row-label">End</span>
+              <input id="calModalEndDate2" type="date">
+              <input id="calModalEndTime" type="time">
+            </div>
+          </div>
+          <div id="calAllDayFields" class="cal-date-group" style="display:none;">
+            <div class="cal-date-row">
+              <span class="cal-date-row-label">Date</span>
+              <input id="calModalStartDateOnly" type="date">
+            </div>
+            <div class="cal-date-row">
+              <span class="cal-date-row-label">End</span>
+              <input id="calModalEndDateOnly" type="date">
+            </div>
+          </div>
         </div>
-        <div id="calTimedFields">
-          <div class="cal-modal-row">
-            <input id="calModalStartDate2" type="date">
-            <input id="calModalStartTime" type="time">
-          </div>
-          <div class="cal-modal-row cal-end-row">
-            <label class="cal-end-label"><span class="cal-end-to">to</span></label>
-            <input id="calModalEndDate2" type="date">
-            <input id="calModalEndTime" type="time">
-          </div>
-        </div>
-        <div id="calAllDayFields" style="display:none;">
-          <div class="cal-modal-row">
-            <input id="calModalStartDateOnly" type="date">
-          </div>
-          <div class="cal-modal-row cal-end-row">
-            <label class="cal-end-label"><span class="cal-end-to">to</span></label>
-            <input id="calModalEndDateOnly" type="date" placeholder="(optional)">
-          </div>
-        </div>
+
         <div class="cal-repeat-row">
           <label class="cal-repeat-check-label"><input id="calModalRepeatCheck" type="checkbox"> Repeats</label>
-          <div id="calRepeatOptions" style="display:none;">
+          <div id="calRepeatOptions" class="cal-repeat-options" style="display:none;">
             <select id="calModalRepeat">
               <option value="daily">Daily</option>
               <option value="weekly">Weekly</option>
@@ -929,13 +940,19 @@
               <option value="jewish-monthly">Monthly (Jewish)</option>
               <option value="jewish-yearly">Yearly (Jewish)</option>
             </select>
-            <input id="calModalRepeatUntil" type="date" title="Repeat until (optional)" placeholder="Until (optional)" style="display:none;">
+            <input id="calModalRepeatUntil" type="date" title="Until (optional)" style="display:none;">
           </div>
         </div>
-        <input id="calModalLocation" type="text" placeholder="Location or meeting link (optional)">
-        <input id="calModalAttendees" type="text" placeholder="Invite people: email, email (optional)">
-        <input id="calModalDesc" type="text" placeholder="Notes (optional)">
-        <div class="cal-calendar-pick" id="calCalendarPick"></div>
+
+        <div class="cal-details-group">
+          <input id="calModalLocation" type="text" placeholder="Location or meeting link (optional)">
+          <input id="calModalAttendees" type="text" placeholder="Invite: email, email (optional)">
+          <input id="calModalDesc" type="text" placeholder="Notes (optional)">
+        </div>
+
+        <div class="cal-calendar-pick" id="calCalendarPick">
+          <div class="cal-calendar-pick-label">Calendar</div>
+        </div>
       </div>
       <div class="cal-event-modal-foot">
         <button id="calModalSave" type="button">Save</button>
@@ -3542,7 +3559,7 @@
 
   function fillCalendarPicker(selectedAccountId, selectedCalendarId, lockToIt) {
     var wrap = document.getElementById("calCalendarPick");
-    wrap.innerHTML = "";
+    wrap.innerHTML = '<div class="cal-calendar-pick-label">Calendar</div>';
     var first = null;
     calendarAccounts.forEach(function (acct) {
       acct.calendars.forEach(function (c) {
