@@ -385,15 +385,19 @@ app.use("/assets", express.static(path.join(__dirname, "public", "assets")));
 // ---- pages ----
 app.get("/login.html", (req, res) => res.sendFile(path.join(__dirname, "public", "login.html")));
 app.get(["/", "/index.html"], requireAuth, (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
-// Admin is now a client-side view inside index.html itself (see the router in
-// its <script>), not a separate page — this serves the very same file. Direct
-// visits, refreshes, and bookmarks all still work: requireAdmin gates it here
-// server-side exactly as it did for the old standalone users.html, and the
-// page's own JS reads the "/admin" URL on load to show the right view.
-// /users.html is kept as a redirect so any existing bookmarks still land
-// somewhere sensible instead of 404ing.
-app.get("/admin", requireAuth, requireAdmin, (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
-app.get("/users.html", (req, res) => res.redirect(301, "/admin"));
+// Admin is a client-side view inside index.html now, switched to via a URL
+// hash ("/#admin") rather than a real path — a hash is never sent to the
+// server as part of the request, so there's no separate route for it to
+// take anymore; visiting "/" always serves the same file regardless of what
+// (if anything) follows a "#" in the address bar, and the page's own script
+// reads that hash after it loads to decide which view to show. The actual
+// admin data stays protected the way it always has, via requireAuth +
+// requireAdmin on the /api/users etc. endpoints below — a non-admin who
+// somehow lands on the admin view client-side just sees an empty shell,
+// since every request it makes for real data still gets rejected server-side.
+// /admin and /users.html both redirect here (with the hash added) so any
+// existing bookmarks still land in the right place instead of 404ing.
+app.get(["/admin", "/users.html"], requireAuth, (req, res) => res.redirect("/#admin"));
 app.get("/accept-invite.html", (req, res) => res.sendFile(path.join(__dirname, "public", "accept-invite.html")));
 
 function isValidEmail(s) { return typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s.trim()); }

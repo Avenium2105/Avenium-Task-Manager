@@ -429,12 +429,12 @@
     root.appendChild(brand);
 
     var bar = el("div", "topbar");
-    var boardsLink = el("a", "", { href: "/", text: "Boards" });
-    boardsLink.addEventListener("click", function (e) { routedClick(e, "/"); });
+    var boardsLink = el("a", "", { href: "#", text: "Boards" });
+    boardsLink.addEventListener("click", function (e) { routedClick(e, ""); });
     bar.appendChild(boardsLink);
     bar.appendChild(el("span", "dot", { text: "\u00b7" }));
-    adminLink = el("a", "", { href: "/admin", text: "Admin" });
-    adminLink.addEventListener("click", function (e) { routedClick(e, "/admin"); });
+    adminLink = el("a", "", { href: "#admin", text: "Admin" });
+    adminLink.addEventListener("click", function (e) { routedClick(e, "#admin"); });
     adminLink.style.display = "none";
     bar.appendChild(adminLink);
     adminDot = el("span", "dot", { text: "\u00b7" });
@@ -572,7 +572,7 @@
     if (itemParam) selectedItemId = itemParam; // validated against state.items once it loads; cleared automatically if not found
     if (messageParam) pendingMessageHighlightId = messageParam;
     if (window.history && window.history.replaceState) {
-      window.history.replaceState(null, "", window.location.pathname);
+      window.history.replaceState(null, "", window.location.pathname + window.location.hash); // strip the deep-link query params but keep any #admin hash intact
     }
   })();
 
@@ -597,9 +597,18 @@
   // The two views used to be separate HTML documents (index.html / users.html),
   // so switching between them was a real navigation — full reload, nav bar
   // flashing back in, everything torn down and rebuilt from scratch. Now
-  // they're both just visibility-toggled sections of this one page, and the
-  // URL is updated with history.pushState so the address bar and back/forward
-  // still behave like real navigation even though nothing actually reloads.
+  // they're both just visibility-toggled sections of this one page.
+  //
+  // Routing uses a URL hash ("tasks.avenium.com/#admin"), not a path
+  // ("tasks.avenium.com/admin") — matching the same scheme portal.avenium.com
+  // uses (#dashboard, #contacts, etc.): the address bar's domain+path never
+  // changes at all, only the part after "#", which makes it unambiguous that
+  // this is one page with a switching section rather than two separate ones.
+  // A hash change is also never sent to the server as part of the request —
+  // it's purely a browser-side concept — so unlike the old path-based /admin
+  // route, there's nothing here for the server to route or gate; the actual
+  // admin data stays protected the same way it always has, via requireAuth +
+  // requireAdmin on the /api/* endpoints themselves.
   //
   // This whole block is deliberately set up as early as possible in the
   // script — right after the two var-declaration blocks above it — and
@@ -608,10 +617,9 @@
   // can intercept the click; if an unrelated error anywhere later in this
   // script were to throw before that assignment happened, the router would
   // simply never exist and every click would silently fall through to a
-  // real page navigation instead — which looks exactly like "two separate
-  // pages" (full reload, nav bar flash) rather than one page with a view
-  // that switches instantly. Defining it this early means that can't happen:
-  // it's set up before almost anything else in the file gets a chance to run.
+  // real page navigation instead. Defining it this early means that can't
+  // happen: it's set up before almost anything else in the file gets a
+  // chance to run.
 
   function showBoardsView() {
     currentView = "boards";
@@ -631,12 +639,13 @@
     loadAdminActivity();
   }
 
-  function routeTo(path, replace) {
-    var view = (path === "/admin" || path === "/users.html") ? "admin" : "boards";
-    var url = view === "admin" ? "/admin" : "/";
-    if (window.history) {
-      if (replace) window.history.replaceState(null, "", url);
-      else window.history.pushState(null, "", url);
+  function routeTo(hash) {
+    var view = (hash === "#admin") ? "admin" : "boards";
+    if (window.location.hash !== (view === "admin" ? "#admin" : "")) {
+      // Setting location.hash both updates the address bar and pushes a history
+      // entry on its own — no separate pushState/replaceState call needed the
+      // way the old path-based version required.
+      window.location.hash = view === "admin" ? "admin" : "";
     }
     currentView = view;
     // Whether we can actually SHOW the admin view yet depends on knowing the
@@ -652,14 +661,14 @@
   }
 
   window.AveniumRouter = {
-    go: function (path) { routeTo(path, false); }
+    go: function (hash) { routeTo(hash); }
   };
 
-  window.addEventListener("popstate", function () { routeTo(window.location.pathname, true); });
+  window.addEventListener("hashchange", function () { routeTo(window.location.hash); });
 
   // Land on whichever view the URL actually asked for (a direct visit to
-  // /admin, or the back/forward button) instead of always starting on Boards.
-  routeTo(window.location.pathname, true);
+  // /#admin, or the back/forward button) instead of always starting on Boards.
+  routeTo(window.location.hash);
 
 
   function getCollapsed() { try { var raw = localStorage.getItem(collapsedKey); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; } }
@@ -2232,7 +2241,7 @@
     currentUser = user;
     if (window.AveniumNav) window.AveniumNav.setAdmin(user.role === "admin"); // shared nav bar (nav.js) owns the Admin link/logout button
     if (currentView === "admin") {
-      if (user.role !== "admin") { routeTo("/", true); return; } // never actually admin, or role changed since — bounce to Boards
+      if (user.role !== "admin") { routeTo(""); return; } // never actually admin, or role changed since — bounce to Boards
       showAdminView();
       return;
     }
