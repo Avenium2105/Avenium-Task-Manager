@@ -105,6 +105,14 @@ function setCalendarVisible(userId, key, visible) {
   calendarPrefs[userId].hidden = [...hidden];
   persistCalPrefs();
 }
+function getShowHebrew(userId) {
+  return calendarPrefs[userId] && calendarPrefs[userId].showHebrew !== undefined ? calendarPrefs[userId].showHebrew : false;
+}
+function setShowHebrew(userId, show) {
+  if (!calendarPrefs[userId]) calendarPrefs[userId] = { hidden: [] };
+  calendarPrefs[userId].showHebrew = !!show;
+  persistCalPrefs();
+}
 
 // ---- Built-in calendars (no sign-in needed) ----
 // Both are on by default — only calendars a user explicitly unticks are stored.
@@ -2035,7 +2043,7 @@ app.get("/api/calendar/accounts", requireAuth, async (req, res) => {
   const localCal = { id: "local", provider: "local", email: "", calendars: [
     { id: "avenium", key: "local|avenium", name: "Avenium", canEdit: true, primary: true, visible: !hidden.has("local|avenium") }
   ] };
-  res.json({ accounts: [localCal, ...out], builtin, googleConfigured: !!GOOGLE_CLIENT_ID, microsoftConfigured: !!MICROSOFT_CLIENT_ID });
+  res.json({ accounts: [localCal, ...out], builtin, googleConfigured: !!GOOGLE_CLIENT_ID, microsoftConfigured: !!MICROSOFT_CLIENT_ID, showHebrew: getShowHebrew(req.session.userId) });
 });
 
 // Show / hide one calendar on this user's own view
@@ -2045,6 +2053,12 @@ app.post("/api/calendar/visibility", requireAuth, (req, res) => {
   const accountId = key.split("|")[0];
   if (accountId !== "builtin" && accountId !== "local" && !getAccount(req.session.userId, accountId)) return res.status(404).json({ error: "not_found" });
   setCalendarVisible(req.session.userId, key, !!visible);
+  res.json({ ok: true });
+});
+
+app.post("/api/calendar/show-hebrew", requireAuth, (req, res) => {
+  const { show } = req.body || {};
+  setShowHebrew(req.session.userId, !!show);
   res.json({ ok: true });
 });
 
@@ -2138,7 +2152,11 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
 });
 
 app.put("/api/calendar/events", requireAuth, async (req, res) => {
-  const { accountId, calendarId, eventId, title, start, end, description, location, attendees, allDay, reminderMinutes } = req.body || {};
+  const { accountId, calendarId, eventId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, newAccountId, newCalendarId } = req.body || {};
+
+  // Moving to a different calendar?
+  var moveTarget = (newAccountId && newCalendarId && (newAccountId !== accountId || newCalendarId !== calendarId))
+    ? { accountId: newAccountId, calendarId: newCalendarId } : null;
 
   // Local event edit
   if (accountId === "local") {
@@ -2151,6 +2169,26 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
     if (description != null) ev.description = description;
     if (location != null) ev.location = location;
     if (attendees) ev.attendees = attendees;
+    if (repeat !== undefined) ev.repeat = repeat || "none";
+    if (repeatUntil !== undefined) ev.repeatUntil = repeatUntil || "";
+
+    if (moveTarget && moveTarget.accountId !== "local") {
+      // Moving from local to Google/Outlook — create there and delete local
+      const acct2 = getAccount(req.session.userId, moveTarget.accountId);
+      if (!acct2) return res.status(400).json({ error: "invalid_target" });
+      try {
+        const a2 = await freshToken(acct2);
+        const evBody = { title: ev.title, start: ev.start, end: ev.end, description: ev.description, location: ev.location, attendees: ev.attendees, allDay: ev.allDay };
+        const r2 = a2.provider === "google"
+          ? await googleApiRequest(a2.accessToken, "POST", `/calendar/v3/calendars/${encodeURIComponent(moveTarget.calendarId)}/events`, googleEventBody(evBody))
+          : await graphRequest(a2.accessToken, "POST", `/me/calendars/${encodeURIComponent(moveTarget.calendarId)}/events`, microsoftEventBody(evBody));
+        if (r2.status >= 300) return res.status(502).json({ error: "provider_rejected" });
+        localEvents = localEvents.filter((e) => e.id !== eventId);
+        persistLocalEvents();
+        invalidateCalendarCache(`ev:${a2.id}:`);
+        return res.json({ ok: true });
+      } catch (e) { return res.status(500).json({ error: e.message }); }
+    }
     persistLocalEvents();
     return res.json({ ok: true });
   }
@@ -2159,12 +2197,29 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
   if (!acct || !eventId) return res.status(400).json({ error: "invalid_request" });
   try {
     const a = await freshToken(acct);
+
+    // Moving to local calendar?
+    if (moveTarget && moveTarget.accountId === "local") {
+      // Delete from provider, create local
+      if (a.provider === "google") await googleApiRequest(a.accessToken, "DELETE", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`);
+      else await graphRequest(a.accessToken, "DELETE", `/me/events/${encodeURIComponent(eventId)}`);
+      const id = "lev_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      localEvents.push({
+        id, userId: req.session.userId, title: title || "", start: start || "", end: end || start || "", allDay: !!allDay,
+        description: description || "", location: location || "", attendees: attendees || [],
+        repeat: repeat || "none", repeatUntil: repeatUntil || "", createdAt: new Date().toISOString()
+      });
+      persistLocalEvents();
+      invalidateCalendarCache(`ev:${a.id}:`);
+      return res.json({ ok: true });
+    }
+
     const ev = { title, start, end, description, location, attendees, allDay, reminderMinutes };
     const r = a.provider === "google"
       ? await googleApiRequest(a.accessToken, "PATCH", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`, googleEventBody(ev))
       : await graphRequest(a.accessToken, "PATCH", `/me/events/${encodeURIComponent(eventId)}`, microsoftEventBody(ev));
     if (r.status >= 300) return res.status(502).json({ error: "provider_rejected" });
-    invalidateCalendarCache(`ev:${a.id}:`); // own change must show immediately
+    invalidateCalendarCache(`ev:${a.id}:`);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
