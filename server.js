@@ -198,6 +198,36 @@ async function fetchBuiltinEvents(id, timeMin, timeMax) {
   return [];
 }
 
+// ---- Small in-memory cache for calendar reads ----
+// Calendar data is read constantly (every month you flick through) but changes
+// rarely, so each result is held briefly. `inflight` also means ten parallel
+// requests for the same thing make ONE call instead of ten.
+const calCache = new Map();    // key -> { value, expires }
+const calInflight = new Map(); // key -> Promise
+function cachedFetch(key, ttlMs, fn) {
+  const hit = calCache.get(key);
+  if (hit && hit.expires > Date.now()) return Promise.resolve(hit.value);
+  if (calInflight.has(key)) return calInflight.get(key);
+  const p = Promise.resolve()
+    .then(fn)
+    .then((value) => {
+      calCache.set(key, { value, expires: Date.now() + ttlMs });
+      calInflight.delete(key);
+      return value;
+    })
+    .catch((err) => { calInflight.delete(key); throw err; });
+  calInflight.set(key, p);
+  return p;
+}
+function invalidateCalendarCache(prefix) {
+  for (const k of calCache.keys()) if (k.startsWith(prefix)) calCache.delete(k);
+}
+// keep the map from growing forever
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of calCache) if (v.expires < now) calCache.delete(k);
+}, 10 * 60 * 1000).unref();
+
 // ---- Generic HTTPS helper (no npm dependency needed) ----
 function httpsRequest(options, body) {
   return new Promise((resolve, reject) => {
@@ -295,7 +325,9 @@ async function listGoogleCalendars(account) {
 
 async function fetchGoogleCalendarEvents(account, cal, timeMin, timeMax) {
   const r = await googleApiRequest(account.accessToken, "GET",
-    `/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=250`);
+    `/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=250` +
+    // only the fields actually used — smaller payloads come back faster
+    `&fields=${encodeURIComponent("items(id,summary,start,end,description,location,htmlLink,attendees/email)")}`);
   if (!r.body || !r.body.items) return [];
   return r.body.items.map((e) => ({
     externalId: e.id, title: e.summary || "(No title)",
@@ -332,6 +364,12 @@ function googleEventBody(event) {
   if (event.reminderMinutes != null) {
     body.reminders = { useDefault: false, overrides: [{ method: "popup", minutes: event.reminderMinutes }] };
   }
+  const freq = { daily: "DAILY", weekly: "WEEKLY", monthly: "MONTHLY", yearly: "YEARLY" }[event.repeat];
+  if (freq) {
+    let rule = "RRULE:FREQ=" + freq;
+    if (event.repeatUntil) rule += ";UNTIL=" + String(event.repeatUntil).replace(/-/g, "") + "T235959Z";
+    body.recurrence = [rule];
+  }
   return body;
 }
 
@@ -355,7 +393,8 @@ async function listMicrosoftCalendars(account) {
 
 async function fetchMicrosoftCalendarEvents(account, cal, timeMin, timeMax) {
   const r = await graphRequest(account.accessToken, "GET",
-    `/me/calendars/${encodeURIComponent(cal.id)}/calendarView?startDateTime=${encodeURIComponent(timeMin)}&endDateTime=${encodeURIComponent(timeMax)}&$top=250`);
+    `/me/calendars/${encodeURIComponent(cal.id)}/calendarView?startDateTime=${encodeURIComponent(timeMin)}&endDateTime=${encodeURIComponent(timeMax)}&$top=250` +
+    `&$select=${encodeURIComponent("id,subject,start,end,isAllDay,location,attendees,bodyPreview,webLink")}`);
   if (!r.body || !r.body.value) return [];
   return r.body.value.map((e) => ({
     externalId: e.id, title: e.subject || "(No title)",
@@ -394,11 +433,31 @@ function microsoftEventBody(event) {
     body.isReminderOn = true;
     body.reminderMinutesBeforeStart = event.reminderMinutes;
   }
+  const msType = { daily: "daily", weekly: "weekly", monthly: "absoluteMonthly", yearly: "absoluteYearly" }[event.repeat];
+  if (msType) {
+    const startDate = String(event.start).slice(0, 10);
+    const d = new Date(startDate + "T00:00:00Z");
+    const pattern = { type: msType, interval: 1 };
+    if (msType === "weekly") {
+      pattern.daysOfWeek = [["sunday","monday","tuesday","wednesday","thursday","friday","saturday"][d.getUTCDay()]];
+    }
+    if (msType === "absoluteMonthly") pattern.dayOfMonth = d.getUTCDate();
+    if (msType === "absoluteYearly") { pattern.dayOfMonth = d.getUTCDate(); pattern.month = d.getUTCMonth() + 1; }
+    body.recurrence = {
+      pattern,
+      range: event.repeatUntil
+        ? { type: "endDate", startDate, endDate: String(event.repeatUntil).slice(0, 10) }
+        : { type: "noEnd", startDate }
+    };
+  }
   return body;
 }
 
 async function listCalendarsFor(account) {
-  return account.provider === "google" ? listGoogleCalendars(account) : listMicrosoftCalendars(account);
+  // 5 minutes: adding/removing a calendar in Google/Outlook shows up soon,
+  // but flicking between months doesn't re-ask every time.
+  return cachedFetch("cals:" + account.id, 5 * 60 * 1000, () =>
+    account.provider === "google" ? listGoogleCalendars(account) : listMicrosoftCalendars(account));
 }
 
 function uid(prefix) {
@@ -1813,6 +1872,8 @@ app.get("/auth/microsoft/callback", requireAuth, async (req, res) => {
 app.delete("/api/calendar/accounts/:id", requireAuth, (req, res) => {
   if (!getAccount(req.session.userId, req.params.id)) return res.status(404).json({ error: "not_found" });
   removeAccount(req.session.userId, req.params.id);
+  invalidateCalendarCache(`ev:${req.params.id}:`);
+  invalidateCalendarCache(`cals:${req.params.id}`);
   res.json({ ok: true });
 });
 
@@ -1853,9 +1914,12 @@ app.get("/api/calendar/events", requireAuth, async (req, res) => {
   const hidden = hiddenSet(req.session.userId);
   const accounts = listAccounts(req.session.userId);
   const all = [];
+  const rangeKey = timeMin.slice(0, 10) + ".." + timeMax.slice(0, 10);
   await Promise.all(BUILTIN_CALENDARS.filter((c) => !hidden.has("builtin|" + c.id)).map(async (def) => {
     try {
-      const events = await fetchBuiltinEvents(def.id, timeMin, timeMax);
+      // holidays for a given range never change — hold them for 12 hours
+      const events = await cachedFetch(`builtin:${def.id}:${rangeKey}`, 12 * 60 * 60 * 1000,
+        () => fetchBuiltinEvents(def.id, timeMin, timeMax));
       events.forEach((ev) => all.push({
         ...ev, provider: "builtin", accountId: "builtin", accountEmail: "",
         calendarId: def.id, calendarName: def.name, color: def.color, canEdit: false
@@ -1868,9 +1932,14 @@ app.get("/api/calendar/events", requireAuth, async (req, res) => {
       const calendars = (await listCalendarsFor(a)).filter((c) => !hidden.has(acct.id + "|" + c.id));
       await Promise.all(calendars.map(async (cal) => {
         try {
-          const events = a.provider === "google"
-            ? await fetchGoogleCalendarEvents(a, cal, timeMin, timeMax)
-            : await fetchMicrosoftCalendarEvents(a, cal, timeMin, timeMax);
+          // 60 seconds: month navigation and revisits are instant, while a
+          // change made elsewhere still appears within the minute. Creating or
+          // editing here clears this immediately (see below), so your own
+          // changes always show at once.
+          const events = await cachedFetch(`ev:${a.id}:${cal.id}:${rangeKey}`, 60 * 1000, () =>
+            a.provider === "google"
+              ? fetchGoogleCalendarEvents(a, cal, timeMin, timeMax)
+              : fetchMicrosoftCalendarEvents(a, cal, timeMin, timeMax));
           events.forEach((ev) => all.push({
             ...ev, provider: a.provider, accountId: a.id, accountEmail: a.email,
             calendarId: cal.id, calendarName: cal.name, color: cal.color, canEdit: cal.canEdit
@@ -1883,16 +1952,17 @@ app.get("/api/calendar/events", requireAuth, async (req, res) => {
 });
 
 app.post("/api/calendar/events", requireAuth, async (req, res) => {
-  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes } = req.body || {};
+  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil } = req.body || {};
   const acct = getAccount(req.session.userId, accountId);
   if (!acct || !calendarId || !title || !start) return res.status(400).json({ error: "invalid_request" });
   try {
     const a = await freshToken(acct);
-    const ev = { title, start, end, description, location, attendees, allDay, reminderMinutes };
+    const ev = { title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil };
     const r = a.provider === "google"
       ? await googleApiRequest(a.accessToken, "POST", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`, googleEventBody(ev))
       : await graphRequest(a.accessToken, "POST", `/me/calendars/${encodeURIComponent(calendarId)}/events`, microsoftEventBody(ev));
     if (r.status >= 300) return res.status(502).json({ error: "provider_rejected" });
+    invalidateCalendarCache(`ev:${a.id}:`); // own change must show immediately
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1908,6 +1978,7 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
       ? await googleApiRequest(a.accessToken, "PATCH", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`, googleEventBody(ev))
       : await graphRequest(a.accessToken, "PATCH", `/me/events/${encodeURIComponent(eventId)}`, microsoftEventBody(ev));
     if (r.status >= 300) return res.status(502).json({ error: "provider_rejected" });
+    invalidateCalendarCache(`ev:${a.id}:`); // own change must show immediately
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -1920,6 +1991,7 @@ app.delete("/api/calendar/events", requireAuth, async (req, res) => {
     const a = await freshToken(acct);
     if (a.provider === "google") await googleApiRequest(a.accessToken, "DELETE", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`);
     else await graphRequest(a.accessToken, "DELETE", `/me/events/${encodeURIComponent(eventId)}`);
+    invalidateCalendarCache(`ev:${a.id}:`);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
