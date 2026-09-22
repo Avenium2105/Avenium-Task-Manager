@@ -35,6 +35,10 @@ const GOOGLE_REDIRECT = PUBLIC_URL + "/auth/google/callback";
 const MICROSOFT_REDIRECT = PUBLIC_URL + "/auth/microsoft/callback";
 const CALENDAR_ENABLED = !!(GOOGLE_CLIENT_ID && MICROSOFT_CLIENT_ID);
 
+// ---- Claude assistant (optional — set ANTHROPIC_API_KEY to switch it on) ----
+const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
+
 const GROUP_COLORS = ["#3C5A46", "#C68A2E", "#7D6BAE", "#4C7A9E", "#B24A3C"];
 const DEFAULT_GROUPS = ["Today", "This week", "Someday"];
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB per file
@@ -298,17 +302,37 @@ async function fetchGoogleCalendarEvents(account, cal, timeMin, timeMax) {
     start: e.start && (e.start.dateTime || e.start.date),
     end: e.end && (e.end.dateTime || e.end.date),
     allDay: !!(e.start && e.start.date),
-    description: e.description || "", htmlLink: e.htmlLink || ""
+    description: e.description || "", htmlLink: e.htmlLink || "",
+    location: e.location || "",
+    attendees: (e.attendees || []).map((a) => a.email).filter(Boolean)
   }));
 }
 
 function googleEventBody(event) {
-  return {
+  const body = {
     summary: event.title,
     description: event.description || "",
-    start: { dateTime: event.start, timeZone: "UTC" },
-    end: { dateTime: event.end || event.start, timeZone: "UTC" }
+    location: event.location || ""
   };
+  if (event.allDay) {
+    // Google all-day events use plain dates, and the end date is exclusive
+    const startDate = String(event.start).slice(0, 10);
+    const endDate = String(event.end || event.start).slice(0, 10);
+    const endExclusive = new Date(endDate + "T00:00:00Z");
+    endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+    body.start = { date: startDate };
+    body.end = { date: endExclusive.toISOString().slice(0, 10) };
+  } else {
+    body.start = { dateTime: event.start, timeZone: "UTC" };
+    body.end = { dateTime: event.end || event.start, timeZone: "UTC" };
+  }
+  if (Array.isArray(event.attendees) && event.attendees.length) {
+    body.attendees = event.attendees.map((e) => ({ email: e }));
+  }
+  if (event.reminderMinutes != null) {
+    body.reminders = { useDefault: false, overrides: [{ method: "popup", minutes: event.reminderMinutes }] };
+  }
+  return body;
 }
 
 // ---- Microsoft Graph Calendar API calls ----
@@ -338,17 +362,39 @@ async function fetchMicrosoftCalendarEvents(account, cal, timeMin, timeMax) {
     start: e.isAllDay ? (e.start && e.start.dateTime || "").slice(0, 10) : msTime(e.start && e.start.dateTime),
     end: e.isAllDay ? (e.end && e.end.dateTime || "").slice(0, 10) : msTime(e.end && e.end.dateTime),
     allDay: !!e.isAllDay,
-    description: (e.bodyPreview) || "", htmlLink: e.webLink || ""
+    description: (e.bodyPreview) || "", htmlLink: e.webLink || "",
+    location: (e.location && e.location.displayName) || "",
+    attendees: (e.attendees || []).map((a) => a.emailAddress && a.emailAddress.address).filter(Boolean)
   }));
 }
 
 function microsoftEventBody(event) {
-  return {
+  const body = {
     subject: event.title,
     body: { contentType: "text", content: event.description || "" },
-    start: { dateTime: msInputTime(event.start), timeZone: "UTC" },
-    end: { dateTime: msInputTime(event.end || event.start), timeZone: "UTC" }
+    isAllDay: !!event.allDay
   };
+  if (event.location) body.location = { displayName: event.location };
+  if (event.allDay) {
+    // Graph all-day events must start/end at midnight, end date exclusive
+    const startDate = String(event.start).slice(0, 10);
+    const endDate = String(event.end || event.start).slice(0, 10);
+    const endExclusive = new Date(endDate + "T00:00:00Z");
+    endExclusive.setUTCDate(endExclusive.getUTCDate() + 1);
+    body.start = { dateTime: startDate + "T00:00:00", timeZone: "UTC" };
+    body.end = { dateTime: endExclusive.toISOString().slice(0, 10) + "T00:00:00", timeZone: "UTC" };
+  } else {
+    body.start = { dateTime: msInputTime(event.start), timeZone: "UTC" };
+    body.end = { dateTime: msInputTime(event.end || event.start), timeZone: "UTC" };
+  }
+  if (Array.isArray(event.attendees) && event.attendees.length) {
+    body.attendees = event.attendees.map((e) => ({ emailAddress: { address: e }, type: "required" }));
+  }
+  if (event.reminderMinutes != null) {
+    body.isReminderOn = true;
+    body.reminderMinutesBeforeStart = event.reminderMinutes;
+  }
+  return body;
 }
 
 async function listCalendarsFor(account) {
@@ -1837,12 +1883,12 @@ app.get("/api/calendar/events", requireAuth, async (req, res) => {
 });
 
 app.post("/api/calendar/events", requireAuth, async (req, res) => {
-  const { accountId, calendarId, title, start, end, description } = req.body || {};
+  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes } = req.body || {};
   const acct = getAccount(req.session.userId, accountId);
   if (!acct || !calendarId || !title || !start) return res.status(400).json({ error: "invalid_request" });
   try {
     const a = await freshToken(acct);
-    const ev = { title, start, end, description };
+    const ev = { title, start, end, description, location, attendees, allDay, reminderMinutes };
     const r = a.provider === "google"
       ? await googleApiRequest(a.accessToken, "POST", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`, googleEventBody(ev))
       : await graphRequest(a.accessToken, "POST", `/me/calendars/${encodeURIComponent(calendarId)}/events`, microsoftEventBody(ev));
@@ -1852,12 +1898,12 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
 });
 
 app.put("/api/calendar/events", requireAuth, async (req, res) => {
-  const { accountId, calendarId, eventId, title, start, end, description } = req.body || {};
+  const { accountId, calendarId, eventId, title, start, end, description, location, attendees, allDay, reminderMinutes } = req.body || {};
   const acct = getAccount(req.session.userId, accountId);
   if (!acct || !eventId) return res.status(400).json({ error: "invalid_request" });
   try {
     const a = await freshToken(acct);
-    const ev = { title, start, end, description };
+    const ev = { title, start, end, description, location, attendees, allDay, reminderMinutes };
     const r = a.provider === "google"
       ? await googleApiRequest(a.accessToken, "PATCH", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`, googleEventBody(ev))
       : await graphRequest(a.accessToken, "PATCH", `/me/events/${encodeURIComponent(eventId)}`, microsoftEventBody(ev));
@@ -1876,6 +1922,120 @@ app.delete("/api/calendar/events", requireAuth, async (req, res) => {
     else await graphRequest(a.accessToken, "DELETE", `/me/events/${encodeURIComponent(eventId)}`);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ---- Claude assistant ----
+// The key lives on the server only, never in the browser. Each request is
+// answered with just THIS user's own boards, tasks, to-dos and calendar as
+// context — the same data they can already see — so the assistant can't
+// surface anything they don't have access to.
+app.get("/api/assistant/status", requireAuth, (req, res) => {
+  res.json({ enabled: !!ANTHROPIC_API_KEY });
+});
+
+function buildAssistantContext(user) {
+  const visible = stateForUser(user.id);
+  const lines = [];
+  lines.push(`The person you are helping is ${user.displayName || user.username}. Today is ${new Date().toDateString()}.`);
+
+  const boards = visible.boards || [];
+  lines.push(`\nBOARDS (${boards.length}):`);
+  boards.forEach((b) => {
+    const groups = (visible.groups || []).filter((g) => g.boardId === b.id);
+    lines.push(`- ${b.name}`);
+    groups.forEach((g) => {
+      const items = (visible.items || []).filter((i) => i.groupId === g.id && !i.archived);
+      if (!items.length) return;
+      lines.push(`  Group "${g.name}":`);
+      items.forEach((i) => {
+        const openSteps = (i.steps || []).filter((st) => !st.done).map((st) => st.text);
+        const who = (i.assigneeIds || []).map((id) => { const u = findUserById(id); return u ? (u.displayName || u.username) : null; }).filter(Boolean);
+        let line = `    * ${i.title}`;
+        if (i.completed) line += " [completed]";
+        if (i.priority) line += ` [priority: ${i.priority}]`;
+        if (who.length) line += ` [assigned: ${who.join(", ")}]`;
+        if (openSteps.length) line += ` [next steps: ${openSteps.join("; ")}]`;
+        const notes = (i.notesList || []).map((n) => n.text).join(" | ");
+        if (notes) line += ` [notes: ${notes.slice(0, 500)}]`;
+        lines.push(line);
+      });
+    });
+  });
+
+  const todos = (visible.todos || []).filter((t) => !t.done);
+  if (todos.length) {
+    lines.push(`\nTO-DO LIST (open items):`);
+    todos.forEach((t) => lines.push(`- ${t.text}`));
+  }
+  return lines.join("\n");
+}
+
+app.post("/api/assistant/chat", requireAuth, async (req, res) => {
+  if (!ANTHROPIC_API_KEY) return res.status(503).json({ error: "assistant_not_configured" });
+  const user = findUserById(req.session.userId);
+  if (!user) return res.status(401).json({ error: "not_authenticated" });
+  const history = Array.isArray(req.body && req.body.messages) ? req.body.messages : [];
+  if (!history.length) return res.status(400).json({ error: "no_messages" });
+
+  // keep the request small: last 20 turns, each capped
+  const messages = history.slice(-20).map((m) => ({
+    role: m.role === "assistant" ? "assistant" : "user",
+    content: String(m.content || "").slice(0, 8000)
+  }));
+
+  // upcoming calendar events, if any calendars are connected
+  let calendarText = "";
+  try {
+    const hidden = hiddenSet(user.id);
+    const timeMin = new Date().toISOString();
+    const timeMax = new Date(Date.now() + 14 * 86400000).toISOString();
+    const evs = [];
+    await Promise.all(listAccounts(user.id).map(async (acct) => {
+      const a = await freshToken(acct);
+      const cals = (await listCalendarsFor(a)).filter((c) => !hidden.has(acct.id + "|" + c.id));
+      await Promise.all(cals.map(async (cal) => {
+        const list = a.provider === "google"
+          ? await fetchGoogleCalendarEvents(a, cal, timeMin, timeMax)
+          : await fetchMicrosoftCalendarEvents(a, cal, timeMin, timeMax);
+        list.forEach((e) => evs.push(`- ${e.start}${e.allDay ? " (all day)" : ""}: ${e.title}${e.location ? " @ " + e.location : ""}`));
+      }));
+    }));
+    if (evs.length) calendarText = `\n\nCALENDAR (next 14 days):\n` + evs.sort().slice(0, 60).join("\n");
+  } catch (e) { /* calendar is optional context */ }
+
+  const system = `You are Claude, built into Avenium Task Manager — a task and calendar app used by a small real-estate team.
+Help the user with their work: summarising what's on their plate, drafting messages and notes, thinking through next steps, and answering questions about their tasks and schedule.
+Use the context below, which is this user's own data. If something isn't in the context, say so rather than guessing.
+Be concise and practical. You cannot change anything in the app yourself — if the user wants something created or edited, tell them briefly where to do it.
+
+${buildAssistantContext(user)}${calendarText}`;
+
+  const payload = JSON.stringify({
+    model: ANTHROPIC_MODEL,
+    max_tokens: 1500,
+    system,
+    messages
+  });
+
+  try {
+    const r = await httpsRequest({
+      hostname: "api.anthropic.com", path: "/v1/messages", method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(payload),
+        "x-api-key": ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01"
+      }
+    }, payload);
+    if (r.status >= 300 || !r.body || !r.body.content) {
+      const detail = r.body && r.body.error && r.body.error.message;
+      return res.status(502).json({ error: detail || "assistant_failed" });
+    }
+    const text = (r.body.content || []).filter((c) => c.type === "text").map((c) => c.text).join("\n").trim();
+    res.json({ reply: text || "(no reply)" });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 server.listen(PORT, () => {

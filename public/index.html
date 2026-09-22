@@ -427,6 +427,33 @@
   .admin-wrap .status-badge.active { background: var(--pine-soft); color: var(--pine); }
   .admin-wrap .invite-link-box { font-size: 11.5px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin-top: 8px; word-break: break-all; color: var(--ink-soft); }
 
+  /* ---- Claude assistant ---- */
+  .ai-launcher { position: fixed; right: 20px; bottom: 20px; z-index: 700; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--bg-raised); background: var(--pine); border: none; border-radius: 22px; padding: 11px 20px; cursor: pointer; box-shadow: 0 4px 16px rgba(34,38,31,0.22); }
+  .ai-launcher:hover { background: #33503e; }
+  .ai-panel { position: fixed; right: 20px; bottom: 20px; width: 380px; max-width: calc(100vw - 32px); height: 560px; max-height: calc(100vh - 100px); z-index: 750; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 10px 40px rgba(34,38,31,0.28); display: flex; flex-direction: column; overflow: hidden; }
+  .ai-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 14px; flex-shrink: 0; }
+  .ai-head button { background: none; border: none; font-size: 15px; color: var(--ink-faint); cursor: pointer; padding: 2px 6px; border-radius: 5px; }
+  .ai-head button:hover { background: var(--line-soft); }
+  .ai-messages { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .ai-msg { font-size: 13px; line-height: 1.55; padding: 9px 12px; border-radius: 10px; max-width: 92%; white-space: pre-wrap; word-break: break-word; }
+  .ai-msg.user { align-self: flex-end; background: var(--pine-soft); color: var(--ink); }
+  .ai-msg.assistant { align-self: flex-start; background: var(--bg); border: 1px solid var(--line); color: var(--ink); }
+  .ai-msg.error { align-self: flex-start; background: var(--brick-soft); color: var(--brick); }
+  .ai-empty { color: var(--ink-faint); font-size: 12.5px; line-height: 1.6; }
+  .ai-compose { border-top: 1px solid var(--line); padding: 10px 12px; flex-shrink: 0; }
+  .ai-compose textarea { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); outline: none; resize: none; }
+  .ai-compose-row { display: flex; gap: 8px; margin-top: 8px; }
+  .ai-send { flex: 1; font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 14px; border: none; border-radius: 8px; background: var(--pine); color: var(--bg-raised); cursor: pointer; }
+  .ai-send:disabled { background: var(--line-soft); color: var(--ink-faint); cursor: not-allowed; }
+  .ai-clear { font-family: inherit; font-size: 13px; padding: 8px 14px; border: none; border-radius: 8px; background: var(--line-soft); color: var(--ink-soft); cursor: pointer; }
+
+  /* ---- New event: type presets ---- */
+  .cal-new-btn { background: var(--pine) !important; color: var(--bg-raised) !important; border-color: var(--pine) !important; font-weight: 600 !important; }
+  .cal-type-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .cal-type-btn { font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 6px 12px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg); color: var(--ink-soft); cursor: pointer; }
+  .cal-type-btn:hover { border-color: var(--pine); }
+  .cal-type-btn.active { background: var(--pine); border-color: var(--pine); color: var(--bg-raised); }
+
   /* ---- Calendar connections (Admin page) ---- */
   .admin-wrap h2.cal-admin-title { margin-top: 36px; }
   .cal-admin-note { font-size: 12.5px; color: var(--ink-faint); margin: -6px 0 12px; }
@@ -757,6 +784,23 @@
   <ul class="activity-list" id="activityList"></ul>
 </div>
 
+<!-- Claude assistant: floating launcher + side panel, available on every view -->
+<button id="aiLauncher" class="ai-launcher" type="button" title="Ask Claude" style="display:none;">Ask Claude</button>
+<div id="aiPanel" class="ai-panel" style="display:none;">
+  <div class="ai-head">
+    <span>Ask Claude</span>
+    <button id="aiClose" type="button" aria-label="Close">&#10005;</button>
+  </div>
+  <div class="ai-messages" id="aiMessages"></div>
+  <div class="ai-compose">
+    <textarea id="aiInput" rows="2" placeholder="Ask about your tasks, schedule, or draft something&hellip;"></textarea>
+    <div class="ai-compose-row">
+      <button id="aiClear" type="button" class="ai-clear">Clear</button>
+      <button id="aiSend" type="button" class="ai-send">Send</button>
+    </div>
+  </div>
+</div>
+
 <!-- Calendar view -->
 <div id="calendarView" class="calendar-wrap" style="display:none;">
   <div class="cal-layout">
@@ -773,6 +817,7 @@
     <span id="calMonthLabel"></span>
     <button id="calNextBtn" type="button">&#8594;</button>
     <button id="calTodayBtn" type="button">Today</button>
+    <button id="calNewBtn" type="button" class="cal-new-btn">+ New</button>
   </div>
   <div class="cal-grid-head">
     <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
@@ -787,13 +832,26 @@
         <button id="calModalClose" type="button">&#10005;</button>
       </div>
       <div class="cal-event-modal-body">
-        <input id="calModalName" type="text" placeholder="Event title" autocomplete="off">
+        <div class="cal-type-row" id="calTypeRow">
+          <button type="button" data-type="meeting" class="cal-type-btn active">Meeting</button>
+          <button type="button" data-type="appointment" class="cal-type-btn">Appointment</button>
+          <button type="button" data-type="call" class="cal-type-btn">Call</button>
+          <button type="button" data-type="allday" class="cal-type-btn">All-day</button>
+        </div>
+        <input id="calModalName" type="text" placeholder="Title" autocomplete="off">
         <div class="cal-modal-row">
           <input id="calModalStart" type="datetime-local">
           <span>to</span>
           <input id="calModalEnd" type="datetime-local">
         </div>
-        <input id="calModalDesc" type="text" placeholder="Description (optional)">
+        <div class="cal-modal-row" id="calDateRow" style="display:none;">
+          <input id="calModalStartDate" type="date">
+          <span>to</span>
+          <input id="calModalEndDate" type="date">
+        </div>
+        <input id="calModalLocation" type="text" placeholder="Location or meeting link (optional)">
+        <input id="calModalAttendees" type="text" placeholder="Invite people: email, email (optional)">
+        <input id="calModalDesc" type="text" placeholder="Notes (optional)">
         <select id="calModalCalendar"></select>
       </div>
       <div class="cal-event-modal-foot">
@@ -2861,6 +2919,13 @@
       document.getElementById("calModalCancel").onclick = closeCalModal;
       document.getElementById("calModalSave").onclick = saveCalEvent;
       document.getElementById("calModalDelete").onclick = deleteCalEvent;
+      document.getElementById("calNewBtn").onclick = function () {
+        var now = new Date(); now.setMinutes(now.getMinutes() < 30 ? 30 : 60, 0, 0);
+        openCalModal(null, toLocalInput(now.toISOString()));
+      };
+      [].forEach.call(document.querySelectorAll("#calTypeRow .cal-type-btn"), function (b) {
+        b.onclick = function () { applyCalType(b.dataset.type); };
+      });
     }
     renderCalGrid([]);
     fetchCalendarAccounts().then(function () {
@@ -2957,6 +3022,8 @@
       if (en && !isNaN(en)) when += " \u2013 " + en.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
     }
     if (when) tip.appendChild(el("div", "dim", { text: when }));
+    if (ev.location) tip.appendChild(el("div", "dim", { text: ev.location }));
+    if (ev.attendees && ev.attendees.length) tip.appendChild(el("div", "dim", { text: ev.attendees.length + " invited: " + ev.attendees.slice(0, 4).join(", ") + (ev.attendees.length > 4 ? "\u2026" : "") }));
     var source = ev.calendarName || "";
     if (ev.accountEmail) source += " \u00b7 " + ev.accountEmail;
     if (source) tip.appendChild(el("div", "dim", { text: source }));
@@ -3049,6 +3116,44 @@
     sel.disabled = !!lockToIt;
   }
 
+  // Meeting / Appointment / Call / All-day — presets that decide the default
+  // length, whether an attendee list makes sense, and timed vs whole-day.
+  var CAL_TYPES = {
+    meeting:     { minutes: 60, attendees: true,  label: "Meeting" },
+    appointment: { minutes: 30, attendees: false, label: "Appointment" },
+    call:        { minutes: 30, attendees: true,  label: "Call" },
+    allday:      { minutes: 0,  attendees: false, label: "All-day", allDay: true }
+  };
+  var calModalType = "meeting";
+
+  function applyCalType(type, keepTimes) {
+    calModalType = type;
+    var def = CAL_TYPES[type] || CAL_TYPES.meeting;
+    [].forEach.call(document.querySelectorAll("#calTypeRow .cal-type-btn"), function (b) {
+      b.classList.toggle("active", b.dataset.type === type);
+    });
+    document.getElementById("calDateRow").style.display = def.allDay ? "" : "none";
+    document.querySelector(".cal-event-modal-body .cal-modal-row").style.display = def.allDay ? "none" : "";
+    document.getElementById("calModalAttendees").style.display = def.attendees ? "" : "none";
+    document.getElementById("calModalName").placeholder = def.label + " title";
+    if (!keepTimes && !def.allDay) {
+      var startEl = document.getElementById("calModalStart");
+      if (startEl.value) {
+        var e2 = new Date(startEl.value);
+        e2.setMinutes(e2.getMinutes() + def.minutes);
+        document.getElementById("calModalEnd").value = toLocalInput(e2.toISOString());
+      }
+    }
+    if (def.allDay) {
+      var sd = document.getElementById("calModalStartDate");
+      if (!sd.value) {
+        var base = document.getElementById("calModalStart").value || new Date().toISOString();
+        sd.value = String(base).slice(0, 10);
+        document.getElementById("calModalEndDate").value = String(base).slice(0, 10);
+      }
+    }
+  }
+
   function openCalModal(event, defaultStart) {
     if (!calendarAccounts.length) {
       alert(currentUser && currentUser.role === "admin" ? "Connect a calendar on the Admin page first." : "No calendar is connected.");
@@ -3059,12 +3164,19 @@
     document.getElementById("calModalTitle").textContent = event ? (readOnly ? "Event (read-only)" : "Edit Event") : "New Event";
     document.getElementById("calModalName").value = event ? event.title : "";
     document.getElementById("calModalDesc").value = event ? (event.description || "") : "";
-    document.getElementById("calModalStart").value = event ? toLocalInput(event.start) : (defaultStart || "");
+    document.getElementById("calModalLocation").value = event ? (event.location || "") : "";
+    document.getElementById("calModalAttendees").value = event && event.attendees ? event.attendees.join(", ") : "";
+    document.getElementById("calModalStart").value = (event && !event.allDay) ? toLocalInput(event.start) : (defaultStart || "");
     var defaultEnd = "";
     if (defaultStart) { var de = new Date(defaultStart); de.setHours(de.getHours() + 1); defaultEnd = toLocalInput(de.toISOString()); }
-    document.getElementById("calModalEnd").value = event ? toLocalInput(event.end) : defaultEnd;
+    document.getElementById("calModalEnd").value = (event && !event.allDay) ? toLocalInput(event.end) : defaultEnd;
+    document.getElementById("calModalStartDate").value = (event && event.allDay) ? String(event.start).slice(0, 10) : String(defaultStart || "").slice(0, 10);
+    document.getElementById("calModalEndDate").value = (event && event.allDay) ? String(event.end || event.start).slice(0, 10) : String(defaultStart || "").slice(0, 10);
+    // an existing event keeps its own shape; a new one starts as a Meeting
+    applyCalType(event ? (event.allDay ? "allday" : ((event.attendees && event.attendees.length) ? "meeting" : "appointment")) : "meeting", true);
+    document.getElementById("calTypeRow").style.display = event ? "none" : "";
     fillCalendarPicker(event ? event.accountId : null, event ? event.calendarId : null, !!event);
-    ["calModalName", "calModalDesc", "calModalStart", "calModalEnd"].forEach(function (id) { document.getElementById(id).disabled = readOnly; });
+    ["calModalName", "calModalDesc", "calModalStart", "calModalEnd", "calModalLocation", "calModalAttendees", "calModalStartDate", "calModalEndDate"].forEach(function (id) { document.getElementById(id).disabled = readOnly; });
     document.getElementById("calModalSave").style.display = readOnly ? "none" : "";
     document.getElementById("calModalDelete").style.display = (event && !readOnly) ? "" : "none";
     document.getElementById("calEventModal").style.display = "flex";
@@ -3079,25 +3191,47 @@
   function saveCalEvent() {
     var title = document.getElementById("calModalName").value.trim();
     if (!title) { alert("Please enter a title."); return; }
-    var startLocal = document.getElementById("calModalStart").value;
-    if (!startLocal) { alert("Please choose a start time."); return; }
-    var endLocal = document.getElementById("calModalEnd").value || startLocal;
-    var start = new Date(startLocal).toISOString();
-    var end = new Date(endLocal).toISOString();
-    if (new Date(end) < new Date(start)) { alert("The end time is before the start time."); return; }
-    var desc = document.getElementById("calModalDesc").value.trim();
-    var picked = document.getElementById("calModalCalendar").value.split("|");
-    var payload = { accountId: picked[0], calendarId: picked.slice(1).join("|"), title: title, start: start, end: end, description: desc };
+    var isAllDay = (CAL_TYPES[calModalType] || {}).allDay === true;
+    var start, end;
+    if (isAllDay) {
+      var sd = document.getElementById("calModalStartDate").value;
+      if (!sd) { alert("Please choose a date."); return; }
+      var ed = document.getElementById("calModalEndDate").value || sd;
+      if (ed < sd) { alert("The end date is before the start date."); return; }
+      start = sd; end = ed;
+    } else {
+      var startLocal = document.getElementById("calModalStart").value;
+      if (!startLocal) { alert("Please choose a start time."); return; }
+      var endLocal = document.getElementById("calModalEnd").value || startLocal;
+      start = new Date(startLocal).toISOString();
+      end = new Date(endLocal).toISOString();
+      if (new Date(end) < new Date(start)) { alert("The end time is before the start time."); return; }
+    }
+    var attendees = document.getElementById("calModalAttendees").value
+      .split(/[,;\s]+/).map(function (x) { return x.trim(); })
+      .filter(function (x) { return x && x.indexOf("@") > 0; });
+    var payload = {
+      title: title, start: start, end: end, allDay: isAllDay,
+      description: document.getElementById("calModalDesc").value.trim(),
+      location: document.getElementById("calModalLocation").value.trim(),
+      attendees: attendees
+    };
     var method = "POST";
     if (calEditingEvent) {
       method = "PUT";
       payload.accountId = calEditingEvent.accountId;
       payload.calendarId = calEditingEvent.calendarId;
       payload.eventId = calEditingEvent.externalId;
+    } else {
+      var picked = document.getElementById("calModalCalendar").value.split("|");
+      payload.accountId = picked[0];
+      payload.calendarId = picked.slice(1).join("|");
     }
+    var btn = document.getElementById("calModalSave");
+    btn.disabled = true;
     fetch("/api/calendar/events", { method: method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
-      .then(function (r) { if (!r.ok) throw new Error(); closeCalModal(); loadCalendarEvents(); })
-      .catch(function () { alert("Couldn't save that event. Please try again."); });
+      .then(function (r) { if (!r.ok) throw new Error(); btn.disabled = false; closeCalModal(); loadCalendarEvents(); })
+      .catch(function () { btn.disabled = false; alert("Couldn't save that event. Please try again."); });
   }
 
   function deleteCalEvent() {
@@ -3111,6 +3245,80 @@
   document.getElementById("calEventModal").addEventListener("click", function (e) {
     if (e.target === this) closeCalModal();
   });
+
+  // ---------------- Claude assistant ----------------
+  // The API key stays on the server; this panel just posts the conversation and
+  // shows the reply. The server answers using only this user's own data.
+  var aiMessages = [];   // [{ role, content }]
+  var aiBusy = false;
+
+  function aiRender() {
+    var box = document.getElementById("aiMessages");
+    box.innerHTML = "";
+    if (!aiMessages.length) {
+      box.appendChild(el("div", "ai-empty", { text: "Claude can see your boards, tasks, to-dos and upcoming calendar. Try:\n\n\u2022 What should I focus on today?\n\u2022 Summarize what's open on Avenium Life\n\u2022 Draft a follow-up note to Larry about the funding agreement" }));
+      return;
+    }
+    aiMessages.forEach(function (m) {
+      box.appendChild(el("div", "ai-msg " + (m.role === "user" ? "user" : (m.error ? "error" : "assistant")), { text: m.content }));
+    });
+    if (aiBusy) box.appendChild(el("div", "ai-msg assistant", { text: "Thinking\u2026" }));
+    box.scrollTop = box.scrollHeight;
+  }
+
+  function aiSend() {
+    var input = document.getElementById("aiInput");
+    var text = input.value.trim();
+    if (!text || aiBusy) return;
+    aiMessages.push({ role: "user", content: text });
+    input.value = "";
+    aiBusy = true;
+    document.getElementById("aiSend").disabled = true;
+    aiRender();
+    fetch("/api/assistant/chat", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: aiMessages.map(function (m) { return { role: m.role, content: m.content }; }) })
+    }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (res) {
+        aiBusy = false;
+        document.getElementById("aiSend").disabled = false;
+        if (res.ok && res.d.reply) aiMessages.push({ role: "assistant", content: res.d.reply });
+        else aiMessages.push({ role: "assistant", error: true, content: res.d && res.d.error === "assistant_not_configured"
+          ? "Claude isn't switched on yet — an ANTHROPIC_API_KEY needs adding in Render."
+          : "Couldn't reach Claude just now. Please try again." });
+        aiRender();
+      })
+      .catch(function () {
+        aiBusy = false;
+        document.getElementById("aiSend").disabled = false;
+        aiMessages.push({ role: "assistant", error: true, content: "Couldn't reach Claude just now. Please try again." });
+        aiRender();
+      });
+  }
+
+  function aiOpen() {
+    document.getElementById("aiPanel").style.display = "flex";
+    document.getElementById("aiLauncher").style.display = "none";
+    aiRender();
+    document.getElementById("aiInput").focus();
+  }
+  function aiClose() {
+    document.getElementById("aiPanel").style.display = "none";
+    document.getElementById("aiLauncher").style.display = "";
+  }
+
+  document.getElementById("aiLauncher").addEventListener("click", aiOpen);
+  document.getElementById("aiClose").addEventListener("click", aiClose);
+  document.getElementById("aiSend").addEventListener("click", aiSend);
+  document.getElementById("aiClear").addEventListener("click", function () { aiMessages = []; aiRender(); });
+  document.getElementById("aiInput").addEventListener("keydown", function (e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); aiSend(); }
+  });
+
+  // only show the launcher if the server actually has a key configured
+  fetch("/api/assistant/status").then(function (r) { return r.json(); }).then(function (d) {
+    if (d && d.enabled) document.getElementById("aiLauncher").style.display = "";
+  }).catch(function () {});
 
   // ---------------- auth / topbar wiring ----------------
 
