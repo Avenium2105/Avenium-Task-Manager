@@ -114,6 +114,110 @@ const BUILTIN_CALENDARS = [
   { id: "usa", name: "US Holidays", color: "#4C7A9E" }
 ];
 
+// ---- Local (app-native) events ----
+// Stored on disk, no Google/Outlook needed. Each user gets their own set.
+// Recurring events are stored once; expansion happens at read time.
+const LOCAL_EVENTS_FILE = path.join(DATA_DIR, "local-events.json");
+let localEvents = [];
+try { localEvents = JSON.parse(fs.readFileSync(LOCAL_EVENTS_FILE, "utf8")); } catch (e) { localEvents = []; }
+function persistLocalEvents() {
+  fs.writeFile(LOCAL_EVENTS_FILE, JSON.stringify(localEvents, null, 2), () => {});
+}
+
+// ---- Hebrew date conversion ----
+// Uses the browser/Node built-in Intl.DateTimeFormat with the Hebrew calendar,
+// which is accurate and maintained by ICU — no hand-rolled arithmetic needed.
+const _hebFmt = new Intl.DateTimeFormat("en-u-ca-hebrew", { day: "numeric", month: "long", year: "numeric" });
+
+function gregorianToHebrew(gyear, gmonth, gday) {
+  const d = new Date(gyear, gmonth - 1, gday, 12);
+  const parts = _hebFmt.formatToParts(d);
+  const obj = {};
+  parts.forEach((p) => { obj[p.type] = p.value; });
+  return { year: Number(obj.year), month: 0, day: Number(obj.day), monthName: obj.month || "" };
+}
+
+// Convert a Hebrew date to Gregorian by searching forward from an estimate.
+// Used for Jewish-yearly recurrence: given a Hebrew month+day, find the
+// Gregorian date in every Hebrew year that falls within a range.
+function hebrewToGregorian(hYear, hMonthName, hDay) {
+  // Estimate: Tishrei of Hebrew year N falls around September of Gregorian year N-3761
+  var gYearEst = hYear - 3761;
+  // Hebrew months in rough chronological order starting from Tishrei
+  var monthOrder = ["Tishri", "Heshvan", "Kislev", "Tevet", "Shevat", "Adar", "Adar I", "Adar II", "Nisan", "Iyar", "Sivan", "Tamuz", "Av", "Elul"];
+  var mIdx = monthOrder.indexOf(hMonthName);
+  // Months Nisan–Elul (index 7+) fall in the next Gregorian year
+  var gMonth = mIdx >= 7 ? (mIdx - 7) * 30 + 90 : mIdx * 30; // rough day offset from Sept
+  var startSearch = new Date(gYearEst, 8 + Math.floor(gMonth / 30), 1); // start of estimated month
+  startSearch.setDate(startSearch.getDate() - 15); // back up 15 days for safety
+  for (var i = 0; i < 60; i++) {
+    var test = new Date(startSearch);
+    test.setDate(test.getDate() + i);
+    var heb = gregorianToHebrew(test.getFullYear(), test.getMonth() + 1, test.getDate());
+    if (heb.day === hDay && heb.monthName === hMonthName && heb.year === hYear) {
+      return { year: test.getFullYear(), month: test.getMonth() + 1, day: test.getDate() };
+    }
+  }
+  return null; // date doesn't exist in this year (e.g. 30 Heshvan in a short year)
+}
+
+// Expand a single local event into all its occurrences within a date range
+function expandLocalEvent(ev, startDate, endDate) {
+  if (!ev.repeat || ev.repeat === "none") {
+    var evDate = (ev.allDay ? ev.start : ev.start).slice(0, 10);
+    if (evDate >= startDate && evDate <= endDate) return [ev];
+    return [];
+  }
+  var results = [];
+  var until = ev.repeatUntil || endDate;
+  if (until < startDate) return [];
+
+  if (ev.repeat === "jewish-yearly") {
+    // Recur on the same Hebrew date each year
+    var origDate = new Date(ev.start.slice(0, 10) + "T12:00:00");
+    var heb = gregorianToHebrew(origDate.getFullYear(), origDate.getMonth() + 1, origDate.getDate());
+    var startY = parseInt(startDate.slice(0, 4));
+    var endY = parseInt(endDate.slice(0, 4));
+    // Hebrew years that could overlap our Gregorian range
+    for (var hy = heb.year - 1; hy <= heb.year + (endY - startY) + 2; hy++) {
+      var greg = hebrewToGregorian(hy, heb.monthName, heb.day);
+      if (!greg) continue;
+      var d = greg.year + "-" + String(greg.month).padStart(2, "0") + "-" + String(greg.day).padStart(2, "0");
+      if (d >= startDate && d <= endDate && d <= until) {
+        results.push({ ...ev, start: d, end: d, _instanceDate: d });
+      }
+    }
+    return results;
+  }
+
+  // Secular recurrence: daily, weekly, monthly, yearly
+  var cur = new Date(ev.start.slice(0, 10) + "T12:00:00");
+  var maxIter = 1500;
+  while (maxIter-- > 0) {
+    var key = cur.getFullYear() + "-" + String(cur.getMonth() + 1).padStart(2, "0") + "-" + String(cur.getDate()).padStart(2, "0");
+    if (key > until) break;
+    if (key >= startDate && key <= endDate) {
+      if (ev.allDay) {
+        results.push({ ...ev, start: key, end: key, _instanceDate: key });
+      } else {
+        var origStart = new Date(ev.start);
+        var origEnd = ev.end ? new Date(ev.end) : null;
+        var diff = origEnd ? (origEnd - origStart) : 3600000;
+        var instStart = new Date(cur);
+        instStart.setHours(origStart.getHours(), origStart.getMinutes(), 0, 0);
+        var instEnd = new Date(instStart.getTime() + diff);
+        results.push({ ...ev, start: instStart.toISOString(), end: instEnd.toISOString(), _instanceDate: key });
+      }
+    }
+    if (ev.repeat === "daily") cur.setDate(cur.getDate() + 1);
+    else if (ev.repeat === "weekly") cur.setDate(cur.getDate() + 7);
+    else if (ev.repeat === "monthly") cur.setMonth(cur.getMonth() + 1);
+    else if (ev.repeat === "yearly") cur.setFullYear(cur.getFullYear() + 1);
+    else break;
+  }
+  return results;
+}
+
 // Jewish holidays come from Hebcal's free public API — no account or key.
 // Major + minor holidays, fast days and special Shabbatot, diaspora dates.
 // Titles only: Hebcal's "memo" descriptions are deliberately dropped.
@@ -1912,7 +2016,10 @@ app.get("/api/calendar/accounts", requireAuth, async (req, res) => {
     }
   }));
   const builtin = BUILTIN_CALENDARS.map((c) => ({ ...c, key: "builtin|" + c.id, visible: !hidden.has("builtin|" + c.id) }));
-  res.json({ accounts: out, builtin, googleConfigured: !!GOOGLE_CLIENT_ID, microsoftConfigured: !!MICROSOFT_CLIENT_ID });
+  const localCal = { id: "local", provider: "local", email: "", calendars: [
+    { id: "avenium", key: "local|avenium", name: "Avenium", canEdit: true, primary: true, visible: !hidden.has("local|avenium") }
+  ] };
+  res.json({ accounts: [localCal, ...out], builtin, googleConfigured: !!GOOGLE_CLIENT_ID, microsoftConfigured: !!MICROSOFT_CLIENT_ID });
 });
 
 // Show / hide one calendar on this user's own view
@@ -1920,7 +2027,7 @@ app.post("/api/calendar/visibility", requireAuth, (req, res) => {
   const { key, visible } = req.body || {};
   if (typeof key !== "string" || !key) return res.status(400).json({ error: "invalid_request" });
   const accountId = key.split("|")[0];
-  if (accountId !== "builtin" && !getAccount(req.session.userId, accountId)) return res.status(404).json({ error: "not_found" });
+  if (accountId !== "builtin" && accountId !== "local" && !getAccount(req.session.userId, accountId)) return res.status(404).json({ error: "not_found" });
   setCalendarVisible(req.session.userId, key, !!visible);
   res.json({ ok: true });
 });
@@ -1966,13 +2073,42 @@ app.get("/api/calendar/events", requireAuth, async (req, res) => {
       }));
     } catch (e) {}
   }));
+  // ---- Local (app-native) events ----
+  if (!hidden.has("local|avenium")) {
+    const startDate = timeMin.slice(0, 10);
+    const endDate = timeMax.slice(0, 10);
+    const userLocal = localEvents.filter((e) => e.userId === req.session.userId);
+    userLocal.forEach((ev) => {
+      const instances = expandLocalEvent(ev, startDate, endDate);
+      instances.forEach((inst) => all.push({
+        ...inst, provider: "local", accountId: "local", accountEmail: "",
+        calendarId: "avenium", calendarName: "Avenium", color: "#3C5A46", canEdit: true,
+        externalId: ev.id
+      }));
+    });
+  }
   res.json({ events: all });
 });
 
 app.post("/api/calendar/events", requireAuth, async (req, res) => {
   const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil } = req.body || {};
+  if (!title || !start) return res.status(400).json({ error: "invalid_request" });
+
+  // Local (app-native) event — no provider call needed
+  if (accountId === "local") {
+    const id = "lev_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    localEvents.push({
+      id, userId: req.session.userId, title, start, end: end || start, allDay: !!allDay,
+      description: description || "", location: location || "",
+      attendees: attendees || [], repeat: repeat || "none",
+      repeatUntil: repeatUntil || "", createdAt: new Date().toISOString()
+    });
+    persistLocalEvents();
+    return res.json({ ok: true });
+  }
+
   const acct = getAccount(req.session.userId, accountId);
-  if (!acct || !calendarId || !title || !start) return res.status(400).json({ error: "invalid_request" });
+  if (!acct || !calendarId) return res.status(400).json({ error: "invalid_request" });
   try {
     const a = await freshToken(acct);
     const ev = { title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil };
@@ -1987,6 +2123,22 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
 
 app.put("/api/calendar/events", requireAuth, async (req, res) => {
   const { accountId, calendarId, eventId, title, start, end, description, location, attendees, allDay, reminderMinutes } = req.body || {};
+
+  // Local event edit
+  if (accountId === "local") {
+    const ev = localEvents.find((e) => e.id === eventId && e.userId === req.session.userId);
+    if (!ev) return res.status(404).json({ error: "not_found" });
+    if (title) ev.title = title;
+    if (start) ev.start = start;
+    if (end) ev.end = end;
+    ev.allDay = !!allDay;
+    if (description != null) ev.description = description;
+    if (location != null) ev.location = location;
+    if (attendees) ev.attendees = attendees;
+    persistLocalEvents();
+    return res.json({ ok: true });
+  }
+
   const acct = getAccount(req.session.userId, accountId);
   if (!acct || !eventId) return res.status(400).json({ error: "invalid_request" });
   try {
@@ -2003,6 +2155,16 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
 
 app.delete("/api/calendar/events", requireAuth, async (req, res) => {
   const { accountId, calendarId, eventId } = req.query;
+
+  // Local event delete
+  if (accountId === "local") {
+    const idx = localEvents.findIndex((e) => e.id === eventId && e.userId === req.session.userId);
+    if (idx === -1) return res.status(404).json({ error: "not_found" });
+    localEvents.splice(idx, 1);
+    persistLocalEvents();
+    return res.json({ ok: true });
+  }
+
   const acct = getAccount(req.session.userId, accountId);
   if (!acct || !eventId) return res.status(400).json({ error: "invalid_request" });
   try {
@@ -2012,6 +2174,25 @@ app.delete("/api/calendar/events", requireAuth, async (req, res) => {
     invalidateCalendarCache(`ev:${a.id}:`);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Hebrew dates for a range of Gregorian dates — used by the frontend to show
+// Hebrew dates on the calendar grid without an external API call
+app.get("/api/calendar/hebrew-dates", requireAuth, (req, res) => {
+  const start = req.query.start; // "2026-09-01"
+  const end = req.query.end;     // "2026-10-12"
+  if (!start || !end) return res.status(400).json({ error: "invalid_request" });
+  const results = {};
+  var cur = new Date(start + "T12:00:00");
+  var stop = new Date(end + "T12:00:00");
+  var safety = 60; // max ~42 days per grid + buffer
+  while (cur <= stop && safety-- > 0) {
+    var key = cur.getFullYear() + "-" + String(cur.getMonth() + 1).padStart(2, "0") + "-" + String(cur.getDate()).padStart(2, "0");
+    var heb = gregorianToHebrew(cur.getFullYear(), cur.getMonth() + 1, cur.getDate());
+    results[key] = { day: heb.day, month: heb.monthName, year: heb.year };
+    cur.setDate(cur.getDate() + 1);
+  }
+  res.json({ dates: results });
 });
 
 // ---- Claude assistant ----
