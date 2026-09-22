@@ -498,18 +498,17 @@
   .cal-legend-item.active { background: var(--pine-soft); color: var(--pine); font-weight: 600; }
   .cal-legend-item .cal-swatch { margin-top: 3px; }
   /* agenda takes over the grid area when a calendar is clicked */
-  .cal-grid.cal-agenda { display: block; overflow-y: auto; padding-right: 4px; }
-  .cal-agenda-head { display: flex; align-items: center; gap: 8px; padding: 2px 0 10px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+  .cal-grid.cal-agenda { display: flex !important; flex-direction: column !important; grid-template-columns: none !important; grid-template-rows: none !important; overflow-y: auto; padding: 0 4px 0 0; gap: 0 !important; }
+  .cal-agenda-head { display: flex; align-items: center; gap: 8px; padding: 6px 0 12px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
   .cal-agenda-title { font-weight: 600; font-size: 14px; color: var(--ink); flex: 1; min-width: 0; }
-  .cal-agenda-back { font-family: inherit; font-size: 12.5px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg-raised); color: var(--ink-soft); cursor: pointer; }
+  .cal-agenda-back { font-family: inherit; font-size: 12.5px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg-raised); color: var(--ink-soft); cursor: pointer; flex-shrink: 0; }
   .cal-agenda-back:hover { border-color: var(--pine); color: var(--pine); }
-  .cal-agenda-day { font-size: 12px; font-weight: 700; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.04em; margin: 14px 0 6px; }
-  .cal-agenda-row { display: flex; gap: 12px; width: 100%; text-align: left; font-family: inherit; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; margin-bottom: 5px; cursor: pointer; }
-  .cal-agenda-row:hover { border-color: var(--pine); background: var(--bg); }
-  .cal-agenda-time { flex: 0 0 82px; font-size: 12.5px; color: var(--ink-soft); }
-  .cal-agenda-main { display: flex; flex-direction: column; min-width: 0; }
-  .cal-agenda-name { font-size: 13.5px; color: var(--ink); }
-  .cal-agenda-loc { font-size: 12px; color: var(--ink-faint); }
+  .cal-agenda-day { font-size: 11px; font-weight: 700; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.04em; padding: 14px 0 4px; }
+  .cal-agenda-row { display: flex; align-items: baseline; gap: 0; width: 100%; text-align: left; font-family: inherit; background: none; border: none; border-bottom: 1px solid var(--line-soft); padding: 7px 4px; cursor: pointer; }
+  .cal-agenda-row:hover { background: var(--bg); }
+  .cal-agenda-date { flex: 0 0 110px; font-size: 12px; color: var(--ink-faint); }
+  .cal-agenda-time { flex: 0 0 72px; font-size: 12px; color: var(--ink-soft); }
+  .cal-agenda-name { font-size: 13px; color: var(--ink); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cal-agenda-empty { color: var(--ink-faint); font-size: 13px; padding: 20px 0; }
   .cal-legend-account { font-size: 11px; font-weight: 600; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 4px; word-break: break-all; }
   .cal-event-pill { background: #1a73e8; }
@@ -3263,21 +3262,14 @@
       grid.appendChild(el("div", "cal-agenda-empty", { text: "Nothing on this calendar in " + calViewDate.toLocaleDateString(undefined, { month: "long", year: "numeric" }) + "." }));
       return;
     }
-    var lastDay = "";
     evs.forEach(function (ev) {
-      var key = calDayKey(ev);
-      if (key !== lastDay) {
-        lastDay = key;
-        var d = new Date(key + "T12:00:00");
-        grid.appendChild(el("div", "cal-agenda-day", { text: d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }) }));
-      }
       var row = el("button", "cal-agenda-row", { type: "button" });
+      var d = new Date(calDayKey(ev) + "T12:00:00");
+      var dateStr = d.toLocaleDateString(undefined, { month: "short", day: "numeric", weekday: "short" });
+      row.appendChild(el("span", "cal-agenda-date", { text: dateStr }));
       var time = ev.allDay ? "All day" : new Date(ev.start).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
       row.appendChild(el("span", "cal-agenda-time", { text: time }));
-      var mid = el("span", "cal-agenda-main");
-      mid.appendChild(el("span", "cal-agenda-name", { text: ev.title }));
-      if (ev.location) mid.appendChild(el("span", "cal-agenda-loc", { text: ev.location }));
-      row.appendChild(mid);
+      row.appendChild(el("span", "cal-agenda-name", { text: ev.title }));
       row.onclick = function () { openCalModal(ev); };
       grid.appendChild(row);
     });
