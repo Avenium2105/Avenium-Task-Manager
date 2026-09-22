@@ -24,7 +24,16 @@
      scrollbar's ~15px every time you switch — which shifts the centered logo and
      the right-aligned Boards/Admin/Log out links sideways, making the nav bar
      look like a different bar on each view. */
-  html { overflow-y: scroll; scrollbar-gutter: stable; }
+  /* Reserve scrollbar space so page width stays constant whether or not the
+     current view is long enough to scroll — prevents the nav bar from shifting
+     sideways when switching between Boards (long) and Admin/Calendar (short).
+     scrollbar-gutter:stable does this without forcing a visible scrollbar on
+     short pages, which is what overflow-y:scroll was doing and could interfere
+     with position:sticky on the topnav in some browsers. */
+  html { scrollbar-gutter: stable; }
+  /* Ensure the topnav always has a defined minimum height even before the
+     logo image loads, so --nav-h is never measured as 0. */
+  .topnav { min-height: 67px; }
   body { font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; min-height: 100vh; }
 
   /* Top nav bar — inlined directly here (no separate /nav.css request) so there's
