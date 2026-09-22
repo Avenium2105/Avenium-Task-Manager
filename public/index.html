@@ -574,6 +574,9 @@
   .cal-repeat-options { display: flex; align-items: center; gap: 8px; padding-left: 22px; }
   .cal-repeat-options select { flex: 1 1 0; min-width: 0; width: auto; }
   .cal-repeat-options input[type="date"] { flex: 1 1 0; min-width: 0; width: auto; }
+  .cal-hebrew-date-pick { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; margin-top: 4px; }
+  .cal-hebrew-date-pick input[type="number"] { width: 60px !important; flex: 0 0 60px; text-align: center; }
+  .cal-hebrew-date-pick select { flex: 1 1 0; min-width: 0; width: auto; }
   .cal-details-group { display: flex; flex-direction: column; gap: 8px; }
   .cal-details-group input { width: 100%; }
   .cal-calendar-pick { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
@@ -941,6 +944,26 @@
               <option value="jewish-yearly">Yearly (Jewish)</option>
             </select>
             <input id="calModalRepeatUntil" type="date" title="Until (optional)" style="display:none;">
+          </div>
+          <div id="calHebrewDatePick" class="cal-hebrew-date-pick" style="display:none;">
+            <span class="cal-date-row-label">On</span>
+            <input id="calHebrewDay" type="number" min="1" max="30" placeholder="Day">
+            <select id="calHebrewMonth">
+              <option value="Tishri">Tishrei</option>
+              <option value="Heshvan">Cheshvan</option>
+              <option value="Kislev">Kislev</option>
+              <option value="Tevet">Tevet</option>
+              <option value="Shevat">Shevat</option>
+              <option value="Adar">Adar</option>
+              <option value="Adar I">Adar I</option>
+              <option value="Adar II">Adar II</option>
+              <option value="Nisan">Nisan</option>
+              <option value="Iyar">Iyar</option>
+              <option value="Sivan">Sivan</option>
+              <option value="Tamuz">Tammuz</option>
+              <option value="Av">Av</option>
+              <option value="Elul">Elul</option>
+            </select>
           </div>
         </div>
 
@@ -3148,10 +3171,14 @@
         if (on) {
           var val = document.getElementById("calModalRepeat").value;
           document.getElementById("calModalRepeatUntil").style.display = val !== "daily" ? "" : "none";
+          updateHebrewDatePick(val);
+        } else {
+          document.getElementById("calHebrewDatePick").style.display = "none";
         }
       };
       document.getElementById("calModalRepeat").onchange = function () {
         document.getElementById("calModalRepeatUntil").style.display = this.value === "daily" ? "none" : "";
+        updateHebrewDatePick(this.value);
       };
     }
     if (calendarAccounts.length || builtinCalendars.length) {
@@ -3596,6 +3623,37 @@
 
   function calIsAllDay() { return document.getElementById("calWhenAllDay").checked; }
 
+  function updateHebrewDatePick(repeatVal) {
+    var isJewish = repeatVal === "jewish-monthly" || repeatVal === "jewish-yearly";
+    var pick = document.getElementById("calHebrewDatePick");
+    pick.style.display = isJewish ? "flex" : "none";
+    if (!isJewish) return;
+    // Pre-fill from the start date if the fields are empty
+    var dayEl = document.getElementById("calHebrewDay");
+    var monthEl = document.getElementById("calHebrewMonth");
+    if (dayEl.value) return; // already filled
+    // Get the start date from whichever fields are active
+    var startDate = calIsAllDay()
+      ? document.getElementById("calModalStartDateOnly").value
+      : document.getElementById("calModalStartDate2").value;
+    if (!startDate) return;
+    // Fetch the Hebrew date for this Gregorian date
+    fetch("/api/calendar/hebrew-dates?start=" + startDate + "&end=" + startDate)
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (d.dates && d.dates[startDate]) {
+          var heb = d.dates[startDate];
+          if (!dayEl.value) dayEl.value = heb.day;
+          if (monthEl.value === "Tishri" && heb.month !== "Tishri") monthEl.value = heb.month;
+          // For monthly, hide the month selector — it repeats every month on that day
+          document.getElementById("calHebrewMonth").style.display = repeatVal === "jewish-monthly" ? "none" : "";
+        }
+      })
+      .catch(function () {});
+    // For monthly, hide month selector immediately
+    document.getElementById("calHebrewMonth").style.display = repeatVal === "jewish-monthly" ? "none" : "";
+  }
+
   function applyWhenToggle() {
     var allDay = calIsAllDay();
     document.getElementById("calTimedFields").style.display = allDay ? "none" : "";
@@ -3670,6 +3728,14 @@
     document.getElementById("calModalRepeatUntil").value = (hasRepeat && event.repeatUntil) ? event.repeatUntil : "";
     var repeatVal = document.getElementById("calModalRepeat").value;
     document.getElementById("calModalRepeatUntil").style.display = (hasRepeat && repeatVal !== "daily") ? "" : "none";
+    // Hebrew date picker — pre-fill if event has stored Hebrew date, otherwise clear
+    document.getElementById("calHebrewDay").value = (event && event.hebrewDay) ? event.hebrewDay : "";
+    document.getElementById("calHebrewMonth").value = (event && event.hebrewMonth) ? event.hebrewMonth : "Tishri";
+    if (hasRepeat) {
+      updateHebrewDatePick(repeatVal);
+    } else {
+      document.getElementById("calHebrewDatePick").style.display = "none";
+    }
 
     applyCalType(event ? ((event.attendees && event.attendees.length) ? "meeting" : "appointment") : "meeting", true);
     document.getElementById("calTypeRow").style.display = event ? "none" : "";
@@ -3734,6 +3800,14 @@
       payload.repeat = repeat;
       var until = document.getElementById("calModalRepeatUntil").value;
       if (until) payload.repeatUntil = until;
+      // Hebrew date for Jewish repeat options
+      if (repeat === "jewish-monthly" || repeat === "jewish-yearly") {
+        var hebDay = parseInt(document.getElementById("calHebrewDay").value);
+        var hebMonth = document.getElementById("calHebrewMonth").value;
+        if (!hebDay || hebDay < 1 || hebDay > 30) { alert("Please enter a valid Hebrew day (1-30)."); return; }
+        payload.hebrewDay = hebDay;
+        if (repeat === "jewish-yearly") payload.hebrewMonth = hebMonth;
+      }
     }
     // Calendar selection
     var method = "POST";

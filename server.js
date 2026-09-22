@@ -145,20 +145,34 @@ function gregorianToHebrew(gyear, gmonth, gday) {
   return { year: Number(obj.year), month: 0, day: Number(obj.day), monthName: obj.month || "" };
 }
 
-// Convert a Hebrew date to Gregorian by searching forward from an estimate.
-// Used for Jewish-yearly recurrence: given a Hebrew month+day, find the
-// Gregorian date in every Hebrew year that falls within a range.
+// Convert a Hebrew date to Gregorian by searching from an estimate.
+// Used for Jewish recurrence: given a Hebrew month+day, find the
+// Gregorian date in a specific Hebrew year.
 function hebrewToGregorian(hYear, hMonthName, hDay) {
-  // Estimate: Tishrei of Hebrew year N falls around September of Gregorian year N-3761
+  // Hebrew year N starts in Sept/Oct of Gregorian year N-3761.
+  // Tishrei–Adar fall in that Sept–Mar window; Nisan–Elul fall in the following Mar–Sept.
   var gYearEst = hYear - 3761;
-  // Hebrew months in rough chronological order starting from Tishrei
   var monthOrder = ["Tishri", "Heshvan", "Kislev", "Tevet", "Shevat", "Adar", "Adar I", "Adar II", "Nisan", "Iyar", "Sivan", "Tamuz", "Av", "Elul"];
   var mIdx = monthOrder.indexOf(hMonthName);
-  // Months Nisan–Elul (index 7+) fall in the next Gregorian year
-  var gMonth = mIdx >= 7 ? (mIdx - 7) * 30 + 90 : mIdx * 30; // rough day offset from Sept
-  var startSearch = new Date(gYearEst, 8 + Math.floor(gMonth / 30), 1); // start of estimated month
-  startSearch.setDate(startSearch.getDate() - 15); // back up 15 days for safety
-  for (var i = 0; i < 60; i++) {
+  if (mIdx < 0) return null;
+  // Rough Gregorian month: Tishri=Sept, Heshvan=Oct, ... Nisan=Mar(+1y), Iyar=Apr(+1y), etc.
+  var gMonthEst, gYearAdj = gYearEst;
+  if (mIdx <= 5) {
+    // Tishri(0)=Sep, Heshvan(1)=Oct, Kislev(2)=Nov, Tevet(3)=Dec, Shevat(4)=Jan+1, Adar(5)=Feb+1
+    gMonthEst = 8 + mIdx; // 0-indexed: 8=Sept
+    if (gMonthEst >= 12) { gMonthEst -= 12; gYearAdj++; }
+  } else if (mIdx <= 7) {
+    // Adar I(6)=Feb+1, Adar II(7)=Mar+1
+    gMonthEst = mIdx - 5; // 1=Feb, 2=Mar
+    gYearAdj++;
+  } else {
+    // Nisan(8)=Mar+1, Iyar(9)=Apr+1, ... Elul(13)=Aug+1
+    gMonthEst = mIdx - 6; // 2=Mar, 3=Apr, ... 7=Aug
+    gYearAdj++;
+  }
+  var startSearch = new Date(gYearAdj, gMonthEst, 1);
+  startSearch.setDate(startSearch.getDate() - 30); // back up generously for leap year shifts
+  for (var i = 0; i < 90; i++) {
     var test = new Date(startSearch);
     test.setDate(test.getDate() + i);
     var heb = gregorianToHebrew(test.getFullYear(), test.getMonth() + 1, test.getDate());
@@ -166,7 +180,7 @@ function hebrewToGregorian(hYear, hMonthName, hDay) {
       return { year: test.getFullYear(), month: test.getMonth() + 1, day: test.getDate() };
     }
   }
-  return null; // date doesn't exist in this year (e.g. 30 Heshvan in a short year)
+  return null;
 }
 
 // Expand a single local event into all its occurrences within a date range
@@ -181,15 +195,26 @@ function expandLocalEvent(ev, startDate, endDate) {
   if (until < startDate) return [];
 
   if (ev.repeat === "jewish-yearly" || ev.repeat === "jewish-monthly") {
-    // Recur on the same Hebrew date each year or month
-    var origDate = new Date(ev.start.slice(0, 10) + "T12:00:00");
-    var heb = gregorianToHebrew(origDate.getFullYear(), origDate.getMonth() + 1, origDate.getDate());
+    // Use the explicitly stored Hebrew date if available, otherwise derive from start date
+    var hebDay, hebMonthName;
+    if (ev.hebrewDay) {
+      hebDay = ev.hebrewDay;
+      hebMonthName = ev.hebrewMonth || null; // null for monthly (repeats every month)
+    } else {
+      var origDate = new Date(ev.start.slice(0, 10) + "T12:00:00");
+      var heb = gregorianToHebrew(origDate.getFullYear(), origDate.getMonth() + 1, origDate.getDate());
+      hebDay = heb.day;
+      hebMonthName = heb.monthName;
+    }
     var startY = parseInt(startDate.slice(0, 4));
     var endY = parseInt(endDate.slice(0, 4));
+    // Estimate starting Hebrew year from the Gregorian range
+    var approxHebStart = startY + 3760;
 
     if (ev.repeat === "jewish-yearly") {
-      for (var hy = heb.year - 1; hy <= heb.year + (endY - startY) + 2; hy++) {
-        var greg = hebrewToGregorian(hy, heb.monthName, heb.day);
+      var searchMonth = hebMonthName || "Tishri";
+      for (var hy = approxHebStart - 1; hy <= approxHebStart + (endY - startY) + 2; hy++) {
+        var greg = hebrewToGregorian(hy, searchMonth, hebDay);
         if (!greg) continue;
         var d = greg.year + "-" + String(greg.month).padStart(2, "0") + "-" + String(greg.day).padStart(2, "0");
         if (d >= startDate && d <= endDate && d <= until) {
@@ -198,11 +223,10 @@ function expandLocalEvent(ev, startDate, endDate) {
       }
     } else {
       // jewish-monthly: same day of every Hebrew month
-      // Search through all Hebrew months in the range
       var MONTH_NAMES = ["Tishri", "Heshvan", "Kislev", "Tevet", "Shevat", "Adar", "Adar I", "Adar II", "Nisan", "Iyar", "Sivan", "Tamuz", "Av", "Elul"];
-      for (var hy2 = heb.year - 1; hy2 <= heb.year + (endY - startY) + 2; hy2++) {
+      for (var hy2 = approxHebStart - 1; hy2 <= approxHebStart + (endY - startY) + 2; hy2++) {
         for (var mi = 0; mi < MONTH_NAMES.length; mi++) {
-          var greg2 = hebrewToGregorian(hy2, MONTH_NAMES[mi], heb.day);
+          var greg2 = hebrewToGregorian(hy2, MONTH_NAMES[mi], hebDay);
           if (!greg2) continue;
           var d2 = greg2.year + "-" + String(greg2.month).padStart(2, "0") + "-" + String(greg2.day).padStart(2, "0");
           if (d2 >= startDate && d2 <= endDate && d2 <= until && d2 >= ev.start.slice(0, 10)) {
@@ -2121,18 +2145,21 @@ app.get("/api/calendar/events", requireAuth, async (req, res) => {
 });
 
 app.post("/api/calendar/events", requireAuth, async (req, res) => {
-  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil } = req.body || {};
+  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth } = req.body || {};
   if (!title || !start) return res.status(400).json({ error: "invalid_request" });
 
   // Local (app-native) event — no provider call needed
   if (accountId === "local") {
     const id = "lev_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-    localEvents.push({
+    const ev = {
       id, userId: req.session.userId, title, start, end: end || start, allDay: !!allDay,
       description: description || "", location: location || "",
       attendees: attendees || [], repeat: repeat || "none",
       repeatUntil: repeatUntil || "", createdAt: new Date().toISOString()
-    });
+    };
+    if (hebrewDay) ev.hebrewDay = hebrewDay;
+    if (hebrewMonth) ev.hebrewMonth = hebrewMonth;
+    localEvents.push(ev);
     persistLocalEvents();
     return res.json({ ok: true });
   }
@@ -2152,7 +2179,7 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
 });
 
 app.put("/api/calendar/events", requireAuth, async (req, res) => {
-  const { accountId, calendarId, eventId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, newAccountId, newCalendarId } = req.body || {};
+  const { accountId, calendarId, eventId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, newAccountId, newCalendarId } = req.body || {};
 
   // Moving to a different calendar?
   var moveTarget = (newAccountId && newCalendarId && (newAccountId !== accountId || newCalendarId !== calendarId))
@@ -2171,6 +2198,8 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
     if (attendees) ev.attendees = attendees;
     if (repeat !== undefined) ev.repeat = repeat || "none";
     if (repeatUntil !== undefined) ev.repeatUntil = repeatUntil || "";
+    if (hebrewDay !== undefined) ev.hebrewDay = hebrewDay || null;
+    if (hebrewMonth !== undefined) ev.hebrewMonth = hebrewMonth || null;
 
     if (moveTarget && moveTarget.accountId !== "local") {
       // Moving from local to Google/Outlook — create there and delete local
