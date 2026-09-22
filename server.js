@@ -172,19 +172,35 @@ function expandLocalEvent(ev, startDate, endDate) {
   var until = ev.repeatUntil || endDate;
   if (until < startDate) return [];
 
-  if (ev.repeat === "jewish-yearly") {
-    // Recur on the same Hebrew date each year
+  if (ev.repeat === "jewish-yearly" || ev.repeat === "jewish-monthly") {
+    // Recur on the same Hebrew date each year or month
     var origDate = new Date(ev.start.slice(0, 10) + "T12:00:00");
     var heb = gregorianToHebrew(origDate.getFullYear(), origDate.getMonth() + 1, origDate.getDate());
     var startY = parseInt(startDate.slice(0, 4));
     var endY = parseInt(endDate.slice(0, 4));
-    // Hebrew years that could overlap our Gregorian range
-    for (var hy = heb.year - 1; hy <= heb.year + (endY - startY) + 2; hy++) {
-      var greg = hebrewToGregorian(hy, heb.monthName, heb.day);
-      if (!greg) continue;
-      var d = greg.year + "-" + String(greg.month).padStart(2, "0") + "-" + String(greg.day).padStart(2, "0");
-      if (d >= startDate && d <= endDate && d <= until) {
-        results.push({ ...ev, start: d, end: d, _instanceDate: d });
+
+    if (ev.repeat === "jewish-yearly") {
+      for (var hy = heb.year - 1; hy <= heb.year + (endY - startY) + 2; hy++) {
+        var greg = hebrewToGregorian(hy, heb.monthName, heb.day);
+        if (!greg) continue;
+        var d = greg.year + "-" + String(greg.month).padStart(2, "0") + "-" + String(greg.day).padStart(2, "0");
+        if (d >= startDate && d <= endDate && d <= until) {
+          results.push({ ...ev, start: d, end: d, _instanceDate: d });
+        }
+      }
+    } else {
+      // jewish-monthly: same day of every Hebrew month
+      // Search through all Hebrew months in the range
+      var MONTH_NAMES = ["Tishri", "Heshvan", "Kislev", "Tevet", "Shevat", "Adar", "Adar I", "Adar II", "Nisan", "Iyar", "Sivan", "Tamuz", "Av", "Elul"];
+      for (var hy2 = heb.year - 1; hy2 <= heb.year + (endY - startY) + 2; hy2++) {
+        for (var mi = 0; mi < MONTH_NAMES.length; mi++) {
+          var greg2 = hebrewToGregorian(hy2, MONTH_NAMES[mi], heb.day);
+          if (!greg2) continue;
+          var d2 = greg2.year + "-" + String(greg2.month).padStart(2, "0") + "-" + String(greg2.day).padStart(2, "0");
+          if (d2 >= startDate && d2 <= endDate && d2 <= until && d2 >= ev.start.slice(0, 10)) {
+            results.push({ ...ev, start: d2, end: d2, _instanceDate: d2 });
+          }
+        }
       }
     }
     return results;

@@ -556,11 +556,23 @@
   .cal-modal-row { display: flex; align-items: center; gap: 8px; }
   .cal-modal-row input { flex: 1 1 0; min-width: 0; }
   .cal-modal-row span { color: var(--ink-faint); font-size: 12px; flex-shrink: 0; }
+  .cal-end-row { margin-top: 4px; }
+  .cal-end-to { color: var(--ink-faint); font-size: 12px; flex-shrink: 0; margin-right: 2px; }
+  .cal-end-label { flex-shrink: 0; }
+  .cal-when-row { display: flex; gap: 16px; align-items: center; }
+  .cal-radio-label { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--ink-soft); cursor: pointer; }
+  .cal-radio-label input { width: auto !important; margin: 0; cursor: pointer; }
+  .cal-repeat-check-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); cursor: pointer; }
+  .cal-repeat-check-label input { width: auto !important; margin: 0; cursor: pointer; }
   .cal-allday-row { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-soft); cursor: pointer; }
   .cal-allday-row input { width: auto !important; margin: 0; cursor: pointer; }
-  .cal-repeat-row { display: flex; align-items: center; gap: 8px; }
-  .cal-repeat-row label { font-size: 12.5px; color: var(--ink-soft); flex-shrink: 0; }
-  .cal-repeat-row select { flex: 1 1 0; min-width: 0; }
+  .cal-repeat-row { display: flex; flex-direction: column; gap: 8px; }
+  #calRepeatOptions { display: flex; align-items: center; gap: 8px; }
+  #calRepeatOptions select { flex: 1 1 0; min-width: 0; }
+  .cal-calendar-pick { display: flex; flex-direction: column; gap: 6px; }
+  .cal-calendar-pick label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); cursor: pointer; padding: 4px 0; }
+  .cal-calendar-pick label input { width: auto !important; margin: 0; cursor: pointer; }
+  .cal-calendar-pick .cal-swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
   .cal-event-modal-foot { padding: 14px 20px; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: flex-end; }
   .cal-event-modal-foot button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 18px; border: none; border-radius: 7px; cursor: pointer; }
   #calModalSave { background: var(--pine); color: var(--bg-raised); }
@@ -867,33 +879,48 @@
           <button type="button" data-type="call" class="cal-type-btn">Call</button>
         </div>
         <input id="calModalName" type="text" placeholder="Title" autocomplete="off">
-        <div class="cal-modal-row">
-          <input id="calModalStart" type="datetime-local">
-          <span>to</span>
-          <input id="calModalEnd" type="datetime-local">
+        <div class="cal-when-row">
+          <label class="cal-radio-label"><input type="radio" name="calWhen" value="timed" id="calWhenTimed" checked> Date &amp; Time</label>
+          <label class="cal-radio-label"><input type="radio" name="calWhen" value="allday" id="calWhenAllDay"> All Day</label>
         </div>
-        <div class="cal-modal-row" id="calDateRow" style="display:none;">
-          <input id="calModalStartDate" type="date">
-          <span>to</span>
-          <input id="calModalEndDate" type="date">
+        <div id="calTimedFields">
+          <div class="cal-modal-row">
+            <input id="calModalStartDate2" type="date">
+            <input id="calModalStartTime" type="time">
+          </div>
+          <div class="cal-modal-row cal-end-row">
+            <label class="cal-end-label"><span class="cal-end-to">to</span></label>
+            <input id="calModalEndDate2" type="date">
+            <input id="calModalEndTime" type="time">
+          </div>
         </div>
-        <label class="cal-allday-row"><input id="calModalAllDay" type="checkbox"> All day</label>
+        <div id="calAllDayFields" style="display:none;">
+          <div class="cal-modal-row">
+            <input id="calModalStartDateOnly" type="date">
+          </div>
+          <div class="cal-modal-row cal-end-row">
+            <label class="cal-end-label"><span class="cal-end-to">to</span></label>
+            <input id="calModalEndDateOnly" type="date" placeholder="(optional)">
+          </div>
+        </div>
         <div class="cal-repeat-row">
-          <label for="calModalRepeat">Repeats</label>
-          <select id="calModalRepeat">
-            <option value="none">Does not repeat</option>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-            <option value="yearly">Yearly</option>
-            <option value="jewish-yearly">Jewish Yearly</option>
-          </select>
-          <input id="calModalRepeatUntil" type="date" title="Repeat until (optional)" style="display:none;">
+          <label class="cal-repeat-check-label"><input id="calModalRepeatCheck" type="checkbox"> Repeats</label>
+          <div id="calRepeatOptions" style="display:none;">
+            <select id="calModalRepeat">
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="jewish-monthly">Monthly (Jewish)</option>
+              <option value="jewish-yearly">Yearly (Jewish)</option>
+            </select>
+            <input id="calModalRepeatUntil" type="date" title="Repeat until (optional)" placeholder="Until (optional)" style="display:none;">
+          </div>
         </div>
         <input id="calModalLocation" type="text" placeholder="Location or meeting link (optional)">
         <input id="calModalAttendees" type="text" placeholder="Invite people: email, email (optional)">
         <input id="calModalDesc" type="text" placeholder="Notes (optional)">
-        <select id="calModalCalendar"></select>
+        <div class="cal-calendar-pick" id="calCalendarPick"></div>
       </div>
       <div class="cal-event-modal-foot">
         <button id="calModalSave" type="button">Save</button>
@@ -2069,7 +2096,7 @@
         var addTodoBtn = el("button", "", { type: "button", text: "Add to Action Items" });
         addTodoBtn.addEventListener("click", function () {
           delete openStepRowMenus[s.id];
-          quickAddTodoFor(item);
+          socket.emit("addTodo", { text: item.title + " — " + s.text, sharedWith: [] });
           render();
         });
         rowMenu.appendChild(addTodoBtn);
@@ -2988,6 +3015,7 @@
         list.appendChild(el("div", "cal-admin-empty", { text: "No calendar accounts connected yet." }));
       }
       calendarAccounts.forEach(function (acct) {
+        if (acct.provider === "local") return; // local Avenium calendar shown separately below
         var card = el("div", "cal-acct");
         var head = el("div", "cal-acct-head");
         head.appendChild(el("span", "cal-acct-badge " + acct.provider, { text: acct.provider === "google" ? "Google" : "Outlook" }));
@@ -3012,7 +3040,11 @@
         bhead.appendChild(el("span", "cal-acct-badge builtin", { text: "Built-in" }));
         bhead.appendChild(el("span", "cal-acct-email", { text: "No account needed" }));
         bcard.appendChild(bhead);
-        bcard.appendChild(buildCalendarToggles(builtinCalendars));
+        // Merge local Avenium calendar toggles with built-in
+        var localAcct = calendarAccounts.find(function (a) { return a.provider === "local"; });
+        var allBuiltin = builtinCalendars.slice();
+        if (localAcct) allBuiltin = localAcct.calendars.concat(allBuiltin);
+        bcard.appendChild(buildCalendarToggles(allBuiltin));
         list.appendChild(bcard);
       }
     }).catch(function () {
@@ -3041,9 +3073,18 @@
       [].forEach.call(document.querySelectorAll("#calTypeRow .cal-type-btn"), function (b) {
         b.onclick = function () { applyCalType(b.dataset.type); };
       });
-      document.getElementById("calModalAllDay").onchange = applyAllDayToggle;
+      document.getElementById("calWhenTimed").onchange = applyWhenToggle;
+      document.getElementById("calWhenAllDay").onchange = applyWhenToggle;
+      document.getElementById("calModalRepeatCheck").onchange = function () {
+        var on = this.checked;
+        document.getElementById("calRepeatOptions").style.display = on ? "flex" : "none";
+        if (on) {
+          var val = document.getElementById("calModalRepeat").value;
+          document.getElementById("calModalRepeatUntil").style.display = val !== "daily" ? "" : "none";
+        }
+      };
       document.getElementById("calModalRepeat").onchange = function () {
-        document.getElementById("calModalRepeatUntil").style.display = this.value === "none" ? "none" : "";
+        document.getElementById("calModalRepeatUntil").style.display = this.value === "daily" ? "none" : "";
       };
     }
     if (calendarAccounts.length || builtinCalendars.length) {
@@ -3362,18 +3403,31 @@
   }
 
   function fillCalendarPicker(selectedAccountId, selectedCalendarId, lockToIt) {
-    var sel = document.getElementById("calModalCalendar");
-    sel.innerHTML = "";
+    var wrap = document.getElementById("calCalendarPick");
+    wrap.innerHTML = "";
+    var first = null;
     calendarAccounts.forEach(function (acct) {
       acct.calendars.forEach(function (c) {
         var isSelected = acct.id === selectedAccountId && c.id === selectedCalendarId;
-        if (!c.canEdit && !isSelected) return; // can't create events in read-only calendars
-        var opt = el("option", "", { value: acct.id + "|" + c.id, text: c.name + " \u2014 " + (acct.email || (acct.provider === "google" ? "Google" : "Outlook")) });
-        if (isSelected || (!selectedAccountId && c.primary && !sel.value)) opt.selected = true;
-        sel.appendChild(opt);
+        if (!c.canEdit && !isSelected) return;
+        var lbl = el("label");
+        var rad = el("input", "", { type: "radio", name: "calModalCalendar", value: acct.id + "|" + c.id });
+        if (isSelected) rad.checked = true;
+        if (lockToIt) rad.disabled = true;
+        lbl.appendChild(rad);
+        var sw = el("span", "cal-swatch"); sw.style.background = c.color || "#3C5A46";
+        lbl.appendChild(sw);
+        var calLabel = c.name;
+        if (acct.email) calLabel += " — " + acct.email;
+        else if (acct.provider === "google") calLabel += " — Google";
+        else if (acct.provider === "microsoft") calLabel += " — Outlook";
+        lbl.appendChild(document.createTextNode(calLabel));
+        wrap.appendChild(lbl);
+        if (!first) first = rad;
       });
     });
-    sel.disabled = !!lockToIt;
+    // If nothing is pre-selected, check the first one
+    if (!wrap.querySelector("input:checked") && first) first.checked = true;
   }
 
   // Meeting / Appointment / Call / All-day — presets that decide the default
@@ -3385,22 +3439,12 @@
   };
   var calModalType = "meeting";
 
-  function calIsAllDay() { return document.getElementById("calModalAllDay").checked; }
+  function calIsAllDay() { return document.getElementById("calWhenAllDay").checked; }
 
-  // All-day is a property of the time, not a kind of event, so it's a checkbox
-  // next to the times and simply swaps the time fields for date fields.
-  function applyAllDayToggle() {
+  function applyWhenToggle() {
     var allDay = calIsAllDay();
-    document.getElementById("calDateRow").style.display = allDay ? "" : "none";
-    document.querySelector(".cal-event-modal-body .cal-modal-row").style.display = allDay ? "none" : "";
-    if (allDay) {
-      var sd = document.getElementById("calModalStartDate");
-      if (!sd.value) {
-        var base = document.getElementById("calModalStart").value || new Date().toISOString();
-        sd.value = String(base).slice(0, 10);
-        document.getElementById("calModalEndDate").value = String(base).slice(0, 10);
-      }
-    }
+    document.getElementById("calTimedFields").style.display = allDay ? "none" : "";
+    document.getElementById("calAllDayFields").style.display = allDay ? "" : "none";
   }
 
   function applyCalType(type, keepTimes) {
@@ -3412,11 +3456,13 @@
     document.getElementById("calModalAttendees").style.display = def.attendees ? "" : "none";
     document.getElementById("calModalName").placeholder = def.label + " title";
     if (!keepTimes && !calIsAllDay()) {
-      var startEl = document.getElementById("calModalStart");
-      if (startEl.value) {
-        var e2 = new Date(startEl.value);
+      var startDate = document.getElementById("calModalStartDate2").value;
+      var startTime = document.getElementById("calModalStartTime").value;
+      if (startDate && startTime) {
+        var e2 = new Date(startDate + "T" + startTime);
         e2.setMinutes(e2.getMinutes() + def.minutes);
-        document.getElementById("calModalEnd").value = toLocalInput(e2.toISOString());
+        document.getElementById("calModalEndDate2").value = e2.getFullYear() + "-" + String(e2.getMonth() + 1).padStart(2, "0") + "-" + String(e2.getDate()).padStart(2, "0");
+        document.getElementById("calModalEndTime").value = String(e2.getHours()).padStart(2, "0") + ":" + String(e2.getMinutes()).padStart(2, "0");
       }
     }
   }
@@ -3434,33 +3480,53 @@
     document.getElementById("calModalDesc").value = event ? (event.description || "") : "";
     document.getElementById("calModalLocation").value = event ? (event.location || "") : "";
     document.getElementById("calModalAttendees").value = event && event.attendees ? event.attendees.join(", ") : "";
-    document.getElementById("calModalStart").value = (event && !event.allDay) ? toLocalInput(event.start) : (defaultStart || "");
-    var defaultEnd = "";
-    if (defaultStart) { var de = new Date(defaultStart); de.setHours(de.getHours() + 1); defaultEnd = toLocalInput(de.toISOString()); }
-    document.getElementById("calModalEnd").value = (event && !event.allDay) ? toLocalInput(event.end) : defaultEnd;
-    document.getElementById("calModalStartDate").value = (event && event.allDay) ? String(event.start).slice(0, 10) : String(defaultStart || "").slice(0, 10);
-    document.getElementById("calModalEndDate").value = (event && event.allDay) ? String(event.end || event.start).slice(0, 10) : String(defaultStart || "").slice(0, 10);
-    document.getElementById("calModalAllDay").checked = !!(event && event.allDay);
-    document.getElementById("calModalRepeat").value = "none";
-    document.getElementById("calModalRepeatUntil").value = "";
-    document.getElementById("calModalRepeatUntil").style.display = "none";
-    applyAllDayToggle();
-    // an existing event keeps its own shape; a new one starts as a Meeting
+
+    // All-day vs timed radio
+    var isAllDay = !!(event && event.allDay);
+    document.getElementById("calWhenAllDay").checked = isAllDay;
+    document.getElementById("calWhenTimed").checked = !isAllDay;
+
+    // Timed fields
+    var startIso = defaultStart || "";
+    if (event && !event.allDay && event.start) startIso = toLocalInput(event.start);
+    var endIso = "";
+    if (defaultStart) { var de = new Date(defaultStart); de.setHours(de.getHours() + 1); endIso = toLocalInput(de.toISOString()); }
+    if (event && !event.allDay && event.end) endIso = toLocalInput(event.end);
+    document.getElementById("calModalStartDate2").value = startIso ? startIso.slice(0, 10) : "";
+    document.getElementById("calModalStartTime").value = startIso ? startIso.slice(11, 16) : "";
+    document.getElementById("calModalEndDate2").value = endIso ? endIso.slice(0, 10) : "";
+    document.getElementById("calModalEndTime").value = endIso ? endIso.slice(11, 16) : "";
+
+    // All-day fields
+    var startDateStr = (event && event.allDay) ? String(event.start).slice(0, 10) : (startIso ? startIso.slice(0, 10) : "");
+    document.getElementById("calModalStartDateOnly").value = startDateStr;
+    var endDateStr = (event && event.allDay && event.end) ? String(event.end).slice(0, 10) : "";
+    document.getElementById("calModalEndDateOnly").value = endDateStr;
+
+    applyWhenToggle();
+
+    // Repeat
+    var isLocal = event && event.provider === "local";
+    var showRepeat = !event || isLocal;
+    document.querySelector(".cal-repeat-row").style.display = showRepeat ? "" : "none";
+    var hasRepeat = isLocal && event && event.repeat && event.repeat !== "none";
+    document.getElementById("calModalRepeatCheck").checked = !!hasRepeat;
+    document.getElementById("calRepeatOptions").style.display = hasRepeat ? "flex" : "none";
+    document.getElementById("calModalRepeat").value = hasRepeat ? event.repeat : "weekly";
+    document.getElementById("calModalRepeatUntil").value = (hasRepeat && event.repeatUntil) ? event.repeatUntil : "";
+    var repeatVal = document.getElementById("calModalRepeat").value;
+    document.getElementById("calModalRepeatUntil").style.display = (hasRepeat && repeatVal !== "daily") ? "" : "none";
+
     applyCalType(event ? ((event.attendees && event.attendees.length) ? "meeting" : "appointment") : "meeting", true);
     document.getElementById("calTypeRow").style.display = event ? "none" : "";
-    // editing one occurrence of an existing series isn't supported, so repeats
-    // only show when creating something new or editing a local event
-    var isLocal = event && event.provider === "local";
-    document.querySelector(".cal-repeat-row").style.display = (!event || isLocal) ? "" : "none";
-    if (isLocal && event.repeat) {
-      document.getElementById("calModalRepeat").value = event.repeat;
-      if (event.repeatUntil) {
-        document.getElementById("calModalRepeatUntil").value = event.repeatUntil;
-        document.getElementById("calModalRepeatUntil").style.display = "";
-      }
-    }
+
     fillCalendarPicker(event ? event.accountId : null, event ? event.calendarId : null, !!event);
-    ["calModalName", "calModalDesc", "calModalStart", "calModalEnd", "calModalLocation", "calModalAttendees", "calModalStartDate", "calModalEndDate", "calModalAllDay", "calModalRepeat"].forEach(function (id) { document.getElementById(id).disabled = readOnly; });
+
+    // Disable fields for read-only
+    ["calModalName", "calModalDesc", "calModalStartDate2", "calModalStartTime", "calModalEndDate2", "calModalEndTime", "calModalLocation", "calModalAttendees", "calModalStartDateOnly", "calModalEndDateOnly", "calModalRepeat", "calModalRepeatCheck", "calWhenTimed", "calWhenAllDay"].forEach(function (id) {
+      var elem = document.getElementById(id);
+      if (elem) elem.disabled = readOnly;
+    });
     document.getElementById("calModalSave").style.display = readOnly ? "none" : "";
     document.getElementById("calModalDelete").style.display = (event && !readOnly) ? "" : "none";
     document.getElementById("calEventModal").style.display = "flex";
@@ -3478,18 +3544,24 @@
     var isAllDay = calIsAllDay();
     var start, end;
     if (isAllDay) {
-      var sd = document.getElementById("calModalStartDate").value;
+      var sd = document.getElementById("calModalStartDateOnly").value;
       if (!sd) { alert("Please choose a date."); return; }
-      var ed = document.getElementById("calModalEndDate").value || sd;
-      if (ed < sd) { alert("The end date is before the start date."); return; }
-      start = sd; end = ed;
+      var ed = document.getElementById("calModalEndDateOnly").value || sd;
+      if (ed && ed < sd) { alert("The end date is before the start date."); return; }
+      start = sd; end = ed || sd;
     } else {
-      var startLocal = document.getElementById("calModalStart").value;
-      if (!startLocal) { alert("Please choose a start time."); return; }
-      var endLocal = document.getElementById("calModalEnd").value || startLocal;
-      start = new Date(startLocal).toISOString();
-      end = new Date(endLocal).toISOString();
-      if (new Date(end) < new Date(start)) { alert("The end time is before the start time."); return; }
+      var startDate = document.getElementById("calModalStartDate2").value;
+      var startTime = document.getElementById("calModalStartTime").value;
+      if (!startDate || !startTime) { alert("Please choose a start date and time."); return; }
+      start = new Date(startDate + "T" + startTime).toISOString();
+      var endDate = document.getElementById("calModalEndDate2").value;
+      var endTime = document.getElementById("calModalEndTime").value;
+      if (endDate && endTime) {
+        end = new Date(endDate + "T" + endTime).toISOString();
+        if (new Date(end) < new Date(start)) { alert("The end time is before the start time."); return; }
+      } else {
+        end = start; // no end = same as start
+      }
     }
     var attendees = document.getElementById("calModalAttendees").value
       .split(/[,;\s]+/).map(function (x) { return x.trim(); })
@@ -3500,13 +3572,16 @@
       location: document.getElementById("calModalLocation").value.trim(),
       attendees: attendees
     };
-    var repeat = document.getElementById("calModalRepeat").value;
+    // Repeat
+    var repeatChecked = document.getElementById("calModalRepeatCheck").checked;
+    var repeat = repeatChecked ? document.getElementById("calModalRepeat").value : "none";
     var isLocalEvent = calEditingEvent ? calEditingEvent.provider === "local" : false;
     if ((!calEditingEvent || isLocalEvent) && repeat && repeat !== "none") {
       payload.repeat = repeat;
       var until = document.getElementById("calModalRepeatUntil").value;
       if (until) payload.repeatUntil = until;
     }
+    // Calendar selection
     var method = "POST";
     if (calEditingEvent) {
       method = "PUT";
@@ -3514,7 +3589,9 @@
       payload.calendarId = calEditingEvent.calendarId;
       payload.eventId = calEditingEvent.externalId;
     } else {
-      var picked = document.getElementById("calModalCalendar").value.split("|");
+      var checkedRadio = document.querySelector("input[name='calModalCalendar']:checked");
+      if (!checkedRadio) { alert("Please select a calendar."); return; }
+      var picked = checkedRadio.value.split("|");
       payload.accountId = picked[0];
       payload.calendarId = picked.slice(1).join("|");
     }
