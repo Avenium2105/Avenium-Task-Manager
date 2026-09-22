@@ -90,6 +90,14 @@ function loadState() {
           return s;
         }).filter(Boolean);
         if (!Array.isArray(migrated.files)) migrated.files = [];
+        // migrate the old single free-text "notes" field into the new multi-note
+        // list, as that one note's starting entry — nothing is lost, and going
+        // forward notesList is what the client actually reads/writes.
+        if (!Array.isArray(migrated.notesList)) {
+          migrated.notesList = migrated.notes && migrated.notes.trim()
+            ? [{ id: uid("n"), text: migrated.notes, createdBy: migrated.createdBy, createdById: migrated.createdById, createdAt: migrated.createdAt || nowIso(), updatedBy: migrated.updatedBy, updatedById: migrated.updatedById, updatedAt: migrated.updatedAt || nowIso() }]
+            : [];
+        }
         return migrated;
       });
       return {
@@ -367,15 +375,12 @@ function requireAdmin(req, res, next) {
 // ---- static brand assets (logo etc. — public, needed on pre-auth pages too) ----
 app.use("/assets", express.static(path.join(__dirname, "public", "assets")));
 
-// ---- shared nav bar (used by both index.html and users.html) ----
-// This was the actual reason the nav bar never showed up, no matter how many
-// times the page was hard-refreshed: nothing in this file ever served these
-// two files, so every request for them 404'd and the browser silently gave
-// up on both the <script src="/nav.js"> and <link rel="stylesheet" href="/nav.css">
-// tags. Nav bar content and layout are just missing on the page in that case
-// — not a caching issue, so no amount of refreshing could have fixed it.
-app.get("/nav.js", (req, res) => res.sendFile(path.join(__dirname, "public", "nav.js")));
-app.get("/nav.css", (req, res) => res.sendFile(path.join(__dirname, "public", "nav.css")));
+// (The nav bar used to be served as separate /nav.js and /nav.css files, fetched
+// with their own <script src>/<link> tags. That's gone now — the nav bar is
+// inlined directly into index.html's own <head>/<body>, so there's no longer a
+// second request for it that could 404, get blocked, or serve a stale cached
+// copy independently of the page around it. If you still have public/nav.js
+// and public/nav.css sitting in the repo, they're unused now and safe to delete.)
 
 // ---- pages ----
 app.get("/login.html", (req, res) => res.sendFile(path.join(__dirname, "public", "login.html")));
@@ -877,7 +882,7 @@ io.on("connection", (socket) => {
     const item = {
       id: uid("i"), groupId,
       title: autoCapitalize(title.trim().slice(0, 500) || "Untitled task"),
-      notes: "", priority: "low",
+      notes: "", notesList: [], priority: "low",
       assigneeIds: [], steps: [], archived: false, completed: false, files: [],
       order: typeof order === "number" ? order : state.items.length,
       createdAt: Date.now(), createdBy: actorName(), createdById: user.id, updatedBy: actorName(), updatedAt: nowIso()
@@ -937,6 +942,55 @@ io.on("connection", (socket) => {
       item.updatedAt = nowIso();
       if (group.visibility !== "private") logActivity(`${actorName()} ${changeDesc}`);
     }
+    persist();
+    broadcastState();
+  });
+
+  // ---- multiple notes per task (each its own entry, collapsed until opened) ----
+  socket.on("addNote", ({ itemId, text }) => {
+    const item = state.items.find((x) => x.id === itemId);
+    if (!item || typeof text !== "string" || !text.trim()) return;
+    const group = groupById(item.groupId);
+    if (!canTouchGroup(group)) return;
+    if (!Array.isArray(item.notesList)) item.notesList = [];
+    item.notesList.push({
+      id: uid("n"), text: text.trim().slice(0, 4000),
+      createdBy: actorName(), createdById: user.id, createdAt: nowIso(),
+      updatedBy: actorName(), updatedById: user.id, updatedAt: nowIso()
+    });
+    item.updatedBy = actorName();
+    item.updatedAt = nowIso();
+    persist();
+    broadcastState();
+  });
+
+  socket.on("updateNote", ({ itemId, noteId, text }) => {
+    const item = state.items.find((x) => x.id === itemId);
+    if (!item || !Array.isArray(item.notesList) || typeof text !== "string") return;
+    const group = groupById(item.groupId);
+    if (!canTouchGroup(group)) return;
+    const note = item.notesList.find((n) => n.id === noteId);
+    if (!note) return;
+    const t = text.trim().slice(0, 4000);
+    if (!t || t === note.text) return;
+    note.text = t;
+    note.updatedBy = actorName();
+    note.updatedById = user.id;
+    note.updatedAt = nowIso();
+    item.updatedBy = actorName();
+    item.updatedAt = nowIso();
+    persist();
+    broadcastState();
+  });
+
+  socket.on("deleteNote", ({ itemId, noteId }) => {
+    const item = state.items.find((x) => x.id === itemId);
+    if (!item || !Array.isArray(item.notesList)) return;
+    const group = groupById(item.groupId);
+    if (!canTouchGroup(group)) return;
+    item.notesList = item.notesList.filter((n) => n.id !== noteId);
+    item.updatedBy = actorName();
+    item.updatedAt = nowIso();
     persist();
     broadcastState();
   });
