@@ -18,6 +18,13 @@
   /* Always light — intentionally ignores the device's dark-mode setting so the app looks the same on mobile as on desktop. */
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  /* Always reserve the vertical scrollbar's space, whether or not the current
+     view is long enough to need one. Without this, a long view (Boards) shows a
+     scrollbar and a short view (Admin) doesn't, so the page width changes by the
+     scrollbar's ~15px every time you switch — which shifts the centered logo and
+     the right-aligned Boards/Admin/Log out links sideways, making the nav bar
+     look like a different bar on each view. */
+  html { overflow-y: scroll; scrollbar-gutter: stable; }
   body { font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; min-height: 100vh; }
 
   /* Top nav bar — inlined directly here (no separate /nav.css request) so there's
@@ -463,8 +470,8 @@
     root.appendChild(brand);
 
     var bar = el("div", "topbar");
-    var boardsLink = el("a", "", { href: "#", text: "Boards" });
-    boardsLink.addEventListener("click", function (e) { routedClick(e, ""); });
+    var boardsLink = el("a", "", { href: "#boards", text: "Boards" });
+    boardsLink.addEventListener("click", function (e) { routedClick(e, "#boards"); });
     bar.appendChild(boardsLink);
     bar.appendChild(el("span", "dot", { text: "\u00b7" }));
     adminLink = el("a", "", { href: "#admin", text: "Admin" });
@@ -681,11 +688,15 @@
 
   function routeTo(hash) {
     var view = (hash === "#admin") ? "admin" : "boards";
-    if (window.location.hash !== (view === "admin" ? "#admin" : "")) {
+    var wantedHash = view === "admin" ? "#admin" : "#boards";
+    if (window.location.hash !== wantedHash) {
       // Setting location.hash both updates the address bar and pushes a history
       // entry on its own — no separate pushState/replaceState call needed the
-      // way the old path-based version required.
-      window.location.hash = view === "admin" ? "admin" : "";
+      // way the old path-based version required. Every view gets an explicit
+      // name (#boards, not just a bare trailing "#"), matching how
+      // portal.avenium.com names its own views (#dashboard, #contacts, etc.)
+      // rather than leaving the default one unnamed.
+      window.location.hash = view === "admin" ? "admin" : "boards";
     }
     currentView = view;
     // Whether we can actually SHOW the admin view yet depends on knowing the
