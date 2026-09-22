@@ -13,6 +13,7 @@ const bcrypt = require("bcryptjs");
 const multer = require("multer");
 const { Server } = require("socket.io");
 const nodemailer = require("nodemailer");
+const https = require("https");
 
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = process.env.DATA_DIR || __dirname;
@@ -24,9 +25,228 @@ fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 const PUBLIC_URL = process.env.PUBLIC_URL || "";
 
+// ---- OAuth calendar config ----
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
+const MICROSOFT_CLIENT_ID = process.env.MICROSOFT_CLIENT_ID || "";
+const MICROSOFT_CLIENT_SECRET = process.env.MICROSOFT_CLIENT_SECRET || "";
+const MICROSOFT_TENANT_ID = process.env.MICROSOFT_TENANT_ID || "common";
+const GOOGLE_REDIRECT = PUBLIC_URL + "/auth/google/callback";
+const MICROSOFT_REDIRECT = PUBLIC_URL + "/auth/microsoft/callback";
+const CALENDAR_ENABLED = !!(GOOGLE_CLIENT_ID && MICROSOFT_CLIENT_ID);
+
 const GROUP_COLORS = ["#3C5A46", "#C68A2E", "#7D6BAE", "#4C7A9E", "#B24A3C"];
 const DEFAULT_GROUPS = ["Today", "This week", "Someday"];
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB per file
+
+// ---- Calendar token store (persisted to DATA_DIR/calendar-tokens.json) ----
+// Each entry: { userId, provider: "google"|"microsoft", accessToken,
+//   refreshToken, expiresAt (ISO), email }
+const TOKENS_FILE = path.join(DATA_DIR, "calendar-tokens.json");
+let calendarTokens = [];
+try { calendarTokens = JSON.parse(fs.readFileSync(TOKENS_FILE, "utf8")); } catch (e) { calendarTokens = []; }
+function persistTokens() {
+  fs.writeFile(TOKENS_FILE, JSON.stringify(calendarTokens, null, 2), () => {});
+}
+function getToken(userId, provider) {
+  return calendarTokens.find((t) => t.userId === userId && t.provider === provider) || null;
+}
+function setToken(userId, provider, data) {
+  calendarTokens = calendarTokens.filter((t) => !(t.userId === userId && t.provider === provider));
+  calendarTokens.push({ userId, provider, ...data });
+  persistTokens();
+}
+function removeToken(userId, provider) {
+  calendarTokens = calendarTokens.filter((t) => !(t.userId === userId && t.provider === provider));
+  persistTokens();
+}
+
+// ---- Generic HTTPS helper (no npm dependency needed) ----
+function httpsRequest(options, body) {
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      let data = "";
+      res.on("data", (c) => { data += c; });
+      res.on("end", () => {
+        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
+        catch (e) { resolve({ status: res.statusCode, body: data }); }
+      });
+    });
+    req.on("error", reject);
+    if (body) req.write(body);
+    req.end();
+  });
+}
+
+// ---- Token refresh helpers ----
+async function refreshGoogleToken(token) {
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    client_secret: GOOGLE_CLIENT_SECRET,
+    refresh_token: token.refreshToken,
+    grant_type: "refresh_token"
+  }).toString();
+  const r = await httpsRequest({
+    hostname: "oauth2.googleapis.com", path: "/token", method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(params) }
+  }, params);
+  if (r.body.access_token) {
+    token.accessToken = r.body.access_token;
+    token.expiresAt = new Date(Date.now() + (r.body.expires_in || 3600) * 1000).toISOString();
+    persistTokens();
+  }
+  return token;
+}
+
+async function refreshMicrosoftToken(token) {
+  const params = new URLSearchParams({
+    client_id: MICROSOFT_CLIENT_ID,
+    client_secret: MICROSOFT_CLIENT_SECRET,
+    refresh_token: token.refreshToken,
+    grant_type: "refresh_token",
+    scope: "Calendars.ReadWrite offline_access"
+  }).toString();
+  const r = await httpsRequest({
+    hostname: "login.microsoftonline.com",
+    path: `/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token`,
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(params) }
+  }, params);
+  if (r.body.access_token) {
+    token.accessToken = r.body.access_token;
+    if (r.body.refresh_token) token.refreshToken = r.body.refresh_token;
+    token.expiresAt = new Date(Date.now() + (r.body.expires_in || 3600) * 1000).toISOString();
+    persistTokens();
+  }
+  return token;
+}
+
+async function getValidToken(userId, provider) {
+  let token = getToken(userId, provider);
+  if (!token) return null;
+  if (new Date(token.expiresAt) < new Date(Date.now() + 60000)) {
+    token = provider === "google" ? await refreshGoogleToken(token) : await refreshMicrosoftToken(token);
+  }
+  return token;
+}
+
+// ---- Google Calendar API calls ----
+async function googleApiRequest(accessToken, method, path2, body) {
+  const bodyStr = body ? JSON.stringify(body) : null;
+  const headers = { Authorization: "Bearer " + accessToken, Accept: "application/json" };
+  if (bodyStr) { headers["Content-Type"] = "application/json"; headers["Content-Length"] = Buffer.byteLength(bodyStr); }
+  return httpsRequest({ hostname: "www.googleapis.com", path: path2, method, headers }, bodyStr);
+}
+
+async function fetchGoogleEvents(userId) {
+  const token = await getValidToken(userId, "google");
+  if (!token) return [];
+  const now = new Date().toISOString();
+  const future = new Date(Date.now() + 90 * 86400000).toISOString();
+  const r = await googleApiRequest(token.accessToken, "GET",
+    `/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(now)}&timeMax=${encodeURIComponent(future)}&singleEvents=true&orderBy=startTime&maxResults=100`);
+  if (!r.body.items) return [];
+  return r.body.items.map((e) => ({
+    id: "gcal_" + e.id, externalId: e.id, provider: "google",
+    title: e.summary || "(No title)",
+    start: e.start && (e.start.dateTime || e.start.date),
+    end: e.end && (e.end.dateTime || e.end.date),
+    allDay: !!(e.start && e.start.date),
+    location: e.location || "", description: e.description || "",
+    htmlLink: e.htmlLink || ""
+  }));
+}
+
+async function createGoogleEvent(userId, event) {
+  const token = await getValidToken(userId, "google");
+  if (!token) throw new Error("Not connected to Google Calendar");
+  const body = {
+    summary: event.title,
+    description: event.description || "",
+    start: event.allDay ? { date: event.start } : { dateTime: event.start, timeZone: "UTC" },
+    end: event.allDay ? { date: event.end || event.start } : { dateTime: event.end || event.start, timeZone: "UTC" }
+  };
+  const r = await googleApiRequest(token.accessToken, "POST", "/calendar/v3/calendars/primary/events", body);
+  return r.body;
+}
+
+async function updateGoogleEvent(userId, externalId, event) {
+  const token = await getValidToken(userId, "google");
+  if (!token) return;
+  const body = {
+    summary: event.title,
+    description: event.description || "",
+    start: event.allDay ? { date: event.start } : { dateTime: event.start, timeZone: "UTC" },
+    end: event.allDay ? { date: event.end || event.start } : { dateTime: event.end || event.start, timeZone: "UTC" }
+  };
+  await googleApiRequest(token.accessToken, "PUT", `/calendar/v3/calendars/primary/events/${externalId}`, body);
+}
+
+async function deleteGoogleEvent(userId, externalId) {
+  const token = await getValidToken(userId, "google");
+  if (!token) return;
+  await googleApiRequest(token.accessToken, "DELETE", `/calendar/v3/calendars/primary/events/${externalId}`);
+}
+
+// ---- Microsoft Graph Calendar API calls ----
+async function graphRequest(accessToken, method, path2, body) {
+  const bodyStr = body ? JSON.stringify(body) : null;
+  const headers = { Authorization: "Bearer " + accessToken, Accept: "application/json" };
+  if (bodyStr) { headers["Content-Type"] = "application/json"; headers["Content-Length"] = Buffer.byteLength(bodyStr); }
+  return httpsRequest({ hostname: "graph.microsoft.com", path: "/v1.0" + path2, method, headers }, bodyStr);
+}
+
+async function fetchMicrosoftEvents(userId) {
+  const token = await getValidToken(userId, "microsoft");
+  if (!token) return [];
+  const now = new Date().toISOString();
+  const future = new Date(Date.now() + 90 * 86400000).toISOString();
+  const r = await graphRequest(token.accessToken, "GET",
+    `/me/calendarView?startDateTime=${encodeURIComponent(now)}&endDateTime=${encodeURIComponent(future)}&$top=100&$orderby=start/dateTime`);
+  if (!r.body.value) return [];
+  return r.body.value.map((e) => ({
+    id: "mcal_" + e.id, externalId: e.id, provider: "microsoft",
+    title: e.subject || "(No title)",
+    start: e.start && e.start.dateTime ? e.start.dateTime : (e.start && e.start.date),
+    end: e.end && e.end.dateTime ? e.end.dateTime : (e.end && e.end.date),
+    allDay: e.isAllDay || false,
+    location: (e.location && e.location.displayName) || "",
+    description: (e.body && e.body.content) || "",
+    htmlLink: e.webLink || ""
+  }));
+}
+
+async function createMicrosoftEvent(userId, event) {
+  const token = await getValidToken(userId, "microsoft");
+  if (!token) throw new Error("Not connected to Microsoft Calendar");
+  const body = {
+    subject: event.title,
+    body: { contentType: "text", content: event.description || "" },
+    start: { dateTime: event.start, timeZone: "UTC" },
+    end: { dateTime: event.end || event.start, timeZone: "UTC" },
+    isAllDay: event.allDay || false
+  };
+  const r = await graphRequest(token.accessToken, "POST", "/me/events", body);
+  return r.body;
+}
+
+async function updateMicrosoftEvent(userId, externalId, event) {
+  const token = await getValidToken(userId, "microsoft");
+  if (!token) return;
+  const body = {
+    subject: event.title,
+    body: { contentType: "text", content: event.description || "" },
+    start: { dateTime: event.start, timeZone: "UTC" },
+    end: { dateTime: event.end || event.start, timeZone: "UTC" }
+  };
+  await graphRequest(token.accessToken, "PATCH", `/me/events/${externalId}`, body);
+}
+
+async function deleteMicrosoftEvent(userId, externalId) {
+  const token = await getValidToken(userId, "microsoft");
+  if (!token) return;
+  await graphRequest(token.accessToken, "DELETE", `/me/events/${externalId}`);
+}
 
 function uid(prefix) {
   return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
@@ -1346,6 +1566,141 @@ io.on("connection", (socket) => {
       if (assignee.email) await sendMail(assignee.email, `It's your turn: ${item.title}`, `${actorName()} says it's your turn on "${item.title}".${link ? "\n\nOpen this task: " + link : ""}`);
     }
   });
+});
+
+// ---- Google & Microsoft OAuth routes ----
+app.get("/auth/google", requireAuth, (req, res) => {
+  if (!GOOGLE_CLIENT_ID) return res.status(503).send("Google Calendar not configured");
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: GOOGLE_REDIRECT,
+    response_type: "code",
+    scope: "https://www.googleapis.com/auth/calendar",
+    access_type: "offline",
+    prompt: "consent"
+  });
+  res.redirect("https://accounts.google.com/o/oauth2/v2/auth?" + params);
+});
+
+app.get("/auth/google/callback", requireAuth, async (req, res) => {
+  const { code, error } = req.query;
+  if (error || !code) return res.redirect("/#calendar?error=google_denied");
+  const params = new URLSearchParams({
+    code, client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET,
+    redirect_uri: GOOGLE_REDIRECT, grant_type: "authorization_code"
+  }).toString();
+  try {
+    const r = await httpsRequest({
+      hostname: "oauth2.googleapis.com", path: "/token", method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(params) }
+    }, params);
+    if (!r.body.access_token) return res.redirect("/#calendar?error=google_token");
+    const userInfoR = await httpsRequest({ hostname: "www.googleapis.com", path: "/oauth2/v3/userinfo",
+      method: "GET", headers: { Authorization: "Bearer " + r.body.access_token } });
+    setToken(req.session.userId, "google", {
+      accessToken: r.body.access_token,
+      refreshToken: r.body.refresh_token,
+      expiresAt: new Date(Date.now() + (r.body.expires_in || 3600) * 1000).toISOString(),
+      email: userInfoR.body.email || ""
+    });
+    res.redirect("/#calendar?connected=google");
+  } catch (e) { res.redirect("/#calendar?error=google_failed"); }
+});
+
+app.get("/auth/microsoft", requireAuth, (req, res) => {
+  if (!MICROSOFT_CLIENT_ID) return res.status(503).send("Microsoft Calendar not configured");
+  const params = new URLSearchParams({
+    client_id: MICROSOFT_CLIENT_ID,
+    redirect_uri: MICROSOFT_REDIRECT,
+    response_type: "code",
+    scope: "Calendars.ReadWrite offline_access User.Read",
+    response_mode: "query"
+  });
+  res.redirect(`https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize?` + params);
+});
+
+app.get("/auth/microsoft/callback", requireAuth, async (req, res) => {
+  const { code, error } = req.query;
+  if (error || !code) return res.redirect("/#calendar?error=microsoft_denied");
+  const params = new URLSearchParams({
+    client_id: MICROSOFT_CLIENT_ID, client_secret: MICROSOFT_CLIENT_SECRET,
+    code, redirect_uri: MICROSOFT_REDIRECT, grant_type: "authorization_code",
+    scope: "Calendars.ReadWrite offline_access User.Read"
+  }).toString();
+  try {
+    const r = await httpsRequest({
+      hostname: "login.microsoftonline.com",
+      path: `/${MICROSOFT_TENANT_ID}/oauth2/v2.0/token`,
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(params) }
+    }, params);
+    if (!r.body.access_token) return res.redirect("/#calendar?error=microsoft_token");
+    const meR = await graphRequest(r.body.access_token, "GET", "/me");
+    setToken(req.session.userId, "microsoft", {
+      accessToken: r.body.access_token,
+      refreshToken: r.body.refresh_token,
+      expiresAt: new Date(Date.now() + (r.body.expires_in || 3600) * 1000).toISOString(),
+      email: (meR.body && meR.body.mail) || (meR.body && meR.body.userPrincipalName) || ""
+    });
+    res.redirect("/#calendar?connected=microsoft");
+  } catch (e) { res.redirect("/#calendar?error=microsoft_failed"); }
+});
+
+app.delete("/auth/:provider", requireAuth, (req, res) => {
+  const { provider } = req.params;
+  if (!["google", "microsoft"].includes(provider)) return res.status(400).json({ error: "invalid_provider" });
+  removeToken(req.session.userId, provider);
+  res.json({ ok: true });
+});
+
+// ---- Calendar API endpoints ----
+app.get("/api/calendar/status", requireAuth, (req, res) => {
+  const google = getToken(req.session.userId, "google");
+  const microsoft = getToken(req.session.userId, "microsoft");
+  res.json({
+    google: google ? { connected: true, email: google.email } : { connected: false },
+    microsoft: microsoft ? { connected: true, email: microsoft.email } : { connected: false },
+    calendarEnabled: CALENDAR_ENABLED
+  });
+});
+
+app.get("/api/calendar/events", requireAuth, async (req, res) => {
+  try {
+    const [googleEvents, microsoftEvents] = await Promise.all([
+      fetchGoogleEvents(req.session.userId).catch(() => []),
+      fetchMicrosoftEvents(req.session.userId).catch(() => [])
+    ]);
+    res.json({ events: [...googleEvents, ...microsoftEvents] });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post("/api/calendar/events", requireAuth, async (req, res) => {
+  const { provider, title, start, end, allDay, description } = req.body;
+  if (!["google", "microsoft"].includes(provider)) return res.status(400).json({ error: "invalid_provider" });
+  try {
+    const result = provider === "google"
+      ? await createGoogleEvent(req.session.userId, { title, start, end, allDay, description })
+      : await createMicrosoftEvent(req.session.userId, { title, start, end, allDay, description });
+    res.json({ ok: true, event: result });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put("/api/calendar/events/:provider/:id", requireAuth, async (req, res) => {
+  const { provider, id } = req.params;
+  try {
+    if (provider === "google") await updateGoogleEvent(req.session.userId, id, req.body);
+    else if (provider === "microsoft") await updateMicrosoftEvent(req.session.userId, id, req.body);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete("/api/calendar/events/:provider/:id", requireAuth, async (req, res) => {
+  const { provider, id } = req.params;
+  try {
+    if (provider === "google") await deleteGoogleEvent(req.session.userId, id);
+    else if (provider === "microsoft") await deleteMicrosoftEvent(req.session.userId, id);
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 server.listen(PORT, () => {

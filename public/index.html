@@ -36,8 +36,9 @@
      and was just one more thing that could fail. */
   .topnav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 16px 32px; background: var(--bg-raised); border-bottom: 1px solid var(--line); box-shadow: 0 1px 3px rgba(34,38,31,0.04); position: sticky; top: 0; z-index: 500; }
   .topnav .nav-date { font-size: 13px; color: var(--ink-soft); justify-self: start; }
+  .nav-date-group { display: flex; align-items: center; gap: 10px; justify-self: start; }
   .topnav .brand-mark { justify-self: center; display: inline-flex; align-items: center; margin: 0; }
-  .topnav .brand-logo { height: 34px; width: auto; display: block; }
+  .topnav .brand-logo { height: 43px; width: auto; display: block; }
   .topnav .topbar { justify-self: end; display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--ink-soft); }
   .topbar { gap: 10px; }
   .topbar a, .topbar button.link { color: var(--bg-raised); background: var(--pine); text-decoration: none; border: none; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; padding: 7px 16px; border-radius: 8px; line-height: 1; }
@@ -260,7 +261,8 @@
   .note-head:hover { background: var(--bg); }
   .note-head .chevron { flex-shrink: 0; width: 14px; height: 14px; color: var(--ink-faint); transition: transform 0.12s; }
   .note-item.open .note-head .chevron { transform: rotate(90deg); }
-  .note-preview { flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .note-preview { flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; }
+  .note-preview[title]:hover::after { content: attr(title); position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 900; background: var(--ink); color: var(--bg-raised); font-size: 12.5px; line-height: 1.6; padding: 12px 16px; border-radius: 10px; max-width: 340px; white-space: pre-wrap; word-break: break-word; box-shadow: 0 6px 24px rgba(34,38,31,0.35); pointer-events: none; }
   .note-item.open .note-preview { display: none; }
   .note-meta { flex-shrink: 0; font-size: 11px; color: var(--ink-faint); white-space: nowrap; }
   .note-del { flex-shrink: 0; width: 20px; height: 20px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 5px; display: flex; align-items: center; justify-content: center; }
@@ -415,6 +417,54 @@
   .admin-wrap .status-badge { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 20px; background: var(--ochre-soft); color: var(--ochre); }
   .admin-wrap .status-badge.active { background: var(--pine-soft); color: var(--pine); }
   .admin-wrap .invite-link-box { font-size: 11.5px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin-top: 8px; word-break: break-all; color: var(--ink-soft); }
+
+  /* ---- Calendar view ---- */
+  .calendar-wrap { max-width: 1100px; margin: 0 auto; padding: 24px 28px 80px; }
+  .calendar-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 18px; }
+  .calendar-header h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 30px; margin: 0; letter-spacing: -0.01em; }
+  .calendar-connect-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .cal-connect-btn { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 16px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--bg-raised); color: var(--ink); cursor: pointer; display: flex; align-items: center; gap: 8px; }
+  .cal-connect-btn:hover { border-color: var(--pine); }
+  .cal-connect-btn.connected { border-color: var(--pine); color: var(--pine); }
+  .cal-connect-btn .cal-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+  .cal-connect-btn.connected .cal-dot { background: var(--pine); }
+  .cal-disconnect-link { font-size: 11px; color: var(--ink-faint); text-decoration: underline; cursor: pointer; background: none; border: none; }
+  .cal-disconnect-link:hover { color: var(--brick); }
+  .calendar-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .calendar-nav button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 6px 14px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg-raised); color: var(--ink); cursor: pointer; }
+  .calendar-nav button:hover { background: var(--bg); }
+  #calMonthLabel { font-size: 18px; font-weight: 600; color: var(--ink); min-width: 160px; text-align: center; }
+  .cal-grid-head { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 2px; }
+  .cal-grid-head span { text-align: center; font-size: 12px; font-weight: 600; color: var(--ink-faint); padding: 4px 0; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-cell { min-height: 100px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 6px; padding: 6px; position: relative; cursor: pointer; }
+  .cal-cell:hover { background: var(--bg); }
+  .cal-cell.today { border-color: var(--pine); }
+  .cal-cell.other-month { opacity: 0.45; }
+  .cal-day-num { font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; }
+  .cal-cell.today .cal-day-num { color: var(--pine); }
+  .cal-event-pill { font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: var(--bg-raised); }
+  .cal-event-pill.google { background: #1a73e8; }
+  .cal-event-pill.microsoft { background: #0078d4; }
+  .cal-more { font-size: 10.5px; color: var(--ink-faint); cursor: pointer; }
+  .cal-event-modal { position: fixed; inset: 0; background: rgba(34,38,31,0.45); z-index: 800; display: flex; align-items: center; justify-content: center; }
+  .cal-event-modal-box { background: var(--bg-raised); border-radius: 12px; box-shadow: 0 8px 32px rgba(34,38,31,0.25); width: 420px; max-width: calc(100vw - 32px); overflow: hidden; }
+  .cal-event-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 15px; }
+  .cal-event-modal-head button { background: none; border: none; font-size: 16px; cursor: pointer; color: var(--ink-faint); padding: 2px 6px; border-radius: 5px; }
+  .cal-event-modal-head button:hover { background: var(--line-soft); }
+  .cal-event-modal-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .cal-event-modal-body input, .cal-event-modal-body select { font-family: inherit; font-size: 13.5px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; width: 100%; box-sizing: border-box; }
+  .cal-modal-row { display: flex; align-items: center; gap: 8px; }
+  .cal-modal-row input { flex: 1; }
+  .cal-modal-row span { color: var(--ink-faint); font-size: 12px; flex-shrink: 0; }
+  .cal-event-modal-foot { padding: 14px 20px; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: flex-end; }
+  .cal-event-modal-foot button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 18px; border: none; border-radius: 7px; cursor: pointer; }
+  #calModalSave { background: var(--pine); color: var(--bg-raised); }
+  #calModalDelete { background: var(--brick-soft); color: var(--brick); }
+  #calModalCancel { background: var(--line-soft); color: var(--ink-soft); }
+  .cal-loading { text-align: center; padding: 60px; color: var(--ink-faint); font-size: 14px; }
+  .cal-no-calendar { text-align: center; padding: 60px 20px; color: var(--ink-faint); }
+  .cal-no-calendar p { margin: 8px 0; font-size: 14px; }
 </style>
 </head>
 <body>
@@ -446,10 +496,81 @@
   }
 
   function formatToday() {
-    return new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+    return new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
   }
 
-  var adminLink, adminDot, boardsNavLink;
+  var clockInterval = null;
+  function buildClock(container) {
+    var svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width", "36");
+    svg.setAttribute("height", "36");
+    svg.setAttribute("viewBox", "0 0 36 36");
+    svg.style.cssText = "display:block;flex-shrink:0;";
+
+    // face
+    var face = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    face.setAttribute("cx", "18"); face.setAttribute("cy", "18"); face.setAttribute("r", "16");
+    face.setAttribute("fill", "var(--bg-raised)");
+    face.setAttribute("stroke", "var(--line)");
+    face.setAttribute("stroke-width", "1.5");
+    svg.appendChild(face);
+
+    // hour tick marks
+    for (var i = 0; i < 12; i++) {
+      var angle = (i * 30) * Math.PI / 180;
+      var inner = i % 3 === 0 ? 11.5 : 12.5;
+      var outer = 14.5;
+      var tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      tick.setAttribute("x1", (18 + inner * Math.sin(angle)).toFixed(2));
+      tick.setAttribute("y1", (18 - inner * Math.cos(angle)).toFixed(2));
+      tick.setAttribute("x2", (18 + outer * Math.sin(angle)).toFixed(2));
+      tick.setAttribute("y2", (18 - outer * Math.cos(angle)).toFixed(2));
+      tick.setAttribute("stroke", "var(--ink-soft)");
+      tick.setAttribute("stroke-width", i % 3 === 0 ? "1.5" : "1");
+      tick.setAttribute("stroke-linecap", "round");
+      svg.appendChild(tick);
+    }
+
+    var hourHand = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    hourHand.setAttribute("stroke", "var(--ink)"); hourHand.setAttribute("stroke-width", "2.2"); hourHand.setAttribute("stroke-linecap", "round");
+    svg.appendChild(hourHand);
+
+    var minHand = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    minHand.setAttribute("stroke", "var(--ink)"); minHand.setAttribute("stroke-width", "1.5"); minHand.setAttribute("stroke-linecap", "round");
+    svg.appendChild(minHand);
+
+    var secHand = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    secHand.setAttribute("stroke", "var(--brick)"); secHand.setAttribute("stroke-width", "1"); secHand.setAttribute("stroke-linecap", "round");
+    svg.appendChild(secHand);
+
+    // center dot
+    var dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("cx", "18"); dot.setAttribute("cy", "18"); dot.setAttribute("r", "1.8");
+    dot.setAttribute("fill", "var(--ink)");
+    svg.appendChild(dot);
+
+    function hand(el, angleDeg, len) {
+      var a = angleDeg * Math.PI / 180;
+      el.setAttribute("x1", "18"); el.setAttribute("y1", "18");
+      el.setAttribute("x2", (18 + len * Math.sin(a)).toFixed(3));
+      el.setAttribute("y2", (18 - len * Math.cos(a)).toFixed(3));
+    }
+
+    function tick() {
+      var now = new Date();
+      var h = now.getHours() % 12, m = now.getMinutes(), s = now.getSeconds();
+      hand(hourHand, (h * 30) + (m * 0.5), 8.5);
+      hand(minHand,  (m * 6)  + (s * 0.1), 11.5);
+      hand(secHand,  s * 6,                 12);
+    }
+    tick();
+    if (clockInterval) clearInterval(clockInterval);
+    clockInterval = setInterval(tick, 1000);
+
+    container.appendChild(svg);
+  }
+
+  var adminLink, adminDot, boardsNavLink, calNavLink;
 
   // If the current page has registered a client-side router (index.html does,
   // for the merged Boards/Admin single-page view), clicking these two links
@@ -466,7 +587,10 @@
   function build(root) {
     root.innerHTML = "";
 
-    root.appendChild(el("span", "nav-date", { text: formatToday() }));
+    var dateGroup = el("div", "nav-date-group");
+    buildClock(dateGroup);
+    dateGroup.appendChild(el("span", "nav-date", { text: formatToday() }));
+    root.appendChild(dateGroup);
 
     var brand = el("div", "brand-mark");
     brand.appendChild(el("img", "brand-logo", { src: LOGO_SRC, alt: "Avenium" }));
@@ -480,6 +604,9 @@
     adminLink.addEventListener("click", function (e) { routedClick(e, "#admin"); });
     adminLink.style.display = "none";
     bar.appendChild(adminLink);
+    calNavLink = el("a", "", { href: "#calendar", text: "Calendar" });
+    calNavLink.addEventListener("click", function (e) { routedClick(e, "#calendar"); });
+    bar.appendChild(calNavLink);
     var logoutBtn = el("button", "link logout", { type: "button", text: "Log out" });
     logoutBtn.addEventListener("click", function () {
       fetch("/api/logout", { method: "POST" }).then(function () { window.location.href = "/login.html"; });
@@ -496,9 +623,10 @@
     // Highlights whichever of Boards/Admin matches the current URL hash, so the
     // active view's button reads as "selected" the way tabs do.
     markActive: function () {
-      var onAdmin = window.location.hash === "#admin";
-      if (boardsNavLink) boardsNavLink.classList.toggle("active", !onAdmin);
-      if (adminLink) adminLink.classList.toggle("active", onAdmin);
+      var hash = window.location.hash;
+      if (boardsNavLink) boardsNavLink.classList.toggle("active", hash === "#boards" || hash === "" || hash === "#");
+      if (adminLink) adminLink.classList.toggle("active", hash === "#admin");
+      if (calNavLink) calNavLink.classList.toggle("active", hash === "#calendar");
     }
   };
 
@@ -568,6 +696,50 @@
     <button id="activityToggleBtn" type="button">Show recent activity</button>
   </div>
   <ul class="activity-list" id="activityList"></ul>
+</div>
+
+<!-- Calendar view -->
+<div id="calendarView" class="calendar-wrap" style="display:none;">
+  <div class="calendar-header">
+    <h1>Calendar</h1>
+    <div class="calendar-connect-row" id="calendarConnectRow"></div>
+  </div>
+  <div class="calendar-nav">
+    <button id="calPrevBtn" type="button">&#8592;</button>
+    <span id="calMonthLabel"></span>
+    <button id="calNextBtn" type="button">&#8594;</button>
+    <button id="calTodayBtn" type="button">Today</button>
+  </div>
+  <div class="cal-grid-head">
+    <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
+  </div>
+  <div class="cal-grid" id="calGrid"></div>
+  <div class="cal-event-modal" id="calEventModal" style="display:none;">
+    <div class="cal-event-modal-box">
+      <div class="cal-event-modal-head">
+        <span id="calModalTitle">New Event</span>
+        <button id="calModalClose" type="button">&#10005;</button>
+      </div>
+      <div class="cal-event-modal-body">
+        <input id="calModalName" type="text" placeholder="Event title" autocomplete="off">
+        <div class="cal-modal-row">
+          <input id="calModalStart" type="datetime-local">
+          <span>to</span>
+          <input id="calModalEnd" type="datetime-local">
+        </div>
+        <input id="calModalDesc" type="text" placeholder="Description (optional)">
+        <select id="calModalProvider">
+          <option value="google">Google Calendar</option>
+          <option value="microsoft">Outlook Calendar</option>
+        </select>
+      </div>
+      <div class="cal-event-modal-foot">
+        <button id="calModalSave" type="button">Save</button>
+        <button id="calModalDelete" type="button" style="display:none;">Delete</button>
+        <button id="calModalCancel" type="button">Cancel</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script src="/socket.io/socket.io.js"></script>
@@ -678,44 +850,41 @@
     currentView = "boards";
     document.getElementById("boardsView").style.display = "";
     document.getElementById("adminView").style.display = "none";
+    document.getElementById("calendarView").style.display = "none";
     document.title = "Avenium";
     render();
   }
 
   function showAdminView() {
-    if (!currentUser || currentUser.role !== "admin") { showBoardsView(); return; } // defensive — the Admin link is hidden for non-admins anyway
+    if (!currentUser || currentUser.role !== "admin") { showBoardsView(); return; }
     currentView = "admin";
     document.getElementById("boardsView").style.display = "none";
     document.getElementById("adminView").style.display = "";
+    document.getElementById("calendarView").style.display = "none";
     document.title = "Admin \u00b7 Avenium";
     loadAdminUsers();
     loadAdminActivity();
   }
 
+  function showCalendarView() {
+    currentView = "calendar";
+    document.getElementById("boardsView").style.display = "none";
+    document.getElementById("adminView").style.display = "none";
+    document.getElementById("calendarView").style.display = "";
+    document.title = "Calendar \u00b7 Avenium";
+    initCalendar();
+  }
+
   function routeTo(hash) {
-    var view = (hash === "#admin") ? "admin" : "boards";
-    var wantedHash = view === "admin" ? "#admin" : "#boards";
-    if (window.location.hash !== wantedHash) {
-      // Setting location.hash both updates the address bar and pushes a history
-      // entry on its own — no separate pushState/replaceState call needed the
-      // way the old path-based version required. Every view gets an explicit
-      // name (#boards, not just a bare trailing "#"), matching how
-      // portal.avenium.com names its own views (#dashboard, #contacts, etc.)
-      // rather than leaving the default one unnamed.
-      window.location.hash = view === "admin" ? "admin" : "boards";
-    }
+    var view = hash === "#admin" ? "admin" : hash === "#calendar" ? "calendar" : "boards";
+    var wantedHash = { admin: "#admin", calendar: "#calendar", boards: "#boards" }[view];
+    if (window.location.hash !== wantedHash) window.location.hash = wantedHash.slice(1);
     currentView = view;
-    // Whether we can actually SHOW the admin view yet depends on knowing the
-    // person's role, which — on a cold page load — hasn't come back from
-    // /api/me yet. In that case just record the intent (currentView) and
-    // hide both sections for the instant it takes for that request to
-    // resolve; applyMe() (defined further down, called once /api/me
-    // resolves) finishes the job once the role is known. On every later
-    // call (nav clicks, back/forward) currentUser is already set, so this
-    // resolves immediately with no visible delay.
     if (window.AveniumNav && window.AveniumNav.markActive) window.AveniumNav.markActive();
     if (view === "admin" && !currentUser) { document.getElementById("boardsView").style.display = "none"; return; }
-    if (view === "admin") showAdminView(); else showBoardsView();
+    if (view === "calendar") { if (!currentUser) { document.getElementById("boardsView").style.display = "none"; return; } showCalendarView(); }
+    else if (view === "admin") showAdminView();
+    else showBoardsView();
   }
 
   window.AveniumRouter = {
@@ -1762,7 +1931,7 @@
       var noteEl = el("div", "note-item" + (isOpen ? " open" : ""));
       var noteHead = el("div", "note-head");
       var chev = el("div", "chevron"); chev.innerHTML = chevronSvg(); noteHead.appendChild(chev);
-      noteHead.appendChild(el("div", "note-preview", { text: n.text.replace(/\s+/g, " ") }));
+      noteHead.appendChild(el("div", "note-preview", { text: n.text.replace(/\s+/g, " "), title: n.text }));
       noteHead.appendChild(el("div", "note-meta", { text: relTime(n.updatedAt || n.createdAt) }));
       var delNoteBtn = el("button", "note-del", { type: "button", "aria-label": "Delete note" });
       delNoteBtn.innerHTML = xSvg();
@@ -2471,6 +2640,222 @@
     var isOpen = list.style.display === "block";
     list.style.display = isOpen ? "none" : "block";
     this.textContent = isOpen ? "Show recent activity" : "Hide recent activity";
+  });
+
+  document.getElementById("activityToggleBtn").addEventListener("click", function () {
+    var list = document.getElementById("activityList");
+    var isOpen = list.style.display === "block";
+    list.style.display = isOpen ? "none" : "block";
+    this.textContent = isOpen ? "Show recent activity" : "Hide recent activity";
+  });
+
+  // ---------------- Calendar view ----------------
+  var calendarEvents = [];
+  var calViewDate = new Date(); // tracks which month is showing
+  var calEditingEvent = null;   // null = creating new, otherwise the event object being edited
+  calViewDate.setDate(1);
+
+  function initCalendar() {
+    fetch("/api/calendar/status").then(function (r) { return r.json(); }).then(function (d) {
+      renderCalendarConnect(d);
+      if (d.google.connected || d.microsoft.connected) {
+        loadCalendarEvents();
+      } else {
+        renderCalGrid([]);
+      }
+    }).catch(function () {
+      document.getElementById("calendarConnectRow").innerHTML = "<span style='color:var(--ink-faint);font-size:13px;'>Calendar not configured on server yet.</span>";
+    });
+    renderCalGrid(calendarEvents);
+    document.getElementById("calPrevBtn").onclick = function () { calViewDate.setMonth(calViewDate.getMonth() - 1); renderCalGrid(calendarEvents); };
+    document.getElementById("calNextBtn").onclick = function () { calViewDate.setMonth(calViewDate.getMonth() + 1); renderCalGrid(calendarEvents); };
+    document.getElementById("calTodayBtn").onclick = function () { calViewDate = new Date(); calViewDate.setDate(1); renderCalGrid(calendarEvents); };
+    document.getElementById("calModalClose").onclick = closeCalModal;
+    document.getElementById("calModalCancel").onclick = closeCalModal;
+    document.getElementById("calModalSave").onclick = saveCalEvent;
+    document.getElementById("calModalDelete").onclick = deleteCalEvent;
+    // check for ?connected= or ?error= from OAuth callback
+    var hash = window.location.hash;
+    if (hash.indexOf("?connected=") !== -1) {
+      var provider = hash.split("?connected=")[1];
+      window.history.replaceState(null, "", "/#calendar");
+      initCalendar();
+    } else if (hash.indexOf("?error=") !== -1) {
+      window.history.replaceState(null, "", "/#calendar");
+      alert("Could not connect calendar. Please try again.");
+    }
+  }
+
+  function renderCalendarConnect(status) {
+    var row = document.getElementById("calendarConnectRow");
+    row.innerHTML = "";
+    // Google
+    var gBtn = el("div", "");
+    gBtn.style.cssText = "display:flex;align-items:center;gap:8px;";
+    var gConnBtn = el("button", "cal-connect-btn" + (status.google.connected ? " connected" : ""), { type: "button" });
+    var gDot = el("span", "cal-dot");
+    gConnBtn.appendChild(gDot);
+    gConnBtn.appendChild(document.createTextNode(status.google.connected ? ("Google \u2713 " + (status.google.email || "")) : "Connect Google Calendar"));
+    if (!status.google.connected) {
+      gConnBtn.onclick = function () { window.location.href = "/auth/google"; };
+    } else {
+      var gDisc = el("button", "cal-disconnect-link", { type: "button", text: "Disconnect" });
+      gDisc.onclick = function () {
+        if (!window.confirm("Disconnect Google Calendar?")) return;
+        fetch("/auth/google", { method: "DELETE" }).then(function () { initCalendar(); });
+      };
+      gBtn.appendChild(gConnBtn);
+      gBtn.appendChild(gDisc);
+      row.appendChild(gBtn);
+    }
+    if (!status.google.connected) { gBtn.appendChild(gConnBtn); row.appendChild(gBtn); }
+
+    // Microsoft
+    var mBtn = el("div", "");
+    mBtn.style.cssText = "display:flex;align-items:center;gap:8px;";
+    var mConnBtn = el("button", "cal-connect-btn" + (status.microsoft.connected ? " connected" : ""), { type: "button" });
+    var mDot = el("span", "cal-dot");
+    mConnBtn.appendChild(mDot);
+    mConnBtn.appendChild(document.createTextNode(status.microsoft.connected ? ("Outlook \u2713 " + (status.microsoft.email || "")) : "Connect Outlook Calendar"));
+    if (!status.microsoft.connected) {
+      mConnBtn.onclick = function () { window.location.href = "/auth/microsoft"; };
+      mBtn.appendChild(mConnBtn);
+    } else {
+      var mDisc = el("button", "cal-disconnect-link", { type: "button", text: "Disconnect" });
+      mDisc.onclick = function () {
+        if (!window.confirm("Disconnect Outlook Calendar?")) return;
+        fetch("/auth/microsoft", { method: "DELETE" }).then(function () { initCalendar(); });
+      };
+      mBtn.appendChild(mConnBtn);
+      mBtn.appendChild(mDisc);
+    }
+    row.appendChild(mBtn);
+  }
+
+  function loadCalendarEvents() {
+    var grid = document.getElementById("calGrid");
+    grid.innerHTML = "<div class='cal-loading'>Loading events\u2026</div>";
+    fetch("/api/calendar/events").then(function (r) { return r.json(); }).then(function (d) {
+      calendarEvents = d.events || [];
+      renderCalGrid(calendarEvents);
+    }).catch(function () {
+      grid.innerHTML = "<div class='cal-loading'>Could not load events.</div>";
+    });
+  }
+
+  function renderCalGrid(events) {
+    var label = document.getElementById("calMonthLabel");
+    var grid = document.getElementById("calGrid");
+    var year = calViewDate.getFullYear(), month = calViewDate.getMonth();
+    label.textContent = calViewDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+    var firstDay = new Date(year, month, 1).getDay();
+    var daysInMonth = new Date(year, month + 1, 0).getDate();
+    var today = new Date(); today.setHours(0,0,0,0);
+
+    grid.innerHTML = "";
+    // leading cells from previous month
+    var prevDays = new Date(year, month, 0).getDate();
+    for (var i = firstDay - 1; i >= 0; i--) {
+      var cell = el("div", "cal-cell other-month");
+      cell.innerHTML = "<div class='cal-day-num'>" + (prevDays - i) + "</div>";
+      grid.appendChild(cell);
+    }
+    // days of current month
+    for (var d = 1; d <= daysInMonth; d++) {
+      (function (day) {
+        var date = new Date(year, month, day);
+        date.setHours(0,0,0,0);
+        var isToday = date.getTime() === today.getTime();
+        var cell = el("div", "cal-cell" + (isToday ? " today" : ""));
+        var head = el("div", "cal-day-num");
+        head.textContent = day;
+        cell.appendChild(head);
+
+        // filter events for this day
+        var dayStr = year + "-" + String(month+1).padStart(2,"0") + "-" + String(day).padStart(2,"0");
+        var dayEvents = events.filter(function (e) {
+          var start = (e.start || "").substring(0, 10);
+          return start === dayStr;
+        }).slice(0, 3);
+        dayEvents.forEach(function (ev) {
+          var pill = el("div", "cal-event-pill " + (ev.provider || ""), { text: ev.title });
+          pill.title = ev.title;
+          pill.onclick = function (e) { e.stopPropagation(); openCalModal(ev); };
+          cell.appendChild(pill);
+        });
+        if (events.filter(function (e) { return (e.start||"").substring(0,10) === dayStr; }).length > 3) {
+          cell.appendChild(el("div", "cal-more", { text: "+" + (events.filter(function (e) { return (e.start||"").substring(0,10) === dayStr; }).length - 3) + " more" }));
+        }
+
+        cell.onclick = function () {
+          var dt = year + "-" + String(month+1).padStart(2,"0") + "-" + String(day).padStart(2,"0") + "T09:00";
+          openCalModal(null, dt);
+        };
+        grid.appendChild(cell);
+      })(d);
+    }
+    // trailing cells
+    var total = firstDay + daysInMonth;
+    var trailing = total % 7 === 0 ? 0 : 7 - (total % 7);
+    for (var t = 1; t <= trailing; t++) {
+      var tcell = el("div", "cal-cell other-month");
+      tcell.innerHTML = "<div class='cal-day-num'>" + t + "</div>";
+      grid.appendChild(tcell);
+    }
+  }
+
+  function openCalModal(event, defaultStart) {
+    calEditingEvent = event || null;
+    var modal = document.getElementById("calEventModal");
+    document.getElementById("calModalTitle").textContent = event ? "Edit Event" : "New Event";
+    document.getElementById("calModalName").value = event ? event.title : "";
+    document.getElementById("calModalDesc").value = event ? (event.description || "") : "";
+    document.getElementById("calModalStart").value = event ? (event.start || "").replace("Z","").substring(0,16) : (defaultStart || "");
+    document.getElementById("calModalEnd").value = event ? (event.end || "").replace("Z","").substring(0,16) : (defaultStart || "");
+    document.getElementById("calModalProvider").value = event ? (event.provider || "google") : "google";
+    document.getElementById("calModalProvider").disabled = !!event;
+    document.getElementById("calModalDelete").style.display = event ? "" : "none";
+    modal.style.display = "flex";
+    document.getElementById("calModalName").focus();
+  }
+
+  function closeCalModal() {
+    document.getElementById("calEventModal").style.display = "none";
+    calEditingEvent = null;
+  }
+
+  function saveCalEvent() {
+    var title = document.getElementById("calModalName").value.trim();
+    if (!title) { alert("Please enter a title."); return; }
+    var start = document.getElementById("calModalStart").value;
+    var end = document.getElementById("calModalEnd").value || start;
+    var desc = document.getElementById("calModalDesc").value.trim();
+    var provider = document.getElementById("calModalProvider").value;
+    if (calEditingEvent) {
+      fetch("/api/calendar/events/" + calEditingEvent.provider + "/" + encodeURIComponent(calEditingEvent.externalId), {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title, start: start, end: end, description: desc })
+      }).then(function () { closeCalModal(); loadCalendarEvents(); });
+    } else {
+      fetch("/api/calendar/events", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider: provider, title: title, start: start, end: end, description: desc })
+      }).then(function () { closeCalModal(); loadCalendarEvents(); });
+    }
+  }
+
+  function deleteCalEvent() {
+    if (!calEditingEvent) return;
+    if (!window.confirm("Delete \"" + calEditingEvent.title + "\"? This will remove it from your calendar.")) return;
+    fetch("/api/calendar/events/" + calEditingEvent.provider + "/" + encodeURIComponent(calEditingEvent.externalId), {
+      method: "DELETE"
+    }).then(function () { closeCalModal(); loadCalendarEvents(); });
+  }
+
+  // close modal on backdrop click
+  document.getElementById("calEventModal").addEventListener("click", function (e) {
+    if (e.target === this) closeCalModal();
   });
 
   // ---------------- auth / topbar wiring ----------------
