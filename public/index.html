@@ -645,13 +645,13 @@
     boardsNavLink = el("a", "", { href: "#boards", text: "Boards" });
     boardsNavLink.addEventListener("click", function (e) { routedClick(e, "#boards"); });
     bar.appendChild(boardsNavLink);
+    calNavLink = el("a", "", { href: "#calendar", text: "Calendar" });
+    calNavLink.addEventListener("click", function (e) { routedClick(e, "#calendar"); });
+    bar.appendChild(calNavLink);
     adminLink = el("a", "", { href: "#admin", text: "Admin" });
     adminLink.addEventListener("click", function (e) { routedClick(e, "#admin"); });
     adminLink.style.display = "none";
     bar.appendChild(adminLink);
-    calNavLink = el("a", "", { href: "#calendar", text: "Calendar" });
-    calNavLink.addEventListener("click", function (e) { routedClick(e, "#calendar"); });
-    bar.appendChild(calNavLink);
     var logoutBtn = el("button", "link logout", { type: "button", text: "Log out" });
     logoutBtn.addEventListener("click", function () {
       fetch("/api/logout", { method: "POST" }).then(function () { window.location.href = "/login.html"; });

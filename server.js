@@ -103,18 +103,21 @@ function setCalendarVisible(userId, key, visible) {
 }
 
 // ---- Built-in calendars (no sign-in needed) ----
+// Both are on by default — only calendars a user explicitly unticks are stored.
 const BUILTIN_CALENDARS = [
-  { id: "jewish", name: "Jewish Holidays", color: "#7D6BAE" }
+  { id: "jewish", name: "Jewish Holidays", color: "#7D6BAE" },
+  { id: "usa", name: "US Holidays", color: "#4C7A9E" }
 ];
 
 // Jewish holidays come from Hebcal's free public API — no account or key.
 // Major + minor holidays, fast days and special Shabbatot, diaspora dates.
+// Titles only: Hebcal's "memo" descriptions are deliberately dropped.
 async function fetchJewishHolidays(timeMin, timeMax) {
   const start = String(timeMin).slice(0, 10);
   const end = String(timeMax).slice(0, 10);
   const r = await httpsRequest({
     hostname: "www.hebcal.com",
-    path: `/hebcal?v=1&cfg=json&maj=on&min=on&mod=on&nx=on&ss=on&mf=on&c=off&s=off&D=off&start=${start}&end=${end}`,
+    path: `/hebcal?v=1&cfg=json&maj=on&min=on&mod=on&nx=on&ss=on&mf=on&c=off&s=off&start=${start}&end=${end}`,
     method: "GET",
     headers: { Accept: "application/json", "User-Agent": "AveniumTasks/1.0" }
   });
@@ -124,8 +127,39 @@ async function fetchJewishHolidays(timeMin, timeMax) {
     .map((it) => ({
       externalId: "hebcal_" + it.date + "_" + (it.title || "").replace(/\W+/g, ""),
       title: it.title || "", start: String(it.date).slice(0, 10), end: String(it.date).slice(0, 10),
-      allDay: true, description: it.memo || "", htmlLink: it.link || ""
+      allDay: true, description: "", htmlLink: ""
     }));
+}
+
+// US public holidays from Nager.Date's free public API — no account or key.
+// It answers per calendar year, so a range spanning a new year fetches both.
+async function fetchUSHolidays(timeMin, timeMax) {
+  const startDate = String(timeMin).slice(0, 10);
+  const endDate = String(timeMax).slice(0, 10);
+  const years = [];
+  for (let y = Number(startDate.slice(0, 4)); y <= Number(endDate.slice(0, 4)); y++) years.push(y);
+  const perYear = await Promise.all(years.map(async (y) => {
+    try {
+      const r = await httpsRequest({
+        hostname: "date.nager.at", path: `/api/v3/PublicHolidays/${y}/US`, method: "GET",
+        headers: { Accept: "application/json", "User-Agent": "AveniumTasks/1.0" }
+      });
+      return Array.isArray(r.body) ? r.body : [];
+    } catch (e) { return []; }
+  }));
+  return perYear.flat()
+    .filter((h) => h.date >= startDate && h.date <= endDate)
+    .map((h) => ({
+      externalId: "usholiday_" + h.date + "_" + String(h.name || "").replace(/\W+/g, ""),
+      title: h.localName || h.name || "", start: h.date, end: h.date,
+      allDay: true, description: "", htmlLink: ""
+    }));
+}
+
+async function fetchBuiltinEvents(id, timeMin, timeMax) {
+  if (id === "jewish") return fetchJewishHolidays(timeMin, timeMax);
+  if (id === "usa") return fetchUSHolidays(timeMin, timeMax);
+  return [];
 }
 
 // ---- Generic HTTPS helper (no npm dependency needed) ----
@@ -1741,16 +1775,15 @@ app.get("/api/calendar/events", requireAuth, async (req, res) => {
   const hidden = hiddenSet(req.session.userId);
   const accounts = listAccounts(req.session.userId);
   const all = [];
-  if (!hidden.has("builtin|jewish")) {
+  await Promise.all(BUILTIN_CALENDARS.filter((c) => !hidden.has("builtin|" + c.id)).map(async (def) => {
     try {
-      const jewish = await fetchJewishHolidays(timeMin, timeMax);
-      const def = BUILTIN_CALENDARS.find((c) => c.id === "jewish");
-      jewish.forEach((ev) => all.push({
+      const events = await fetchBuiltinEvents(def.id, timeMin, timeMax);
+      events.forEach((ev) => all.push({
         ...ev, provider: "builtin", accountId: "builtin", accountEmail: "",
-        calendarId: "jewish", calendarName: def.name, color: def.color, canEdit: false
+        calendarId: def.id, calendarName: def.name, color: def.color, canEdit: false
       }));
     } catch (e) {}
-  }
+  }));
   await Promise.all(accounts.map(async (acct) => {
     try {
       const a = await freshToken(acct);
