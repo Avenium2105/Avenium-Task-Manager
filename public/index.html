@@ -136,13 +136,14 @@
   .board-head .quote-line { color: var(--ink-faint); font-size: 13px; font-style: italic; margin: 6px 0 0; }
 
   /* board tabs — a modern segmented control instead of underlined text tabs */
-  .board-tabs { display: flex; align-items: flex-end; gap: 3px; flex-wrap: wrap; margin: 0; background: var(--line-soft); border-bottom: 2px solid var(--line); padding: 10px 32px 0; position: sticky; top: var(--nav-h, 67px); z-index: 400; }
-  .board-tab-wrap { display: inline-flex; align-items: center; border-radius: 9px 9px 0 0; cursor: grab; position: relative; }
+  .board-tabs { display: flex; align-items: flex-end; gap: 3px; flex-wrap: nowrap; margin: 0; background: var(--line-soft); border-bottom: 2px solid var(--line); padding: 10px 32px 0; position: sticky; top: var(--nav-h, 67px); z-index: 400; }
+  .board-tab-wrap { display: inline-flex; align-items: center; flex: 1 1 0; min-width: 0; border-radius: 9px 9px 0 0; cursor: grab; position: relative; }
   .board-tab-wrap:active { cursor: grabbing; }
   .board-tab-wrap.drag-over { box-shadow: inset 0 0 0 2px var(--slate); }
   .board-tab {
+    flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center;
     font-family: inherit; font-size: 13px; font-weight: 700; color: var(--ink-soft); background: var(--line-soft); border: 1px solid var(--line); border-bottom: none;
-    padding: 9px 18px; cursor: pointer; border-radius: 9px 9px 0 0; transition: background 0.15s, color 0.15s; margin-bottom: -2px;
+    padding: 9px 12px; cursor: pointer; border-radius: 9px 9px 0 0; transition: background 0.15s, color 0.15s; margin-bottom: -2px;
   }
   .board-tab:hover { color: var(--ink); }
   .board-tab.active { color: var(--pine); background: var(--bg-raised); border-color: var(--line); box-shadow: 0 -1px 4px rgba(34,38,31,0.06); position: relative; z-index: 2; }
@@ -933,9 +934,11 @@
   function renderTabs() {
     var mount = document.getElementById("boardTabs");
     mount.innerHTML = "";
+    var allWrap = el("span", "board-tab-wrap");
     var allTab = el("button", "board-tab" + (selectedBoardId === "__all__" ? " active" : ""), { type: "button", text: "All boards" });
     allTab.addEventListener("click", function () { selectedBoardId = "__all__"; selectedItemId = null; localStorage.setItem("daily-board-selected-board", selectedBoardId); render(); });
-    mount.appendChild(allTab);
+    allWrap.appendChild(allTab);
+    mount.appendChild(allWrap);
 
     var isAdmin = currentUser && currentUser.role === "admin";
     boardsInTabOrder().forEach(function (b) {
@@ -1062,7 +1065,7 @@
       mount.appendChild(wrap);
     });
 
-    var addWrap = el("span", "board-tab-wrap");
+    var addWrap = el("span", "board-tab-wrap add-wrap");
     var addTab = el("button", "board-tab add-board", { type: "button", text: "+", title: "New board" });
     addTab.addEventListener("click", function (e) {
       e.stopPropagation();
