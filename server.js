@@ -103,7 +103,11 @@ function loadState() {
       return {
         boards, groups, items,
         activity: Array.isArray(raw.activity) ? raw.activity : [],
-        messages: Array.isArray(raw.messages) ? raw.messages : []
+        messages: Array.isArray(raw.messages) ? raw.messages : [],
+        // Personal/shared to-do list, separate from boards/tasks entirely. Private
+        // to its creator by default — sharedWith (a list of user ids) is what
+        // opens it up to show on someone else's list too.
+        todos: Array.isArray(raw.todos) ? raw.todos : []
       };
     } catch (e) {
       console.error("Could not read data.json, starting fresh:", e.message);
@@ -122,7 +126,8 @@ function loadState() {
     })),
     items: [],
     activity: [],
-    messages: []
+    messages: [],
+    todos: []
   };
 }
 
@@ -700,7 +705,12 @@ function stateForUser(userId) {
   const visibleMessages = state.messages.filter((m) =>
     m.scope === "board" ? visibleBoardIds.has(m.scopeId) : visibleItemIds.has(m.scopeId)
   );
-  return { boards: visibleBoards, groups: visibleGroups, items: visibleItems, activity: state.activity, messages: visibleMessages };
+  // Same private-by-default idea as private groups: a to-do only shows up for its
+  // creator, plus anyone specifically listed in sharedWith. This filtering happens
+  // here (per-user, server-side) rather than client-side, so an unshared to-do
+  // never even reaches another person's browser in the first place.
+  const visibleTodos = state.todos.filter((t) => t.createdById === userId || (t.sharedWith || []).includes(userId));
+  return { boards: visibleBoards, groups: visibleGroups, items: visibleItems, activity: state.activity, messages: visibleMessages, todos: visibleTodos };
 }
 
 function broadcastState() {
@@ -1148,6 +1158,68 @@ io.on("connection", (socket) => {
     item.updatedBy = actorName();
     item.updatedAt = nowIso();
     if (group.visibility !== "private") logActivity(`${actorName()} unarchived "${item.title}"`);
+    persist();
+    broadcastState();
+  });
+
+  // ---- personal/shared to-do list ----
+  // Separate from boards/tasks entirely — not tied to any board, group, or task.
+  // Private to its creator unless sharedWith names other people, in which case it
+  // also shows up on their list. Anyone it's shared with can check it off too
+  // (that's the point — coordinating), but only the creator can edit who it's
+  // shared with or delete it outright.
+  socket.on("addTodo", ({ text, sharedWith }) => {
+    if (typeof text !== "string" || !text.trim()) return;
+    const validIds = new Set(users.map((u) => u.id));
+    const shared = Array.isArray(sharedWith)
+      ? [...new Set(sharedWith.filter((sid) => validIds.has(sid) && sid !== user.id))].slice(0, 50)
+      : [];
+    const todo = {
+      id: uid("t"), text: text.trim().slice(0, 500), done: false,
+      createdBy: actorName(), createdById: user.id, createdAt: nowIso(), updatedAt: nowIso(),
+      sharedWith: shared
+    };
+    state.todos.push(todo);
+    persist();
+    broadcastState();
+  });
+
+  socket.on("toggleTodo", ({ id, done }) => {
+    const todo = state.todos.find((t) => t.id === id);
+    if (!todo) return;
+    if (todo.createdById !== user.id && !(todo.sharedWith || []).includes(user.id)) return; // must be able to see it to check it off
+    todo.done = !!done;
+    todo.updatedAt = nowIso();
+    persist();
+    broadcastState();
+  });
+
+  socket.on("updateTodoText", ({ id, text }) => {
+    const todo = state.todos.find((t) => t.id === id);
+    if (!todo || todo.createdById !== user.id) return; // owner only
+    if (typeof text !== "string" || !text.trim()) return;
+    todo.text = text.trim().slice(0, 500);
+    todo.updatedAt = nowIso();
+    persist();
+    broadcastState();
+  });
+
+  socket.on("shareTodo", ({ id, sharedWith }) => {
+    const todo = state.todos.find((t) => t.id === id);
+    if (!todo || todo.createdById !== user.id) return; // owner only — only the creator decides who else sees it
+    const validIds = new Set(users.map((u) => u.id));
+    todo.sharedWith = Array.isArray(sharedWith)
+      ? [...new Set(sharedWith.filter((sid) => validIds.has(sid) && sid !== user.id))].slice(0, 50)
+      : [];
+    todo.updatedAt = nowIso();
+    persist();
+    broadcastState();
+  });
+
+  socket.on("deleteTodo", ({ id }) => {
+    const todo = state.todos.find((t) => t.id === id);
+    if (!todo || todo.createdById !== user.id) return; // owner only
+    state.todos = state.todos.filter((t) => t.id !== id);
     persist();
     broadcastState();
   });

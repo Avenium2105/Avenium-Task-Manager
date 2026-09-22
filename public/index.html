@@ -40,6 +40,39 @@
   .wrap { max-width: 900px; flex: 1 1 auto; margin: 0; padding: 20px 0 100px; min-width: 0; }
 
   .board-chat { flex-shrink: 0; width: 400px; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: calc(var(--nav-h, 67px) + var(--tabs-h, 54px) + 12px); display: flex; flex-direction: column; max-height: calc(100vh - var(--nav-h, 67px) - var(--tabs-h, 54px) - 32px); transition: width 0.15s; }
+
+  .todo-sidebar { flex-shrink: 0; width: 280px; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: calc(var(--nav-h, 67px) + var(--tabs-h, 54px) + 12px); display: flex; flex-direction: column; max-height: calc(100vh - var(--nav-h, 67px) - var(--tabs-h, 54px) - 32px); }
+  .todo-sidebar-head { flex-shrink: 0; font-weight: 600; font-size: 14px; color: var(--ink); padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .todo-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .todo-empty { color: var(--ink-faint); font-size: 12.5px; padding: 6px 4px; }
+  .todo-row { display: flex; align-items: flex-start; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+  .todo-row.done { opacity: 0.55; }
+  .todo-check { flex-shrink: 0; width: 18px; height: 18px; margin-top: 1px; border: 1.5px solid var(--line); background: var(--bg-raised); color: transparent; cursor: pointer; border-radius: 5px; display: flex; align-items: center; justify-content: center; padding: 0; }
+  .todo-check svg { width: 10px; height: 10px; stroke: currentColor; }
+  .todo-check.checked { background: var(--pine); border-color: var(--pine); color: var(--bg-raised); }
+  .todo-main { flex: 1; min-width: 0; }
+  .todo-text { font-size: 12.5px; color: var(--ink); word-break: break-word; background: transparent; border: none; width: 100%; font-family: inherit; resize: none; outline: none; padding: 0; line-height: 1.4; }
+  .todo-row.done .todo-text { text-decoration: line-through; color: var(--ink-faint); }
+  .todo-meta-row { display: flex; align-items: center; gap: 6px; margin-top: 4px; flex-wrap: wrap; }
+  .todo-shared-tag { font-size: 10.5px; font-weight: 500; color: var(--slate); background: var(--slate-soft); border-radius: 20px; padding: 2px 7px; cursor: pointer; border: none; white-space: nowrap; }
+  .todo-shared-tag:hover { background: var(--slate); color: var(--bg-raised); }
+  .todo-share-link { font-size: 10.5px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 2px 0; text-decoration: underline; }
+  .todo-share-link:hover { color: var(--pine); }
+  .todo-del { flex-shrink: 0; width: 18px; height: 18px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 4px; display: flex; align-items: center; justify-content: center; padding: 0; margin-top: 1px; }
+  .todo-del:hover { background: var(--brick-soft); color: var(--brick); }
+  .todo-del svg { width: 10px; height: 10px; }
+  .todo-add-mount { flex-shrink: 0; padding: 10px; border-top: 1px solid var(--line); }
+  .todo-add-link { width: 100%; text-align: center; font-family: inherit; font-size: 12.5px; font-weight: 500; color: var(--pine); background: none; border: 1px dashed var(--line); border-radius: 8px; padding: 8px; cursor: pointer; }
+  .todo-add-link:hover { border-color: var(--pine); background: var(--pine-soft); }
+  .todo-add-row { display: flex; flex-direction: column; gap: 8px; }
+  .todo-add-row textarea { width: 100%; box-sizing: border-box; font-size: 12.5px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-family: inherit; resize: vertical; min-height: 54px; outline: none; line-height: 1.4; }
+  .todo-add-row .todo-add-btns { display: flex; gap: 6px; }
+  .todo-add-row .todo-add-btns button { flex: 1; font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 7px 10px; border: none; border-radius: 6px; background: var(--pine); color: var(--bg-raised); cursor: pointer; }
+  .todo-add-row .todo-add-btns button.cancel { background: none; color: var(--ink-soft); flex: 0 0 auto; }
+  .todo-share-btn { font-family: inherit; font-size: 12px; font-weight: 500; color: var(--ink-soft); background: var(--line-soft); border: none; border-radius: 20px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
+  .todo-share-btn.chosen { color: var(--bg-raised); background: var(--slate); }
+  .todo-share-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 8px 10px; min-width: 190px; max-height: 260px; overflow-y: auto; }
+
   .board-chat.task-mode { width: 560px; }
   .board-chat.all-mode { width: 620px; }
   .board-chat-head { padding: 14px 16px; border-bottom: 1px solid var(--line-soft); font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -64,6 +97,7 @@
     .page { display: block; padding: 0 20px; }
     .wrap { max-width: none; padding: 20px 0 40px; }
     .board-chat, .board-chat.task-mode, .board-chat.all-mode { width: auto; margin: 0 0 20px; position: static; max-height: none; }
+    .todo-sidebar { width: auto; margin: 0 0 20px; position: static; max-height: none; }
     .task-panel-cols { grid-template-columns: 1fr; }
     .all-boards-split { flex-direction: column; }
     .all-boards-links-col { flex: 0 0 auto; flex-direction: row; flex-wrap: wrap; border-right: none; padding-right: 0; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
@@ -470,6 +504,11 @@
 <div id="boardsView">
 <div class="board-tabs" id="boardTabs"></div>
 <div class="page">
+<aside class="todo-sidebar" id="todoSidebar">
+  <div class="todo-sidebar-head">To-Do List</div>
+  <div class="todo-list" id="todoList"></div>
+  <div class="todo-add-mount" id="todoAddMount"></div>
+</aside>
 <div class="wrap">
   <main id="groupsMount"></main>
   <div id="addGroupMount"></div>
@@ -523,7 +562,7 @@
 (function () {
   "use strict";
 
-  var state = { boards: [], groups: [], items: [], messages: [] };
+  var state = { boards: [], groups: [], items: [], messages: [], todos: [] };
   var stateLoaded = false; // true once the first real "state" socket event has arrived — see renderSidePanel
   var team = [];
   var currentUser = null;
@@ -535,6 +574,7 @@
   var notifiedRecently = {};
   var showArchived = false;
   var openStepAdders = {};   // itemId -> true while its "add a step" input is showing
+  var openTodoAdder = false; // true while the to-do sidebar's "add a to-do" form is showing
   var openNoteIds = {};      // noteId -> true while that specific note is expanded open (closed by default)
   var openNoteAdders = {};   // itemId -> true while its "add a note" input is showing
   var openStepMenus = {};    // itemId -> true while its Step menu (Next/Completed step/Completed task) is open
@@ -1045,6 +1085,178 @@
     document.documentElement.style.setProperty("--tabs-h", mount.offsetHeight + "px");
   }
 
+  // ---------------- to-do sidebar ----------------
+  // A personal (or selectively shared) list, entirely separate from boards and
+  // tasks — nothing here is tied to a specific board/group/task. Private to
+  // whoever created it by default; sharing it with someone makes it show up on
+  // their list too, and they can check it off, but only the creator can edit
+  // who it's shared with or delete it. The server already only ever sends this
+  // user the to-dos they're allowed to see (their own + shared-to-them), so
+  // there's no client-side filtering to get wrong here.
+
+  function openTodoSharePicker(triggerEl, todo) {
+    document.querySelectorAll(".floating-popover").forEach(function (n) { n.remove(); });
+    var pop = el("div", "todo-share-popover");
+    pop.addEventListener("click", function (e) { e.stopPropagation(); });
+    var current = todo.sharedWith || [];
+    team.filter(function (t) { return t.id !== currentUser.id; }).forEach(function (u) {
+      var lbl = el("label");
+      var chk = el("input", "", { type: "checkbox" });
+      chk.checked = current.includes(u.id);
+      chk.addEventListener("change", function () {
+        var next = team.filter(function (t) {
+          var wasChecked = current.includes(t.id);
+          return t.id === u.id ? chk.checked : wasChecked;
+        }).map(function (t) { return t.id; }).filter(function (id) { return id !== currentUser.id; });
+        socket.emit("shareTodo", { id: todo.id, sharedWith: next });
+      });
+      lbl.appendChild(chk);
+      lbl.appendChild(document.createTextNode(u.displayName));
+      pop.appendChild(lbl);
+    });
+    if (!team.filter(function (t) { return t.id !== currentUser.id; }).length) {
+      pop.appendChild(el("div", "notes-empty", { text: "No one else to share with yet." }));
+    }
+    anchorPopover(triggerEl, pop, "left");
+  }
+
+  function renderTodoSidebar() {
+    var list = document.getElementById("todoList");
+    var addMount = document.getElementById("todoAddMount");
+    if (!list || !addMount) return; // not on the boards view (e.g. mid-transition to Admin)
+    list.innerHTML = "";
+    addMount.innerHTML = "";
+
+    var todos = (state.todos || []).slice().sort(function (a, b) {
+      if (!!a.done !== !!b.done) return a.done ? 1 : -1; // open ones first, done ones sink to the bottom
+      return new Date(a.createdAt) - new Date(b.createdAt);
+    });
+
+    if (!todos.length) {
+      list.appendChild(el("div", "todo-empty", { text: "Nothing on your list yet." }));
+    }
+
+    todos.forEach(function (t) {
+      var isMine = currentUser && t.createdById === currentUser.id;
+      var row = el("div", "todo-row" + (t.done ? " done" : ""));
+
+      var check = el("button", "todo-check" + (t.done ? " checked" : ""), { type: "button", "aria-label": t.done ? "Mark not done" : "Mark done" });
+      check.innerHTML = t.done ? checkSvg() : "";
+      check.addEventListener("click", function () { socket.emit("toggleTodo", { id: t.id, done: !t.done }); });
+      row.appendChild(check);
+
+      var main = el("div", "todo-main");
+      var textEl = el("textarea", "todo-text", { rows: "1" });
+      textEl.value = t.text;
+      textEl.disabled = !isMine; // only the creator can edit the text itself
+      function autoGrow() { textEl.style.height = "auto"; textEl.style.height = textEl.scrollHeight + "px"; }
+      textEl.addEventListener("input", autoGrow);
+      textEl.addEventListener("blur", function () {
+        if (isMine && textEl.value.trim() && textEl.value.trim() !== t.text) {
+          socket.emit("updateTodoText", { id: t.id, text: textEl.value });
+        } else {
+          textEl.value = t.text;
+        }
+      });
+      main.appendChild(textEl);
+      setTimeout(autoGrow, 0);
+
+      var metaRow = el("div", "todo-meta-row");
+      var sharedWith = t.sharedWith || [];
+      if (sharedWith.length) {
+        var names = sharedWith.map(function (id) {
+          var u = team.find(function (x) { return x.id === id; });
+          return u ? u.displayName : null;
+        }).filter(Boolean);
+        var tagText = "Shared: " + (names.length > 2 ? (names.slice(0, 2).join(", ") + " +" + (names.length - 2)) : names.join(", "));
+        var tag = el("button", "todo-shared-tag", { type: "button", text: tagText });
+        if (isMine) tag.addEventListener("click", function (e) { e.stopPropagation(); openTodoSharePicker(tag, t); });
+        else tag.disabled = true;
+        metaRow.appendChild(tag);
+      } else if (isMine) {
+        var shareLink = el("button", "todo-share-link", { type: "button", text: "Share" });
+        shareLink.addEventListener("click", function (e) { e.stopPropagation(); openTodoSharePicker(shareLink, t); });
+        metaRow.appendChild(shareLink);
+      } else if (t.createdBy) {
+        metaRow.appendChild(el("div", "todo-shared-tag", { text: "From " + t.createdBy }));
+      }
+      main.appendChild(metaRow);
+      row.appendChild(main);
+
+      if (isMine) {
+        var delBtn = el("button", "todo-del", { type: "button", "aria-label": "Delete to-do" });
+        delBtn.innerHTML = xSvg();
+        delBtn.addEventListener("click", function () {
+          if (window.confirm("Delete this to-do?")) socket.emit("deleteTodo", { id: t.id });
+        });
+        row.appendChild(delBtn);
+      }
+
+      list.appendChild(row);
+    });
+
+    if (openTodoAdder) {
+      var addRow = el("div", "todo-add-row");
+      var addTa = el("textarea", "", { placeholder: "What needs doing\u2026" });
+      addRow.appendChild(addTa);
+
+      var pendingShare = []; // ids picked before the to-do even exists yet
+      var shareBtn = el("button", "todo-share-btn", { type: "button", text: "Share" });
+      shareBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        document.querySelectorAll(".floating-popover").forEach(function (n) { n.remove(); });
+        var pop = el("div", "todo-share-popover");
+        pop.addEventListener("click", function (e2) { e2.stopPropagation(); });
+        team.filter(function (t) { return t.id !== currentUser.id; }).forEach(function (u) {
+          var lbl = el("label");
+          var chk = el("input", "", { type: "checkbox" });
+          chk.checked = pendingShare.includes(u.id);
+          chk.addEventListener("change", function () {
+            pendingShare = chk.checked ? pendingShare.concat([u.id]) : pendingShare.filter(function (id) { return id !== u.id; });
+            shareBtn.classList.toggle("chosen", !!pendingShare.length);
+            shareBtn.textContent = pendingShare.length ? ("Share (" + pendingShare.length + ")") : "Share";
+          });
+          lbl.appendChild(chk);
+          lbl.appendChild(document.createTextNode(u.displayName));
+          pop.appendChild(lbl);
+        });
+        if (!team.filter(function (t) { return t.id !== currentUser.id; }).length) {
+          pop.appendChild(el("div", "notes-empty", { text: "No one else to share with yet." }));
+        }
+        anchorPopover(shareBtn, pop, "left");
+      });
+
+      var btns = el("div", "todo-add-btns");
+      btns.appendChild(shareBtn);
+      var saveBtn = el("button", "", { type: "button", text: "Add" });
+      saveBtn.addEventListener("click", function () {
+        if (addTa.value.trim()) {
+          socket.emit("addTodo", { text: addTa.value, sharedWith: pendingShare });
+          openTodoAdder = false;
+          render();
+        }
+      });
+      btns.appendChild(saveBtn);
+      var cancelBtn = el("button", "cancel", { type: "button", text: "Cancel" });
+      cancelBtn.addEventListener("click", function () { openTodoAdder = false; render(); });
+      btns.appendChild(cancelBtn);
+      addRow.appendChild(btns);
+      addMount.appendChild(addRow);
+      setTimeout(function () { addTa.focus(); }, 0);
+    } else {
+      var addLink = el("button", "todo-add-link", { type: "button", text: "+ Add to-do" });
+      addLink.addEventListener("click", function () { openTodoAdder = true; render(); });
+      addMount.appendChild(addLink);
+    }
+  }
+
+  // Quick way to spin a task off into a personal to-do, wherever the person is
+  // actually making changes to that task — private by default, same as adding
+  // one from the sidebar directly; they can share it afterward from the list.
+  function quickAddTodoFor(item) {
+    socket.emit("addTodo", { text: item.title, sharedWith: [] });
+  }
+
   function render() {
     // Every render tears down and rebuilds the whole task list (mount.innerHTML = "",
     // then re-append everything), which some browsers treat as reason enough to reset
@@ -1061,6 +1273,7 @@
 
     var now = new Date();
     renderTabs();
+    renderTodoSidebar();
 
     var showingAll = selectedBoardId === "__all__";
     var visibleGroups = state.groups.filter(function (g) { return showingAll || g.boardId === selectedBoardId; });
@@ -1452,6 +1665,13 @@
           });
           rowMenu.appendChild(completeTaskBtn2);
         }
+        var addTodoBtn = el("button", "", { type: "button", text: "Add to To-Do" });
+        addTodoBtn.addEventListener("click", function () {
+          delete openStepRowMenus[s.id];
+          quickAddTodoFor(item);
+          render();
+        });
+        rowMenu.appendChild(addTodoBtn);
         anchorPopover(rowUpdateBtn, rowMenu, "left");
       }
 
@@ -2265,6 +2485,7 @@
     state.groups = s.groups || [];
     state.items = s.items || [];
     state.messages = s.messages || [];
+    state.todos = s.todos || [];
     stateLoaded = true;
     if (selectedBoardId !== "__all__" && !state.boards.some(function (b) { return b.id === selectedBoardId; })) selectedBoardId = "__all__";
     render();
