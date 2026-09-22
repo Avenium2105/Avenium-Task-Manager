@@ -529,15 +529,15 @@
       var angle = (i * 30) * Math.PI / 180;
       var inner = i % 3 === 0 ? 11.5 : 12.5;
       var outer = 14.5;
-      var tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      tick.setAttribute("x1", (18 + inner * Math.sin(angle)).toFixed(2));
-      tick.setAttribute("y1", (18 - inner * Math.cos(angle)).toFixed(2));
-      tick.setAttribute("x2", (18 + outer * Math.sin(angle)).toFixed(2));
-      tick.setAttribute("y2", (18 - outer * Math.cos(angle)).toFixed(2));
-      tick.setAttribute("stroke", "var(--ink-soft)");
-      tick.setAttribute("stroke-width", i % 3 === 0 ? "1.5" : "1");
-      tick.setAttribute("stroke-linecap", "round");
-      svg.appendChild(tick);
+      var tickMark = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      tickMark.setAttribute("x1", (18 + inner * Math.sin(angle)).toFixed(2));
+      tickMark.setAttribute("y1", (18 - inner * Math.cos(angle)).toFixed(2));
+      tickMark.setAttribute("x2", (18 + outer * Math.sin(angle)).toFixed(2));
+      tickMark.setAttribute("y2", (18 - outer * Math.cos(angle)).toFixed(2));
+      tickMark.setAttribute("stroke", "var(--ink-soft)");
+      tickMark.setAttribute("stroke-width", i % 3 === 0 ? "1.5" : "1");
+      tickMark.setAttribute("stroke-linecap", "round");
+      svg.appendChild(tickMark);
     }
 
     var hourHand = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -597,7 +597,9 @@
     root.innerHTML = "";
 
     var dateGroup = el("div", "nav-date-group");
-    buildClock(dateGroup);
+    // The clock is decoration — if it ever throws, skip it rather than letting
+    // it take down the whole nav bar (date, logo, and buttons still render).
+    try { buildClock(dateGroup); } catch (e) { if (window.console) console.error("Nav clock failed:", e); }
     dateGroup.appendChild(el("span", "nav-date", { text: formatToday() }));
     root.appendChild(dateGroup);
 
