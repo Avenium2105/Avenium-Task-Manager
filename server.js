@@ -106,6 +106,7 @@ function setCalendarVisible(userId, key, visible) {
 // Both are on by default — only calendars a user explicitly unticks are stored.
 const BUILTIN_CALENDARS = [
   { id: "jewish", name: "Jewish Holidays", color: "#7D6BAE" },
+  { id: "parsha", name: "Torah Portion", color: "#2E8B77" },
   { id: "usa", name: "US Holidays", color: "#4C7A9E" }
 ];
 
@@ -131,6 +132,27 @@ async function fetchJewishHolidays(timeMin, timeMax) {
     }));
 }
 
+// The weekly Torah portion (parsha) for each Shabbos, also from Hebcal.
+// s=on asks for the sedrot; diaspora reading schedule.
+async function fetchParsha(timeMin, timeMax) {
+  const start = String(timeMin).slice(0, 10);
+  const end = String(timeMax).slice(0, 10);
+  const r = await httpsRequest({
+    hostname: "www.hebcal.com",
+    path: `/hebcal?v=1&cfg=json&s=on&maj=off&min=off&mod=off&nx=off&ss=off&mf=off&c=off&start=${start}&end=${end}`,
+    method: "GET",
+    headers: { Accept: "application/json", "User-Agent": "AveniumTasks/1.0" }
+  });
+  if (!r.body || !r.body.items) return [];
+  return r.body.items
+    .filter((it) => it.category === "parashat")
+    .map((it) => ({
+      externalId: "parsha_" + it.date,
+      title: it.title || "", start: String(it.date).slice(0, 10), end: String(it.date).slice(0, 10),
+      allDay: true, description: "", htmlLink: ""
+    }));
+}
+
 // US public holidays from Nager.Date's free public API — no account or key.
 // It answers per calendar year, so a range spanning a new year fetches both.
 async function fetchUSHolidays(timeMin, timeMax) {
@@ -147,17 +169,27 @@ async function fetchUSHolidays(timeMin, timeMax) {
       return Array.isArray(r.body) ? r.body : [];
     } catch (e) { return []; }
   }));
+  const seen = new Set();
   return perYear.flat()
     .filter((h) => h.date >= startDate && h.date <= endDate)
     .map((h) => ({
       externalId: "usholiday_" + h.date + "_" + String(h.name || "").replace(/\W+/g, ""),
       title: h.localName || h.name || "", start: h.date, end: h.date,
       allDay: true, description: "", htmlLink: ""
-    }));
+    }))
+    // Nager repeats a holiday once per state/county variant (that's why
+    // Columbus Day appeared twice) — keep one entry per day + name.
+    .filter((ev) => {
+      const key = ev.start + "|" + ev.title.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 async function fetchBuiltinEvents(id, timeMin, timeMax) {
   if (id === "jewish") return fetchJewishHolidays(timeMin, timeMax);
+  if (id === "parsha") return fetchParsha(timeMin, timeMax);
   if (id === "usa") return fetchUSHolidays(timeMin, timeMax);
   return [];
 }

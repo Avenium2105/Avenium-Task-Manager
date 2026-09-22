@@ -453,39 +453,44 @@
   .cal-admin-add { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
   .cal-add-btn { font-family: inherit; font-size: 13px; font-weight: 500; color: var(--pine); background: none; border: 1px dashed var(--line); border-radius: var(--radius); padding: 9px 16px; cursor: pointer; }
   .cal-add-btn:hover { border-color: var(--pine); background: var(--pine-soft); }
-  .cal-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 12.5px; color: var(--ink-soft); max-width: 640px; justify-content: flex-end; }
-  .cal-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .cal-legend { display: flex; flex-direction: column; gap: 9px; font-size: 12.5px; color: var(--ink-soft); }
+  .cal-legend > span { display: flex; align-items: flex-start; gap: 7px; line-height: 1.35; word-break: break-word; }
+  .cal-legend .cal-swatch { margin-top: 3px; }
   .cal-legend a { color: var(--pine); }
+  .cal-legend-account { font-size: 11px; font-weight: 600; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 4px; word-break: break-all; }
   .cal-event-pill { background: #1a73e8; }
 
   /* ---- Calendar view ---- */
-  .calendar-wrap { max-width: 1100px; margin: 0 auto; padding: 24px 28px 80px; }
-  .calendar-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 18px; }
-  .calendar-header h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 30px; margin: 0; letter-spacing: -0.01em; }
-  .calendar-connect-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  .cal-connect-btn { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 16px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--bg-raised); color: var(--ink); cursor: pointer; display: flex; align-items: center; gap: 8px; }
-  .cal-connect-btn:hover { border-color: var(--pine); }
-  .cal-connect-btn.connected { border-color: var(--pine); color: var(--pine); }
-  .cal-connect-btn .cal-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
-  .cal-connect-btn.connected .cal-dot { background: var(--pine); }
-  .cal-disconnect-link { font-size: 11px; color: var(--ink-faint); text-decoration: underline; cursor: pointer; background: none; border: none; }
-  .cal-disconnect-link:hover { color: var(--brick); }
-  .calendar-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-  .calendar-nav button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 6px 14px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg-raised); color: var(--ink); cursor: pointer; }
+  /* One screen, no page scrolling: the view is exactly the height left under
+     the nav bar, the grid fills whatever is left after the header, and a busy
+     day scrolls inside its own box instead of growing the page. */
+  .calendar-wrap { max-width: none; margin: 0; padding: 14px 22px 10px; height: calc(100vh - var(--nav-h, 67px)); box-sizing: border-box; overflow: hidden; }
+  .cal-layout { display: flex; gap: 18px; height: 100%; align-items: stretch; }
+  .cal-side { flex: 0 0 210px; min-width: 0; display: flex; flex-direction: column; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 12px 14px; overflow-y: auto; }
+  .cal-side-title { font-weight: 600; font-size: 13px; color: var(--ink); margin-bottom: 10px; flex-shrink: 0; }
+  .cal-main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; }
+  .calendar-header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; flex-shrink: 0; }
+  .calendar-header h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 25px; margin: 0; letter-spacing: -0.01em; }
+  .calendar-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-shrink: 0; }
+  .calendar-nav button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 5px 13px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg-raised); color: var(--ink); cursor: pointer; }
   .calendar-nav button:hover { background: var(--bg); }
-  #calMonthLabel { font-size: 18px; font-weight: 600; color: var(--ink); min-width: 160px; text-align: center; }
-  /* minmax(0,1fr) is what keeps all seven columns equal: a plain "1fr" track
-     refuses to shrink below its content, so one long event title used to
-     stretch that column (and the whole grid) sideways off the page. */
-  .cal-grid-head { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; margin-bottom: 2px; }
-  .cal-grid-head span { text-align: center; font-size: 12px; font-weight: 600; color: var(--ink-faint); padding: 4px 0; }
-  .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: 118px; gap: 2px; }
-  .cal-cell { min-width: 0; overflow: hidden; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 6px; padding: 6px; position: relative; cursor: pointer; display: flex; flex-direction: column; box-sizing: border-box; }
+  #calMonthLabel { font-size: 17px; font-weight: 600; color: var(--ink); min-width: 155px; text-align: center; }
+  .cal-grid-head { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; margin-bottom: 2px; flex-shrink: 0; }
+  .cal-grid-head span { text-align: center; font-size: 12px; font-weight: 600; color: var(--ink-faint); padding: 2px 0; }
+  /* minmax(0,1fr) on rows AND columns is what keeps all 42 boxes identical —
+     a plain "1fr" track refuses to shrink below its contents, so one long
+     event title used to stretch its column and push the grid off the page. */
+  .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: repeat(6, minmax(0, 1fr)); gap: 2px; flex: 1; min-height: 0; }
+  .cal-cell { min-width: 0; min-height: 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 6px; padding: 4px 5px; cursor: pointer; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
   .cal-cell:hover { background: var(--bg); }
   .cal-cell.today { border-color: var(--pine); }
   .cal-cell.other-month { opacity: 0.45; }
+  .cal-day-num { font-size: 11.5px; font-weight: 600; color: var(--ink-soft); margin-bottom: 3px; flex-shrink: 0; }
   .cal-cell.today .cal-day-num { color: var(--pine); }
-  .cal-event-pill { font-size: 11px; line-height: 1.45; padding: 2px 6px; border-radius: 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #fff; flex-shrink: 0; max-width: 100%; }
+  .cal-cell-events { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; scrollbar-width: thin; }
+  .cal-cell-events::-webkit-scrollbar { width: 5px; }
+  .cal-cell-events::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+  .cal-event-pill { font-size: 11px; line-height: 1.4; padding: 2px 6px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #fff; flex-shrink: 0; max-width: 100%; }
   .cal-tooltip { position: fixed; z-index: 900; background: var(--ink); color: var(--bg-raised); font-size: 12px; line-height: 1.55; padding: 10px 12px; border-radius: 9px; max-width: 300px; white-space: pre-wrap; word-break: break-word; box-shadow: 0 6px 24px rgba(34,38,31,0.35); pointer-events: none; }
   .cal-tooltip b { display: block; font-size: 12.5px; margin-bottom: 3px; }
   .cal-tooltip .dim { opacity: 0.75; }
@@ -754,9 +759,14 @@
 
 <!-- Calendar view -->
 <div id="calendarView" class="calendar-wrap" style="display:none;">
+  <div class="cal-layout">
+  <aside class="cal-side">
+    <div class="cal-side-title">Calendars</div>
+    <div class="cal-legend" id="calLegend"></div>
+  </aside>
+  <div class="cal-main">
   <div class="calendar-header">
     <h1>Calendar</h1>
-    <div class="cal-legend" id="calLegend"></div>
   </div>
   <div class="calendar-nav">
     <button id="calPrevBtn" type="button">&#8592;</button>
@@ -768,6 +778,8 @@
     <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
   </div>
   <div class="cal-grid" id="calGrid"></div>
+  </div>
+  </div>
   <div class="cal-event-modal" id="calEventModal" style="display:none;">
     <div class="cal-event-modal-box">
       <div class="cal-event-modal-head">
@@ -2722,10 +2734,38 @@
   var calEditingEvent = null;  // null = creating new, otherwise the event being edited
   var calHandlersWired = false;
 
+  // Google/Outlook hand out their own colours and often reuse the same blue for
+  // several calendars, so we ignore those and give every calendar its own
+  // colour from this palette instead. Same order every load, so colours stay put.
+  var CAL_PALETTE = [
+    "#1a73e8", "#B24A3C", "#3C5A46", "#C68A2E", "#7D6BAE", "#0F8B8D",
+    "#D4568A", "#4C7A9E", "#8A6A3B", "#2E8B77", "#9C4F96", "#C25E00",
+    "#5B6ABF", "#6E8B1F", "#A03E52", "#00796B"
+  ];
+  var calColorByKey = {};
+  function assignCalendarColors() {
+    calColorByKey = {};
+    var i = 0;
+    calendarAccounts.forEach(function (acct) {
+      (acct.calendars || []).forEach(function (c) {
+        c.color = CAL_PALETTE[i++ % CAL_PALETTE.length];
+        calColorByKey[c.key] = c.color;
+      });
+    });
+    builtinCalendars.forEach(function (c) {
+      c.color = CAL_PALETTE[i++ % CAL_PALETTE.length];
+      calColorByKey[c.key] = c.color;
+    });
+  }
+  function colorForEvent(ev) {
+    return calColorByKey[ev.accountId + "|" + ev.calendarId] || ev.color || "#1a73e8";
+  }
+
   function fetchCalendarAccounts() {
     return fetch("/api/calendar/accounts").then(function (r) { return r.json(); }).then(function (d) {
       calendarAccounts = d.accounts || [];
       builtinCalendars = d.builtin || [];
+      assignCalendarColors();
       return d;
     });
   }
@@ -2832,31 +2872,43 @@
   function renderCalendarLegend() {
     var legend = document.getElementById("calLegend");
     legend.innerHTML = "";
-    if (!calendarAccounts.length && !builtinCalendars.some(function (c) { return c.visible !== false; })) {
-      var msg = el("span", "", { text: "No calendars connected. " });
-      legend.appendChild(msg);
+    var anyVisible = builtinCalendars.some(function (c) { return c.visible !== false; }) ||
+      calendarAccounts.some(function (a) { return (a.calendars || []).some(function (c) { return c.visible !== false; }); });
+    if (!anyVisible) {
+      legend.appendChild(el("span", "", { text: "No calendars showing." }));
       if (currentUser && currentUser.role === "admin") {
-        var a = el("a", "", { href: "#admin", text: "Connect one on the Admin page" });
-        legend.appendChild(a);
+        legend.appendChild(el("a", "", { href: "#admin", text: "Manage calendars" }));
       }
       return;
     }
     calendarAccounts.forEach(function (acct) {
-      acct.calendars.filter(function (c) { return c.visible !== false; }).forEach(function (c) {
-        var item = el("span", "", { title: acct.email });
+      var vis = (acct.calendars || []).filter(function (c) { return c.visible !== false; });
+      if (!vis.length) return;
+      legend.appendChild(el("div", "cal-legend-account", { text: acct.email || (acct.provider === "google" ? "Google" : "Outlook") }));
+      vis.forEach(function (c) {
+        var item = el("span", "", { title: c.name });
         var sw = el("span", "cal-swatch"); sw.style.background = c.color;
         item.appendChild(sw);
         item.appendChild(document.createTextNode(c.name));
         legend.appendChild(item);
       });
     });
-    builtinCalendars.filter(function (c) { return c.visible !== false; }).forEach(function (c) {
-      var item = el("span");
-      var sw = el("span", "cal-swatch"); sw.style.background = c.color;
-      item.appendChild(sw);
-      item.appendChild(document.createTextNode(c.name));
-      legend.appendChild(item);
-    });
+    var visBuiltin = builtinCalendars.filter(function (c) { return c.visible !== false; });
+    if (visBuiltin.length) {
+      legend.appendChild(el("div", "cal-legend-account", { text: "Built-in" }));
+      visBuiltin.forEach(function (c) {
+        var item = el("span", "", { title: c.name });
+        var sw = el("span", "cal-swatch"); sw.style.background = c.color;
+        item.appendChild(sw);
+        item.appendChild(document.createTextNode(c.name));
+        legend.appendChild(item);
+      });
+    }
+    if (currentUser && currentUser.role === "admin") {
+      var link = el("a", "", { href: "#admin", text: "Manage calendars" });
+      link.style.marginTop = "10px";
+      legend.appendChild(link);
+    }
   }
 
   function calGridRange() {
@@ -2896,13 +2948,15 @@
     tip.appendChild(title);
     var when;
     if (ev.allDay) {
-      when = "All day";
+      // holidays and other all-day items: just show the date, no "All day" label
+      var d0 = new Date(String(ev.start).slice(0, 10) + "T12:00:00");
+      when = isNaN(d0) ? "" : d0.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
     } else {
       var st = new Date(ev.start), en = ev.end ? new Date(ev.end) : null;
       when = st.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
       if (en && !isNaN(en)) when += " \u2013 " + en.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
     }
-    tip.appendChild(el("div", "dim", { text: when }));
+    if (when) tip.appendChild(el("div", "dim", { text: when }));
     var source = ev.calendarName || "";
     if (ev.accountEmail) source += " \u00b7 " + ev.accountEmail;
     if (source) tip.appendChild(el("div", "dim", { text: source }));
@@ -2950,17 +3004,21 @@
         var cell = el("div", "cal-cell" + (isToday ? " today" : "") + (inMonth ? "" : " other-month"));
         cell.appendChild(el("div", "cal-day-num", { text: String(date.getDate()) }));
         var dayEvents = byDay[key] || [];
-        dayEvents.slice(0, 3).forEach(function (ev) {
+        // every event is listed — the box scrolls if there are more than fit,
+        // so nothing is hidden behind a "+N more" you can't open
+        var evWrap = el("div", "cal-cell-events");
+        dayEvents.forEach(function (ev) {
           var timeLabel = ev.allDay ? "" : new Date(ev.start).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) + " ";
           var pill = el("div", "cal-event-pill", { text: timeLabel + ev.title });
-          pill.style.background = ev.color || "#1a73e8";
+          pill.style.background = colorForEvent(ev);
           // hover = read the whole thing; click = open it
           pill.addEventListener("mouseenter", function () { showCalTooltip(pill, ev); });
           pill.addEventListener("mouseleave", hideCalTooltip);
           pill.onclick = function (e) { e.stopPropagation(); hideCalTooltip(); openCalModal(ev); };
-          cell.appendChild(pill);
+          evWrap.appendChild(pill);
         });
-        if (dayEvents.length > 3) cell.appendChild(el("div", "cal-more", { text: "+" + (dayEvents.length - 3) + " more" }));
+        evWrap.addEventListener("scroll", hideCalTooltip);
+        cell.appendChild(evWrap);
         cell.onclick = function () { openCalModal(null, key + "T09:00"); };
         grid.appendChild(cell);
       })(new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate() + i));
