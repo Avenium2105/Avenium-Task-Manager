@@ -439,6 +439,9 @@
   .cal-acct-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; color: #fff; }
   .cal-acct-badge.google { background: #1a73e8; }
   .cal-acct-badge.microsoft { background: #0078d4; }
+  .cal-acct-badge.builtin { background: #7D6BAE; }
+  .cal-toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+  .cal-toggle input { cursor: pointer; margin: 0; }
   .cal-acct-email { font-size: 13.5px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .cal-acct-remove { font-family: inherit; font-size: 12px; color: var(--ink-faint); background: none; border: none; cursor: pointer; }
   .cal-acct-remove:hover { color: var(--brick); }
@@ -471,18 +474,21 @@
   .calendar-nav button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 6px 14px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg-raised); color: var(--ink); cursor: pointer; }
   .calendar-nav button:hover { background: var(--bg); }
   #calMonthLabel { font-size: 18px; font-weight: 600; color: var(--ink); min-width: 160px; text-align: center; }
-  .cal-grid-head { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-bottom: 2px; }
+  /* minmax(0,1fr) is what keeps all seven columns equal: a plain "1fr" track
+     refuses to shrink below its content, so one long event title used to
+     stretch that column (and the whole grid) sideways off the page. */
+  .cal-grid-head { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; margin-bottom: 2px; }
   .cal-grid-head span { text-align: center; font-size: 12px; font-weight: 600; color: var(--ink-faint); padding: 4px 0; }
-  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
-  .cal-cell { min-height: 100px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 6px; padding: 6px; position: relative; cursor: pointer; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: 118px; gap: 2px; }
+  .cal-cell { min-width: 0; overflow: hidden; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 6px; padding: 6px; position: relative; cursor: pointer; display: flex; flex-direction: column; box-sizing: border-box; }
   .cal-cell:hover { background: var(--bg); }
   .cal-cell.today { border-color: var(--pine); }
   .cal-cell.other-month { opacity: 0.45; }
-  .cal-day-num { font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between; }
   .cal-cell.today .cal-day-num { color: var(--pine); }
-  .cal-event-pill { font-size: 11px; padding: 2px 6px; border-radius: 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: var(--bg-raised); }
-  .cal-event-pill.google { background: #1a73e8; }
-  .cal-event-pill.microsoft { background: #0078d4; }
+  .cal-event-pill { font-size: 11px; line-height: 1.45; padding: 2px 6px; border-radius: 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #fff; flex-shrink: 0; max-width: 100%; }
+  .cal-tooltip { position: fixed; z-index: 900; background: var(--ink); color: var(--bg-raised); font-size: 12px; line-height: 1.55; padding: 10px 12px; border-radius: 9px; max-width: 300px; white-space: pre-wrap; word-break: break-word; box-shadow: 0 6px 24px rgba(34,38,31,0.35); pointer-events: none; }
+  .cal-tooltip b { display: block; font-size: 12.5px; margin-bottom: 3px; }
+  .cal-tooltip .dim { opacity: 0.75; }
   .cal-more { font-size: 10.5px; color: var(--ink-faint); cursor: pointer; }
   .cal-event-modal { position: fixed; inset: 0; background: rgba(34,38,31,0.45); z-index: 800; display: flex; align-items: center; justify-content: center; }
   .cal-event-modal-box { background: var(--bg-raised); border-radius: 12px; box-shadow: 0 8px 32px rgba(34,38,31,0.25); width: 420px; max-width: calc(100vw - 32px); overflow: hidden; }
@@ -2710,7 +2716,8 @@
   // (enforced on the server), so nothing in this section can show one person's
   // calendar to another.
   var calendarEvents = [];
-  var calendarAccounts = [];   // [{ id, provider, email, calendars: [{ id, name, color, canEdit, primary }] }]
+  var calendarAccounts = [];   // [{ id, provider, email, calendars: [{ id, key, name, color, canEdit, primary, visible }] }]
+  var builtinCalendars = [];   // [{ id, key, name, color, visible }] — Jewish Holidays etc. (no sign-in needed)
   var calViewDate = new Date(); calViewDate.setDate(1);
   var calEditingEvent = null;  // null = creating new, otherwise the event being edited
   var calHandlersWired = false;
@@ -2718,11 +2725,37 @@
   function fetchCalendarAccounts() {
     return fetch("/api/calendar/accounts").then(function (r) { return r.json(); }).then(function (d) {
       calendarAccounts = d.accounts || [];
+      builtinCalendars = d.builtin || [];
       return d;
     });
   }
 
   // ----- Admin page: list / add / remove connections -----
+  // A checkbox per calendar — unticking hides it from the Calendar page.
+  // Saved per user on the server, so it sticks across devices.
+  function buildCalendarToggles(calendars) {
+    var wrap = el("div", "cal-acct-cals");
+    calendars.forEach(function (c) {
+      var lbl = el("label", "cal-toggle");
+      var chk = el("input", "", { type: "checkbox" });
+      chk.checked = c.visible !== false;
+      chk.addEventListener("change", function () {
+        chk.disabled = true;
+        fetch("/api/calendar/visibility", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: c.key, visible: chk.checked })
+        }).then(function () { c.visible = chk.checked; chk.disabled = false; })
+          .catch(function () { chk.checked = !chk.checked; chk.disabled = false; });
+      });
+      lbl.appendChild(chk);
+      var sw = el("span", "cal-swatch"); sw.style.background = c.color;
+      lbl.appendChild(sw);
+      lbl.appendChild(document.createTextNode(c.name + (c.canEdit === false && c.key.indexOf("builtin|") !== 0 ? " (read-only)" : "")));
+      wrap.appendChild(lbl);
+    });
+    return wrap;
+  }
+
   function loadCalendarAccountsAdmin() {
     var notice = document.getElementById("calAdminNotice");
     if (calNotice) {
@@ -2740,7 +2773,6 @@
       list.innerHTML = "";
       if (!calendarAccounts.length) {
         list.appendChild(el("div", "cal-admin-empty", { text: "No calendar accounts connected yet." }));
-        return;
       }
       calendarAccounts.forEach(function (acct) {
         var card = el("div", "cal-acct");
@@ -2757,18 +2789,19 @@
         if (acct.error) {
           card.appendChild(el("div", "cal-acct-error", { text: "Access to this account has expired or was revoked. Disconnect it and add it again." }));
         } else {
-          var cals = el("div", "cal-acct-cals");
-          acct.calendars.forEach(function (c) {
-            var item = el("span");
-            var sw = el("span", "cal-swatch"); sw.style.background = c.color;
-            item.appendChild(sw);
-            item.appendChild(document.createTextNode(c.name + (c.canEdit ? "" : " (read-only)")));
-            cals.appendChild(item);
-          });
-          card.appendChild(cals);
+          card.appendChild(buildCalendarToggles(acct.calendars));
         }
         list.appendChild(card);
       });
+      if (builtinCalendars.length) {
+        var bcard = el("div", "cal-acct");
+        var bhead = el("div", "cal-acct-head");
+        bhead.appendChild(el("span", "cal-acct-badge builtin", { text: "Built-in" }));
+        bhead.appendChild(el("span", "cal-acct-email", { text: "No account needed" }));
+        bcard.appendChild(bhead);
+        bcard.appendChild(buildCalendarToggles(builtinCalendars));
+        list.appendChild(bcard);
+      }
     }).catch(function () {
       list.innerHTML = "<div class='cal-admin-empty'>Couldn't load calendar connections.</div>";
     });
@@ -2792,14 +2825,14 @@
     renderCalGrid([]);
     fetchCalendarAccounts().then(function () {
       renderCalendarLegend();
-      if (calendarAccounts.length) loadCalendarEvents();
+      loadCalendarEvents();
     }).catch(function () { renderCalendarLegend(); });
   }
 
   function renderCalendarLegend() {
     var legend = document.getElementById("calLegend");
     legend.innerHTML = "";
-    if (!calendarAccounts.length) {
+    if (!calendarAccounts.length && !builtinCalendars.some(function (c) { return c.visible !== false; })) {
       var msg = el("span", "", { text: "No calendars connected. " });
       legend.appendChild(msg);
       if (currentUser && currentUser.role === "admin") {
@@ -2809,13 +2842,20 @@
       return;
     }
     calendarAccounts.forEach(function (acct) {
-      acct.calendars.forEach(function (c) {
+      acct.calendars.filter(function (c) { return c.visible !== false; }).forEach(function (c) {
         var item = el("span", "", { title: acct.email });
         var sw = el("span", "cal-swatch"); sw.style.background = c.color;
         item.appendChild(sw);
         item.appendChild(document.createTextNode(c.name));
         legend.appendChild(item);
       });
+    });
+    builtinCalendars.filter(function (c) { return c.visible !== false; }).forEach(function (c) {
+      var item = el("span");
+      var sw = el("span", "cal-swatch"); sw.style.background = c.color;
+      item.appendChild(sw);
+      item.appendChild(document.createTextNode(c.name));
+      legend.appendChild(item);
     });
   }
 
@@ -2829,7 +2869,6 @@
 
   function loadCalendarEvents() {
     renderCalGrid(calendarEvents);
-    if (!calendarAccounts.length) return;
     var range = calGridRange();
     fetch("/api/calendar/events?start=" + encodeURIComponent(range.start.toISOString()) + "&end=" + encodeURIComponent(range.end.toISOString()))
       .then(function (r) { return r.json(); })
@@ -2845,7 +2884,50 @@
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   }
 
+  // Hover tooltip: shows the full title, time, which calendar it came from and
+  // any description — the pills themselves are clipped to keep every day box
+  // the same size, so this is how you read the long ones.
+  var calTooltipEl = null;
+  function hideCalTooltip() { if (calTooltipEl) { calTooltipEl.remove(); calTooltipEl = null; } }
+  function showCalTooltip(pill, ev) {
+    hideCalTooltip();
+    var tip = el("div", "cal-tooltip");
+    var title = el("b", "", { text: ev.title });
+    tip.appendChild(title);
+    var when;
+    if (ev.allDay) {
+      when = "All day";
+    } else {
+      var st = new Date(ev.start), en = ev.end ? new Date(ev.end) : null;
+      when = st.toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+      if (en && !isNaN(en)) when += " \u2013 " + en.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    }
+    tip.appendChild(el("div", "dim", { text: when }));
+    var source = ev.calendarName || "";
+    if (ev.accountEmail) source += " \u00b7 " + ev.accountEmail;
+    if (source) tip.appendChild(el("div", "dim", { text: source }));
+    if (ev.description) {
+      var d = String(ev.description).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+      if (d) tip.appendChild(el("div", "dim", { text: d.length > 220 ? d.slice(0, 220) + "\u2026" : d }));
+    }
+    document.body.appendChild(tip);
+    calTooltipEl = tip;
+    var r = pill.getBoundingClientRect();
+    tip.style.visibility = "hidden";
+    Promise.resolve().then(function () {
+      if (tip !== calTooltipEl) return;
+      var box = tip.getBoundingClientRect();
+      var left = Math.min(r.left, window.innerWidth - box.width - 8);
+      var top = r.bottom + 6;
+      if (top + box.height > window.innerHeight - 8) top = Math.max(8, r.top - box.height - 6);
+      tip.style.left = Math.max(8, left) + "px";
+      tip.style.top = top + "px";
+      tip.style.visibility = "";
+    });
+  }
+
   function renderCalGrid(events) {
+    hideCalTooltip();
     var label = document.getElementById("calMonthLabel");
     var grid = document.getElementById("calGrid");
     var year = calViewDate.getFullYear(), month = calViewDate.getMonth();
@@ -2872,8 +2954,10 @@
           var timeLabel = ev.allDay ? "" : new Date(ev.start).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) + " ";
           var pill = el("div", "cal-event-pill", { text: timeLabel + ev.title });
           pill.style.background = ev.color || "#1a73e8";
-          pill.title = ev.title + "\n" + (ev.calendarName || "") + (ev.accountEmail ? " \u00b7 " + ev.accountEmail : "");
-          pill.onclick = function (e) { e.stopPropagation(); openCalModal(ev); };
+          // hover = read the whole thing; click = open it
+          pill.addEventListener("mouseenter", function () { showCalTooltip(pill, ev); });
+          pill.addEventListener("mouseleave", hideCalTooltip);
+          pill.onclick = function (e) { e.stopPropagation(); hideCalTooltip(); openCalModal(ev); };
           cell.appendChild(pill);
         });
         if (dayEvents.length > 3) cell.appendChild(el("div", "cal-more", { text: "+" + (dayEvents.length - 3) + " more" }));
@@ -2913,7 +2997,7 @@
       return;
     }
     calEditingEvent = event || null;
-    var readOnly = !!(event && event.canEdit === false);
+    var readOnly = !!(event && (event.canEdit === false || event.provider === "builtin"));
     document.getElementById("calModalTitle").textContent = event ? (readOnly ? "Event (read-only)" : "Edit Event") : "New Event";
     document.getElementById("calModalName").value = event ? event.title : "";
     document.getElementById("calModalDesc").value = event ? (event.description || "") : "";

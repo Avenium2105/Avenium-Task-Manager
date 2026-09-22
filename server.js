@@ -82,6 +82,52 @@ function removeAccount(userId, accountId) {
   persistTokens();
 }
 
+// ---- Which calendars each user has switched OFF (persisted separately) ----
+// Keyed "accountId|calendarId" (or "builtin|jewish"). Absent = visible, so a
+// newly connected calendar shows by default and only explicit hides are stored.
+const CAL_PREFS_FILE = path.join(DATA_DIR, "calendar-prefs.json");
+let calendarPrefs = {};
+try { calendarPrefs = JSON.parse(fs.readFileSync(CAL_PREFS_FILE, "utf8")); } catch (e) { calendarPrefs = {}; }
+function persistCalPrefs() {
+  fs.writeFile(CAL_PREFS_FILE, JSON.stringify(calendarPrefs, null, 2), () => {});
+}
+function hiddenSet(userId) {
+  return new Set((calendarPrefs[userId] && calendarPrefs[userId].hidden) || []);
+}
+function setCalendarVisible(userId, key, visible) {
+  if (!calendarPrefs[userId]) calendarPrefs[userId] = { hidden: [] };
+  const hidden = new Set(calendarPrefs[userId].hidden || []);
+  if (visible) hidden.delete(key); else hidden.add(key);
+  calendarPrefs[userId].hidden = [...hidden];
+  persistCalPrefs();
+}
+
+// ---- Built-in calendars (no sign-in needed) ----
+const BUILTIN_CALENDARS = [
+  { id: "jewish", name: "Jewish Holidays", color: "#7D6BAE" }
+];
+
+// Jewish holidays come from Hebcal's free public API — no account or key.
+// Major + minor holidays, fast days and special Shabbatot, diaspora dates.
+async function fetchJewishHolidays(timeMin, timeMax) {
+  const start = String(timeMin).slice(0, 10);
+  const end = String(timeMax).slice(0, 10);
+  const r = await httpsRequest({
+    hostname: "www.hebcal.com",
+    path: `/hebcal?v=1&cfg=json&maj=on&min=on&mod=on&nx=on&ss=on&mf=on&c=off&s=off&D=off&start=${start}&end=${end}`,
+    method: "GET",
+    headers: { Accept: "application/json", "User-Agent": "AveniumTasks/1.0" }
+  });
+  if (!r.body || !r.body.items) return [];
+  return r.body.items
+    .filter((it) => it.category === "holiday" || it.category === "roshchodesh" || it.category === "fast")
+    .map((it) => ({
+      externalId: "hebcal_" + it.date + "_" + (it.title || "").replace(/\W+/g, ""),
+      title: it.title || "", start: String(it.date).slice(0, 10), end: String(it.date).slice(0, 10),
+      allDay: true, description: it.memo || "", htmlLink: it.link || ""
+    }));
+}
+
 // ---- Generic HTTPS helper (no npm dependency needed) ----
 function httpsRequest(options, body) {
   return new Promise((resolve, reject) => {
@@ -1662,30 +1708,53 @@ app.delete("/api/calendar/accounts/:id", requireAuth, (req, res) => {
 
 // Every connected account, with the calendars inside each one
 app.get("/api/calendar/accounts", requireAuth, async (req, res) => {
+  const hidden = hiddenSet(req.session.userId);
   const accounts = listAccounts(req.session.userId);
   const out = await Promise.all(accounts.map(async (acct) => {
     try {
       const a = await freshToken(acct);
-      const calendars = await listCalendarsFor(a);
+      const calendars = (await listCalendarsFor(a)).map((c) => ({ ...c, key: acct.id + "|" + c.id, visible: !hidden.has(acct.id + "|" + c.id) }));
       return { id: acct.id, provider: acct.provider, email: acct.email, calendars };
     } catch (e) {
       // e.g. access was revoked on Google/Microsoft's side — show it so it can be reconnected
       return { id: acct.id, provider: acct.provider, email: acct.email, calendars: [], error: true };
     }
   }));
-  res.json({ accounts: out, googleConfigured: !!GOOGLE_CLIENT_ID, microsoftConfigured: !!MICROSOFT_CLIENT_ID });
+  const builtin = BUILTIN_CALENDARS.map((c) => ({ ...c, key: "builtin|" + c.id, visible: !hidden.has("builtin|" + c.id) }));
+  res.json({ accounts: out, builtin, googleConfigured: !!GOOGLE_CLIENT_ID, microsoftConfigured: !!MICROSOFT_CLIENT_ID });
+});
+
+// Show / hide one calendar on this user's own view
+app.post("/api/calendar/visibility", requireAuth, (req, res) => {
+  const { key, visible } = req.body || {};
+  if (typeof key !== "string" || !key) return res.status(400).json({ error: "invalid_request" });
+  const accountId = key.split("|")[0];
+  if (accountId !== "builtin" && !getAccount(req.session.userId, accountId)) return res.status(404).json({ error: "not_found" });
+  setCalendarVisible(req.session.userId, key, !!visible);
+  res.json({ ok: true });
 });
 
 // Events from every calendar in every connected account, for a date range
 app.get("/api/calendar/events", requireAuth, async (req, res) => {
   const timeMin = req.query.start ? new Date(req.query.start).toISOString() : new Date(Date.now() - 31 * 86400000).toISOString();
   const timeMax = req.query.end ? new Date(req.query.end).toISOString() : new Date(Date.now() + 62 * 86400000).toISOString();
+  const hidden = hiddenSet(req.session.userId);
   const accounts = listAccounts(req.session.userId);
   const all = [];
+  if (!hidden.has("builtin|jewish")) {
+    try {
+      const jewish = await fetchJewishHolidays(timeMin, timeMax);
+      const def = BUILTIN_CALENDARS.find((c) => c.id === "jewish");
+      jewish.forEach((ev) => all.push({
+        ...ev, provider: "builtin", accountId: "builtin", accountEmail: "",
+        calendarId: "jewish", calendarName: def.name, color: def.color, canEdit: false
+      }));
+    } catch (e) {}
+  }
   await Promise.all(accounts.map(async (acct) => {
     try {
       const a = await freshToken(acct);
-      const calendars = await listCalendarsFor(a);
+      const calendars = (await listCalendarsFor(a)).filter((c) => !hidden.has(acct.id + "|" + c.id));
       await Promise.all(calendars.map(async (cal) => {
         try {
           const events = a.provider === "google"
