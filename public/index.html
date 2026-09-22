@@ -427,6 +427,34 @@
   .admin-wrap .status-badge.active { background: var(--pine-soft); color: var(--pine); }
   .admin-wrap .invite-link-box { font-size: 11.5px; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; margin-top: 8px; word-break: break-all; color: var(--ink-soft); }
 
+  /* ---- Calendar connections (Admin page) ---- */
+  .admin-wrap h2.cal-admin-title { margin-top: 36px; }
+  .cal-admin-note { font-size: 12.5px; color: var(--ink-faint); margin: -6px 0 12px; }
+  .cal-admin-notice { font-size: 13px; padding: 9px 12px; border-radius: 8px; margin-bottom: 10px; }
+  .cal-admin-notice.ok { background: var(--pine-soft); color: var(--pine); }
+  .cal-admin-notice.err { background: var(--brick-soft); color: var(--brick); }
+  .cal-admin-list { display: flex; flex-direction: column; gap: 8px; }
+  .cal-acct { background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; box-shadow: var(--shadow); }
+  .cal-acct-head { display: flex; align-items: center; gap: 10px; }
+  .cal-acct-badge { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; color: #fff; }
+  .cal-acct-badge.google { background: #1a73e8; }
+  .cal-acct-badge.microsoft { background: #0078d4; }
+  .cal-acct-email { font-size: 13.5px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .cal-acct-remove { font-family: inherit; font-size: 12px; color: var(--ink-faint); background: none; border: none; cursor: pointer; }
+  .cal-acct-remove:hover { color: var(--brick); }
+  .cal-acct-cals { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; font-size: 12.5px; color: var(--ink-soft); }
+  .cal-acct-cals span { display: inline-flex; align-items: center; gap: 6px; }
+  .cal-swatch { width: 10px; height: 10px; border-radius: 3px; display: inline-block; flex-shrink: 0; }
+  .cal-acct-error { font-size: 12.5px; color: var(--brick); margin-top: 6px; }
+  .cal-admin-empty { font-size: 13px; color: var(--ink-faint); padding: 4px 0; }
+  .cal-admin-add { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .cal-add-btn { font-family: inherit; font-size: 13px; font-weight: 500; color: var(--pine); background: none; border: 1px dashed var(--line); border-radius: var(--radius); padding: 9px 16px; cursor: pointer; }
+  .cal-add-btn:hover { border-color: var(--pine); background: var(--pine-soft); }
+  .cal-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 12.5px; color: var(--ink-soft); max-width: 640px; justify-content: flex-end; }
+  .cal-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .cal-legend a { color: var(--pine); }
+  .cal-event-pill { background: #1a73e8; }
+
   /* ---- Calendar view ---- */
   .calendar-wrap { max-width: 1100px; margin: 0 auto; padding: 24px 28px 80px; }
   .calendar-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 14px; margin-bottom: 18px; }
@@ -703,6 +731,15 @@
     <div class="invite-link-box" id="inviteLinkBox" style="display:none;"></div>
   </div>
 
+  <h2 class="cal-admin-title">Your calendar connections</h2>
+  <p class="cal-admin-note">Private to you. Other users never see these calendars, even if they're admins.</p>
+  <div class="cal-admin-notice" id="calAdminNotice" style="display:none;"></div>
+  <div class="cal-admin-list" id="calAdminList"></div>
+  <div class="cal-admin-add">
+    <button id="calAddGoogleBtn" type="button" class="cal-add-btn">+ Add Google account</button>
+    <button id="calAddMicrosoftBtn" type="button" class="cal-add-btn">+ Add Outlook account</button>
+  </div>
+
   <div class="activity-toggle">
     <button id="activityToggleBtn" type="button">Show recent activity</button>
   </div>
@@ -713,7 +750,7 @@
 <div id="calendarView" class="calendar-wrap" style="display:none;">
   <div class="calendar-header">
     <h1>Calendar</h1>
-    <div class="calendar-connect-row" id="calendarConnectRow"></div>
+    <div class="cal-legend" id="calLegend"></div>
   </div>
   <div class="calendar-nav">
     <button id="calPrevBtn" type="button">&#8592;</button>
@@ -739,10 +776,7 @@
           <input id="calModalEnd" type="datetime-local">
         </div>
         <input id="calModalDesc" type="text" placeholder="Description (optional)">
-        <select id="calModalProvider">
-          <option value="google">Google Calendar</option>
-          <option value="microsoft">Outlook Calendar</option>
-        </select>
+        <select id="calModalCalendar"></select>
       </div>
       <div class="cal-event-modal-foot">
         <button id="calModalSave" type="button">Save</button>
@@ -763,6 +797,7 @@
   var team = [];
   var currentUser = null;
   var currentView = "boards"; // "boards" | "admin" — which top-level view is showing right now
+  var calNotice = "";          // "connected" | "error" — set when Google/Microsoft sends you back to #admin?cal=...
   var selectedBoardId = localStorage.getItem("daily-board-selected-board") || "__all__";
   var allBoardsChatBoardId = null; // which board's chat is previewed in the right-hand column while on "All boards"
   var collapsedKey = "daily-board-collapsed";
@@ -875,6 +910,7 @@
     document.title = "Admin \u00b7 Avenium";
     loadAdminUsers();
     loadAdminActivity();
+    loadCalendarAccountsAdmin();
   }
 
   function showCalendarView() {
@@ -887,9 +923,18 @@
   }
 
   function routeTo(hash) {
-    var view = hash === "#admin" ? "admin" : hash === "#calendar" ? "calendar" : "boards";
+    // A hash can carry a status after "?" — e.g. "#admin?cal=connected" when
+    // Google/Microsoft sends you back after connecting a calendar account.
+    var parts = String(hash || "").split("?");
+    var base = parts[0], query = parts[1] || "";
+    if (query.indexOf("cal=") !== -1) calNotice = query.indexOf("cal=connected") !== -1 ? "connected" : "error";
+    var view = base === "#admin" ? "admin" : base === "#calendar" ? "calendar" : "boards";
     var wantedHash = { admin: "#admin", calendar: "#calendar", boards: "#boards" }[view];
-    if (window.location.hash !== wantedHash) window.location.hash = wantedHash.slice(1);
+    if (window.location.hash !== wantedHash) {
+      // tidy the status off the address bar without adding a back-button step
+      if (query) window.history.replaceState(null, "", wantedHash);
+      else window.location.hash = wantedHash.slice(1);
+    }
     currentView = view;
     if (window.AveniumNav && window.AveniumNav.markActive) window.AveniumNav.markActive();
     if (view === "admin" && !currentUser) { document.getElementById("boardsView").style.display = "none"; return; }
@@ -2660,98 +2705,144 @@
     this.textContent = isOpen ? "Show recent activity" : "Hide recent activity";
   });
 
-  // ---------------- Calendar view ----------------
+  // ---------------- Calendar connections + Calendar view ----------------
+  // Every request here only ever returns the LOGGED-IN user's own connections
+  // (enforced on the server), so nothing in this section can show one person's
+  // calendar to another.
   var calendarEvents = [];
-  var calViewDate = new Date(); // tracks which month is showing
-  var calEditingEvent = null;   // null = creating new, otherwise the event object being edited
-  calViewDate.setDate(1);
+  var calendarAccounts = [];   // [{ id, provider, email, calendars: [{ id, name, color, canEdit, primary }] }]
+  var calViewDate = new Date(); calViewDate.setDate(1);
+  var calEditingEvent = null;  // null = creating new, otherwise the event being edited
+  var calHandlersWired = false;
 
-  function initCalendar() {
-    fetch("/api/calendar/status").then(function (r) { return r.json(); }).then(function (d) {
-      renderCalendarConnect(d);
-      if (d.google.connected || d.microsoft.connected) {
-        loadCalendarEvents();
-      } else {
-        renderCalGrid([]);
-      }
-    }).catch(function () {
-      document.getElementById("calendarConnectRow").innerHTML = "<span style='color:var(--ink-faint);font-size:13px;'>Calendar not configured on server yet.</span>";
+  function fetchCalendarAccounts() {
+    return fetch("/api/calendar/accounts").then(function (r) { return r.json(); }).then(function (d) {
+      calendarAccounts = d.accounts || [];
+      return d;
     });
-    renderCalGrid(calendarEvents);
-    document.getElementById("calPrevBtn").onclick = function () { calViewDate.setMonth(calViewDate.getMonth() - 1); renderCalGrid(calendarEvents); };
-    document.getElementById("calNextBtn").onclick = function () { calViewDate.setMonth(calViewDate.getMonth() + 1); renderCalGrid(calendarEvents); };
-    document.getElementById("calTodayBtn").onclick = function () { calViewDate = new Date(); calViewDate.setDate(1); renderCalGrid(calendarEvents); };
-    document.getElementById("calModalClose").onclick = closeCalModal;
-    document.getElementById("calModalCancel").onclick = closeCalModal;
-    document.getElementById("calModalSave").onclick = saveCalEvent;
-    document.getElementById("calModalDelete").onclick = deleteCalEvent;
-    // check for ?connected= or ?error= from OAuth callback
-    var hash = window.location.hash;
-    if (hash.indexOf("?connected=") !== -1) {
-      var provider = hash.split("?connected=")[1];
-      window.history.replaceState(null, "", "/#calendar");
-      initCalendar();
-    } else if (hash.indexOf("?error=") !== -1) {
-      window.history.replaceState(null, "", "/#calendar");
-      alert("Could not connect calendar. Please try again.");
-    }
   }
 
-  function renderCalendarConnect(status) {
-    var row = document.getElementById("calendarConnectRow");
-    row.innerHTML = "";
-    // Google
-    var gBtn = el("div", "");
-    gBtn.style.cssText = "display:flex;align-items:center;gap:8px;";
-    var gConnBtn = el("button", "cal-connect-btn" + (status.google.connected ? " connected" : ""), { type: "button" });
-    var gDot = el("span", "cal-dot");
-    gConnBtn.appendChild(gDot);
-    gConnBtn.appendChild(document.createTextNode(status.google.connected ? ("Google \u2713 " + (status.google.email || "")) : "Connect Google Calendar"));
-    if (!status.google.connected) {
-      gConnBtn.onclick = function () { window.location.href = "/auth/google"; };
-    } else {
-      var gDisc = el("button", "cal-disconnect-link", { type: "button", text: "Disconnect" });
-      gDisc.onclick = function () {
-        if (!window.confirm("Disconnect Google Calendar?")) return;
-        fetch("/auth/google", { method: "DELETE" }).then(function () { initCalendar(); });
-      };
-      gBtn.appendChild(gConnBtn);
-      gBtn.appendChild(gDisc);
-      row.appendChild(gBtn);
+  // ----- Admin page: list / add / remove connections -----
+  function loadCalendarAccountsAdmin() {
+    var notice = document.getElementById("calAdminNotice");
+    if (calNotice) {
+      notice.style.display = "";
+      notice.className = "cal-admin-notice " + (calNotice === "connected" ? "ok" : "err");
+      notice.textContent = calNotice === "connected"
+        ? "Calendar account connected."
+        : "Couldn't connect that calendar account. Please try again.";
+      calNotice = "";
+      setTimeout(function () { notice.style.display = "none"; }, 6000);
     }
-    if (!status.google.connected) { gBtn.appendChild(gConnBtn); row.appendChild(gBtn); }
+    var list = document.getElementById("calAdminList");
+    list.innerHTML = "<div class='cal-admin-empty'>Loading\u2026</div>";
+    fetchCalendarAccounts().then(function () {
+      list.innerHTML = "";
+      if (!calendarAccounts.length) {
+        list.appendChild(el("div", "cal-admin-empty", { text: "No calendar accounts connected yet." }));
+        return;
+      }
+      calendarAccounts.forEach(function (acct) {
+        var card = el("div", "cal-acct");
+        var head = el("div", "cal-acct-head");
+        head.appendChild(el("span", "cal-acct-badge " + acct.provider, { text: acct.provider === "google" ? "Google" : "Outlook" }));
+        head.appendChild(el("span", "cal-acct-email", { text: acct.email || "(account)" }));
+        var rm = el("button", "cal-acct-remove", { type: "button", text: "Disconnect" });
+        rm.addEventListener("click", function () {
+          if (!window.confirm("Disconnect " + (acct.email || "this account") + "? Its calendars will stop showing in Avenium. Nothing is deleted from the calendar itself.")) return;
+          fetch("/api/calendar/accounts/" + encodeURIComponent(acct.id), { method: "DELETE" }).then(loadCalendarAccountsAdmin);
+        });
+        head.appendChild(rm);
+        card.appendChild(head);
+        if (acct.error) {
+          card.appendChild(el("div", "cal-acct-error", { text: "Access to this account has expired or was revoked. Disconnect it and add it again." }));
+        } else {
+          var cals = el("div", "cal-acct-cals");
+          acct.calendars.forEach(function (c) {
+            var item = el("span");
+            var sw = el("span", "cal-swatch"); sw.style.background = c.color;
+            item.appendChild(sw);
+            item.appendChild(document.createTextNode(c.name + (c.canEdit ? "" : " (read-only)")));
+            cals.appendChild(item);
+          });
+          card.appendChild(cals);
+        }
+        list.appendChild(card);
+      });
+    }).catch(function () {
+      list.innerHTML = "<div class='cal-admin-empty'>Couldn't load calendar connections.</div>";
+    });
+  }
 
-    // Microsoft
-    var mBtn = el("div", "");
-    mBtn.style.cssText = "display:flex;align-items:center;gap:8px;";
-    var mConnBtn = el("button", "cal-connect-btn" + (status.microsoft.connected ? " connected" : ""), { type: "button" });
-    var mDot = el("span", "cal-dot");
-    mConnBtn.appendChild(mDot);
-    mConnBtn.appendChild(document.createTextNode(status.microsoft.connected ? ("Outlook \u2713 " + (status.microsoft.email || "")) : "Connect Outlook Calendar"));
-    if (!status.microsoft.connected) {
-      mConnBtn.onclick = function () { window.location.href = "/auth/microsoft"; };
-      mBtn.appendChild(mConnBtn);
-    } else {
-      var mDisc = el("button", "cal-disconnect-link", { type: "button", text: "Disconnect" });
-      mDisc.onclick = function () {
-        if (!window.confirm("Disconnect Outlook Calendar?")) return;
-        fetch("/auth/microsoft", { method: "DELETE" }).then(function () { initCalendar(); });
-      };
-      mBtn.appendChild(mConnBtn);
-      mBtn.appendChild(mDisc);
+  document.getElementById("calAddGoogleBtn").addEventListener("click", function () { window.location.href = "/auth/google"; });
+  document.getElementById("calAddMicrosoftBtn").addEventListener("click", function () { window.location.href = "/auth/microsoft"; });
+
+  // ----- Calendar page -----
+  function initCalendar() {
+    if (!calHandlersWired) {
+      calHandlersWired = true;
+      document.getElementById("calPrevBtn").onclick = function () { calViewDate.setMonth(calViewDate.getMonth() - 1); loadCalendarEvents(); };
+      document.getElementById("calNextBtn").onclick = function () { calViewDate.setMonth(calViewDate.getMonth() + 1); loadCalendarEvents(); };
+      document.getElementById("calTodayBtn").onclick = function () { calViewDate = new Date(); calViewDate.setDate(1); loadCalendarEvents(); };
+      document.getElementById("calModalClose").onclick = closeCalModal;
+      document.getElementById("calModalCancel").onclick = closeCalModal;
+      document.getElementById("calModalSave").onclick = saveCalEvent;
+      document.getElementById("calModalDelete").onclick = deleteCalEvent;
     }
-    row.appendChild(mBtn);
+    renderCalGrid([]);
+    fetchCalendarAccounts().then(function () {
+      renderCalendarLegend();
+      if (calendarAccounts.length) loadCalendarEvents();
+    }).catch(function () { renderCalendarLegend(); });
+  }
+
+  function renderCalendarLegend() {
+    var legend = document.getElementById("calLegend");
+    legend.innerHTML = "";
+    if (!calendarAccounts.length) {
+      var msg = el("span", "", { text: "No calendars connected. " });
+      legend.appendChild(msg);
+      if (currentUser && currentUser.role === "admin") {
+        var a = el("a", "", { href: "#admin", text: "Connect one on the Admin page" });
+        legend.appendChild(a);
+      }
+      return;
+    }
+    calendarAccounts.forEach(function (acct) {
+      acct.calendars.forEach(function (c) {
+        var item = el("span", "", { title: acct.email });
+        var sw = el("span", "cal-swatch"); sw.style.background = c.color;
+        item.appendChild(sw);
+        item.appendChild(document.createTextNode(c.name));
+        legend.appendChild(item);
+      });
+    });
+  }
+
+  function calGridRange() {
+    var year = calViewDate.getFullYear(), month = calViewDate.getMonth();
+    var first = new Date(year, month, 1);
+    var start = new Date(first); start.setDate(1 - first.getDay());
+    var end = new Date(start); end.setDate(start.getDate() + 42);
+    return { start: start, end: end };
   }
 
   function loadCalendarEvents() {
-    var grid = document.getElementById("calGrid");
-    grid.innerHTML = "<div class='cal-loading'>Loading events\u2026</div>";
-    fetch("/api/calendar/events").then(function (r) { return r.json(); }).then(function (d) {
-      calendarEvents = d.events || [];
-      renderCalGrid(calendarEvents);
-    }).catch(function () {
-      grid.innerHTML = "<div class='cal-loading'>Could not load events.</div>";
-    });
+    renderCalGrid(calendarEvents);
+    if (!calendarAccounts.length) return;
+    var range = calGridRange();
+    fetch("/api/calendar/events?start=" + encodeURIComponent(range.start.toISOString()) + "&end=" + encodeURIComponent(range.end.toISOString()))
+      .then(function (r) { return r.json(); })
+      .then(function (d) { calendarEvents = d.events || []; renderCalGrid(calendarEvents); })
+      .catch(function () {});
+  }
+
+  // Local-date key ("2026-09-22") an event falls on, so UTC times land on the right day
+  function calDayKey(ev) {
+    if (ev.allDay) return (ev.start || "").slice(0, 10);
+    var d = new Date(ev.start);
+    if (isNaN(d)) return (ev.start || "").slice(0, 10);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   }
 
   function renderCalGrid(events) {
@@ -2760,75 +2851,82 @@
     var year = calViewDate.getFullYear(), month = calViewDate.getMonth();
     label.textContent = calViewDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
-    var firstDay = new Date(year, month, 1).getDay();
-    var daysInMonth = new Date(year, month + 1, 0).getDate();
-    var today = new Date(); today.setHours(0,0,0,0);
+    var byDay = {};
+    events.forEach(function (ev) { var k = calDayKey(ev); (byDay[k] = byDay[k] || []).push(ev); });
+    Object.keys(byDay).forEach(function (k) {
+      byDay[k].sort(function (a, b) { return (a.allDay ? 0 : 1) - (b.allDay ? 0 : 1) || new Date(a.start) - new Date(b.start); });
+    });
 
+    var range = calGridRange();
+    var today = new Date(); today.setHours(0, 0, 0, 0);
     grid.innerHTML = "";
-    // leading cells from previous month
-    var prevDays = new Date(year, month, 0).getDate();
-    for (var i = firstDay - 1; i >= 0; i--) {
-      var cell = el("div", "cal-cell other-month");
-      cell.innerHTML = "<div class='cal-day-num'>" + (prevDays - i) + "</div>";
-      grid.appendChild(cell);
-    }
-    // days of current month
-    for (var d = 1; d <= daysInMonth; d++) {
-      (function (day) {
-        var date = new Date(year, month, day);
-        date.setHours(0,0,0,0);
+    for (var i = 0; i < 42; i++) {
+      (function (date) {
+        var inMonth = date.getMonth() === month;
         var isToday = date.getTime() === today.getTime();
-        var cell = el("div", "cal-cell" + (isToday ? " today" : ""));
-        var head = el("div", "cal-day-num");
-        head.textContent = day;
-        cell.appendChild(head);
-
-        // filter events for this day
-        var dayStr = year + "-" + String(month+1).padStart(2,"0") + "-" + String(day).padStart(2,"0");
-        var dayEvents = events.filter(function (e) {
-          var start = (e.start || "").substring(0, 10);
-          return start === dayStr;
-        }).slice(0, 3);
-        dayEvents.forEach(function (ev) {
-          var pill = el("div", "cal-event-pill " + (ev.provider || ""), { text: ev.title });
-          pill.title = ev.title;
+        var key = date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0");
+        var cell = el("div", "cal-cell" + (isToday ? " today" : "") + (inMonth ? "" : " other-month"));
+        cell.appendChild(el("div", "cal-day-num", { text: String(date.getDate()) }));
+        var dayEvents = byDay[key] || [];
+        dayEvents.slice(0, 3).forEach(function (ev) {
+          var timeLabel = ev.allDay ? "" : new Date(ev.start).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) + " ";
+          var pill = el("div", "cal-event-pill", { text: timeLabel + ev.title });
+          pill.style.background = ev.color || "#1a73e8";
+          pill.title = ev.title + "\n" + (ev.calendarName || "") + (ev.accountEmail ? " \u00b7 " + ev.accountEmail : "");
           pill.onclick = function (e) { e.stopPropagation(); openCalModal(ev); };
           cell.appendChild(pill);
         });
-        if (events.filter(function (e) { return (e.start||"").substring(0,10) === dayStr; }).length > 3) {
-          cell.appendChild(el("div", "cal-more", { text: "+" + (events.filter(function (e) { return (e.start||"").substring(0,10) === dayStr; }).length - 3) + " more" }));
-        }
-
-        cell.onclick = function () {
-          var dt = year + "-" + String(month+1).padStart(2,"0") + "-" + String(day).padStart(2,"0") + "T09:00";
-          openCalModal(null, dt);
-        };
+        if (dayEvents.length > 3) cell.appendChild(el("div", "cal-more", { text: "+" + (dayEvents.length - 3) + " more" }));
+        cell.onclick = function () { openCalModal(null, key + "T09:00"); };
         grid.appendChild(cell);
-      })(d);
-    }
-    // trailing cells
-    var total = firstDay + daysInMonth;
-    var trailing = total % 7 === 0 ? 0 : 7 - (total % 7);
-    for (var t = 1; t <= trailing; t++) {
-      var tcell = el("div", "cal-cell other-month");
-      tcell.innerHTML = "<div class='cal-day-num'>" + t + "</div>";
-      grid.appendChild(tcell);
+      })(new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate() + i));
     }
   }
 
+  function toLocalInput(iso) {
+    if (!iso) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) return iso + "T00:00";
+    var d = new Date(iso);
+    if (isNaN(d)) return "";
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0") +
+      "T" + String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+  }
+
+  function fillCalendarPicker(selectedAccountId, selectedCalendarId, lockToIt) {
+    var sel = document.getElementById("calModalCalendar");
+    sel.innerHTML = "";
+    calendarAccounts.forEach(function (acct) {
+      acct.calendars.forEach(function (c) {
+        var isSelected = acct.id === selectedAccountId && c.id === selectedCalendarId;
+        if (!c.canEdit && !isSelected) return; // can't create events in read-only calendars
+        var opt = el("option", "", { value: acct.id + "|" + c.id, text: c.name + " \u2014 " + (acct.email || (acct.provider === "google" ? "Google" : "Outlook")) });
+        if (isSelected || (!selectedAccountId && c.primary && !sel.value)) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    });
+    sel.disabled = !!lockToIt;
+  }
+
   function openCalModal(event, defaultStart) {
+    if (!calendarAccounts.length) {
+      alert(currentUser && currentUser.role === "admin" ? "Connect a calendar on the Admin page first." : "No calendar is connected.");
+      return;
+    }
     calEditingEvent = event || null;
-    var modal = document.getElementById("calEventModal");
-    document.getElementById("calModalTitle").textContent = event ? "Edit Event" : "New Event";
+    var readOnly = !!(event && event.canEdit === false);
+    document.getElementById("calModalTitle").textContent = event ? (readOnly ? "Event (read-only)" : "Edit Event") : "New Event";
     document.getElementById("calModalName").value = event ? event.title : "";
     document.getElementById("calModalDesc").value = event ? (event.description || "") : "";
-    document.getElementById("calModalStart").value = event ? (event.start || "").replace("Z","").substring(0,16) : (defaultStart || "");
-    document.getElementById("calModalEnd").value = event ? (event.end || "").replace("Z","").substring(0,16) : (defaultStart || "");
-    document.getElementById("calModalProvider").value = event ? (event.provider || "google") : "google";
-    document.getElementById("calModalProvider").disabled = !!event;
-    document.getElementById("calModalDelete").style.display = event ? "" : "none";
-    modal.style.display = "flex";
-    document.getElementById("calModalName").focus();
+    document.getElementById("calModalStart").value = event ? toLocalInput(event.start) : (defaultStart || "");
+    var defaultEnd = "";
+    if (defaultStart) { var de = new Date(defaultStart); de.setHours(de.getHours() + 1); defaultEnd = toLocalInput(de.toISOString()); }
+    document.getElementById("calModalEnd").value = event ? toLocalInput(event.end) : defaultEnd;
+    fillCalendarPicker(event ? event.accountId : null, event ? event.calendarId : null, !!event);
+    ["calModalName", "calModalDesc", "calModalStart", "calModalEnd"].forEach(function (id) { document.getElementById(id).disabled = readOnly; });
+    document.getElementById("calModalSave").style.display = readOnly ? "none" : "";
+    document.getElementById("calModalDelete").style.display = (event && !readOnly) ? "" : "none";
+    document.getElementById("calEventModal").style.display = "flex";
+    if (!readOnly) document.getElementById("calModalName").focus();
   }
 
   function closeCalModal() {
@@ -2839,32 +2937,35 @@
   function saveCalEvent() {
     var title = document.getElementById("calModalName").value.trim();
     if (!title) { alert("Please enter a title."); return; }
-    var start = document.getElementById("calModalStart").value;
-    var end = document.getElementById("calModalEnd").value || start;
+    var startLocal = document.getElementById("calModalStart").value;
+    if (!startLocal) { alert("Please choose a start time."); return; }
+    var endLocal = document.getElementById("calModalEnd").value || startLocal;
+    var start = new Date(startLocal).toISOString();
+    var end = new Date(endLocal).toISOString();
+    if (new Date(end) < new Date(start)) { alert("The end time is before the start time."); return; }
     var desc = document.getElementById("calModalDesc").value.trim();
-    var provider = document.getElementById("calModalProvider").value;
+    var picked = document.getElementById("calModalCalendar").value.split("|");
+    var payload = { accountId: picked[0], calendarId: picked.slice(1).join("|"), title: title, start: start, end: end, description: desc };
+    var method = "POST";
     if (calEditingEvent) {
-      fetch("/api/calendar/events/" + calEditingEvent.provider + "/" + encodeURIComponent(calEditingEvent.externalId), {
-        method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title, start: start, end: end, description: desc })
-      }).then(function () { closeCalModal(); loadCalendarEvents(); });
-    } else {
-      fetch("/api/calendar/events", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: provider, title: title, start: start, end: end, description: desc })
-      }).then(function () { closeCalModal(); loadCalendarEvents(); });
+      method = "PUT";
+      payload.accountId = calEditingEvent.accountId;
+      payload.calendarId = calEditingEvent.calendarId;
+      payload.eventId = calEditingEvent.externalId;
     }
+    fetch("/api/calendar/events", { method: method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+      .then(function (r) { if (!r.ok) throw new Error(); closeCalModal(); loadCalendarEvents(); })
+      .catch(function () { alert("Couldn't save that event. Please try again."); });
   }
 
   function deleteCalEvent() {
     if (!calEditingEvent) return;
-    if (!window.confirm("Delete \"" + calEditingEvent.title + "\"? This will remove it from your calendar.")) return;
-    fetch("/api/calendar/events/" + calEditingEvent.provider + "/" + encodeURIComponent(calEditingEvent.externalId), {
-      method: "DELETE"
-    }).then(function () { closeCalModal(); loadCalendarEvents(); });
+    if (!window.confirm("Delete \"" + calEditingEvent.title + "\"? This removes it from your calendar.")) return;
+    var ev = calEditingEvent;
+    fetch("/api/calendar/events?accountId=" + encodeURIComponent(ev.accountId) + "&calendarId=" + encodeURIComponent(ev.calendarId) + "&eventId=" + encodeURIComponent(ev.externalId), { method: "DELETE" })
+      .then(function () { closeCalModal(); loadCalendarEvents(); });
   }
 
-  // close modal on backdrop click
   document.getElementById("calEventModal").addEventListener("click", function (e) {
     if (e.target === this) closeCalModal();
   });
@@ -2877,6 +2978,11 @@
     if (currentView === "admin") {
       if (user.role !== "admin") { routeTo(""); return; } // never actually admin, or role changed since — bounce to Boards
       showAdminView();
+      return;
+    }
+    if (currentView === "calendar") {
+      // a direct visit / refresh on #calendar waits here for the login to load first
+      if (document.getElementById("calendarView").style.display === "none") showCalendarView();
       return;
     }
     render();

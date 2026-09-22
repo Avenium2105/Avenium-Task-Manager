@@ -39,25 +39,46 @@ const GROUP_COLORS = ["#3C5A46", "#C68A2E", "#7D6BAE", "#4C7A9E", "#B24A3C"];
 const DEFAULT_GROUPS = ["Today", "This week", "Someday"];
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB per file
 
-// ---- Calendar token store (persisted to DATA_DIR/calendar-tokens.json) ----
-// Each entry: { userId, provider: "google"|"microsoft", accessToken,
-//   refreshToken, expiresAt (ISO), email }
+// ---- Calendar connection store (persisted to DATA_DIR/calendar-tokens.json) ----
+// A user can connect any number of Google and Microsoft accounts. Each entry:
+// { id, userId, provider: "google"|"microsoft", email, accessToken,
+//   refreshToken, expiresAt (ISO) }
+// Every lookup below requires BOTH the connection id AND the logged-in user's
+// id to match, so one user can never read or use another user's connection.
 const TOKENS_FILE = path.join(DATA_DIR, "calendar-tokens.json");
 let calendarTokens = [];
 try { calendarTokens = JSON.parse(fs.readFileSync(TOKENS_FILE, "utf8")); } catch (e) { calendarTokens = []; }
+// connections saved before multi-account support had no id — give them one
+if (calendarTokens.some((t) => !t.id)) {
+  calendarTokens.forEach((t) => { if (!t.id) t.id = "cal" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); });
+  fs.writeFileSync(TOKENS_FILE, JSON.stringify(calendarTokens, null, 2));
+}
 function persistTokens() {
   fs.writeFile(TOKENS_FILE, JSON.stringify(calendarTokens, null, 2), () => {});
 }
-function getToken(userId, provider) {
-  return calendarTokens.find((t) => t.userId === userId && t.provider === provider) || null;
+function listAccounts(userId) {
+  return calendarTokens.filter((t) => t.userId === userId);
 }
-function setToken(userId, provider, data) {
-  calendarTokens = calendarTokens.filter((t) => !(t.userId === userId && t.provider === provider));
-  calendarTokens.push({ userId, provider, ...data });
+function getAccount(userId, accountId) {
+  return calendarTokens.find((t) => t.id === accountId && t.userId === userId) || null;
+}
+function saveAccount(userId, provider, data) {
+  // Reconnecting the same account (same provider + email) refreshes it in
+  // place instead of creating a duplicate; a different account is added.
+  const existing = data.email
+    ? calendarTokens.find((t) => t.userId === userId && t.provider === provider && t.email && t.email.toLowerCase() === data.email.toLowerCase())
+    : null;
+  if (existing) {
+    existing.accessToken = data.accessToken;
+    if (data.refreshToken) existing.refreshToken = data.refreshToken;
+    existing.expiresAt = data.expiresAt;
+  } else {
+    calendarTokens.push({ id: "cal" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), userId, provider, ...data });
+  }
   persistTokens();
 }
-function removeToken(userId, provider) {
-  calendarTokens = calendarTokens.filter((t) => !(t.userId === userId && t.provider === provider));
+function removeAccount(userId, accountId) {
+  calendarTokens = calendarTokens.filter((t) => !(t.id === accountId && t.userId === userId));
   persistTokens();
 }
 
@@ -121,14 +142,22 @@ async function refreshMicrosoftToken(token) {
   return token;
 }
 
-async function getValidToken(userId, provider) {
-  let token = getToken(userId, provider);
-  if (!token) return null;
-  if (new Date(token.expiresAt) < new Date(Date.now() + 60000)) {
-    token = provider === "google" ? await refreshGoogleToken(token) : await refreshMicrosoftToken(token);
+async function freshToken(account) {
+  if (!account) return null;
+  if (!account.expiresAt || new Date(account.expiresAt) < new Date(Date.now() + 60000)) {
+    return account.provider === "google" ? refreshGoogleToken(account) : refreshMicrosoftToken(account);
   }
-  return token;
+  return account;
 }
+
+// Microsoft returns times like "2026-09-22T13:00:00.0000000" in UTC (we ask
+// for UTC below) with no timezone marker — add the "Z" so browsers read it as UTC.
+function msTime(s) {
+  if (!s) return s;
+  return /([zZ]|[+-]\d\d:\d\d)$/.test(s) ? s : s.replace(/\.\d+$/, "") + "Z";
+}
+// Browsers send ISO times ending in "Z"; Graph wants them without it (timeZone given separately).
+function msInputTime(s) { return String(s || "").replace(/\.\d+Z$/, "").replace(/Z$/, ""); }
 
 // ---- Google Calendar API calls ----
 async function googleApiRequest(accessToken, method, path2, body) {
@@ -138,114 +167,80 @@ async function googleApiRequest(accessToken, method, path2, body) {
   return httpsRequest({ hostname: "www.googleapis.com", path: path2, method, headers }, bodyStr);
 }
 
-async function fetchGoogleEvents(userId) {
-  const token = await getValidToken(userId, "google");
-  if (!token) return [];
-  const now = new Date().toISOString();
-  const future = new Date(Date.now() + 90 * 86400000).toISOString();
-  const r = await googleApiRequest(token.accessToken, "GET",
-    `/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(now)}&timeMax=${encodeURIComponent(future)}&singleEvents=true&orderBy=startTime&maxResults=100`);
-  if (!r.body.items) return [];
-  return r.body.items.map((e) => ({
-    id: "gcal_" + e.id, externalId: e.id, provider: "google",
-    title: e.summary || "(No title)",
-    start: e.start && (e.start.dateTime || e.start.date),
-    end: e.end && (e.end.dateTime || e.end.date),
-    allDay: !!(e.start && e.start.date),
-    location: e.location || "", description: e.description || "",
-    htmlLink: e.htmlLink || ""
+async function listGoogleCalendars(account) {
+  const r = await googleApiRequest(account.accessToken, "GET", "/calendar/v3/users/me/calendarList");
+  if (!r.body || !r.body.items) throw new Error("google_calendar_list_failed");
+  // "selected" = the calendars the person has switched on in Google Calendar itself
+  return r.body.items.filter((c) => c.selected !== false || c.primary).map((c) => ({
+    id: c.id, name: c.summaryOverride || c.summary || c.id, color: c.backgroundColor || "#1a73e8",
+    canEdit: c.accessRole === "owner" || c.accessRole === "writer", primary: !!c.primary
   }));
 }
 
-async function createGoogleEvent(userId, event) {
-  const token = await getValidToken(userId, "google");
-  if (!token) throw new Error("Not connected to Google Calendar");
-  const body = {
-    summary: event.title,
-    description: event.description || "",
-    start: event.allDay ? { date: event.start } : { dateTime: event.start, timeZone: "UTC" },
-    end: event.allDay ? { date: event.end || event.start } : { dateTime: event.end || event.start, timeZone: "UTC" }
-  };
-  const r = await googleApiRequest(token.accessToken, "POST", "/calendar/v3/calendars/primary/events", body);
-  return r.body;
+async function fetchGoogleCalendarEvents(account, cal, timeMin, timeMax) {
+  const r = await googleApiRequest(account.accessToken, "GET",
+    `/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=250`);
+  if (!r.body || !r.body.items) return [];
+  return r.body.items.map((e) => ({
+    externalId: e.id, title: e.summary || "(No title)",
+    start: e.start && (e.start.dateTime || e.start.date),
+    end: e.end && (e.end.dateTime || e.end.date),
+    allDay: !!(e.start && e.start.date),
+    description: e.description || "", htmlLink: e.htmlLink || ""
+  }));
 }
 
-async function updateGoogleEvent(userId, externalId, event) {
-  const token = await getValidToken(userId, "google");
-  if (!token) return;
-  const body = {
+function googleEventBody(event) {
+  return {
     summary: event.title,
     description: event.description || "",
-    start: event.allDay ? { date: event.start } : { dateTime: event.start, timeZone: "UTC" },
-    end: event.allDay ? { date: event.end || event.start } : { dateTime: event.end || event.start, timeZone: "UTC" }
+    start: { dateTime: event.start, timeZone: "UTC" },
+    end: { dateTime: event.end || event.start, timeZone: "UTC" }
   };
-  await googleApiRequest(token.accessToken, "PUT", `/calendar/v3/calendars/primary/events/${externalId}`, body);
-}
-
-async function deleteGoogleEvent(userId, externalId) {
-  const token = await getValidToken(userId, "google");
-  if (!token) return;
-  await googleApiRequest(token.accessToken, "DELETE", `/calendar/v3/calendars/primary/events/${externalId}`);
 }
 
 // ---- Microsoft Graph Calendar API calls ----
 async function graphRequest(accessToken, method, path2, body) {
   const bodyStr = body ? JSON.stringify(body) : null;
-  const headers = { Authorization: "Bearer " + accessToken, Accept: "application/json" };
+  const headers = { Authorization: "Bearer " + accessToken, Accept: "application/json", Prefer: 'outlook.timezone="UTC"' };
   if (bodyStr) { headers["Content-Type"] = "application/json"; headers["Content-Length"] = Buffer.byteLength(bodyStr); }
   return httpsRequest({ hostname: "graph.microsoft.com", path: "/v1.0" + path2, method, headers }, bodyStr);
 }
 
-async function fetchMicrosoftEvents(userId) {
-  const token = await getValidToken(userId, "microsoft");
-  if (!token) return [];
-  const now = new Date().toISOString();
-  const future = new Date(Date.now() + 90 * 86400000).toISOString();
-  const r = await graphRequest(token.accessToken, "GET",
-    `/me/calendarView?startDateTime=${encodeURIComponent(now)}&endDateTime=${encodeURIComponent(future)}&$top=100&$orderby=start/dateTime`);
-  if (!r.body.value) return [];
-  return r.body.value.map((e) => ({
-    id: "mcal_" + e.id, externalId: e.id, provider: "microsoft",
-    title: e.subject || "(No title)",
-    start: e.start && e.start.dateTime ? e.start.dateTime : (e.start && e.start.date),
-    end: e.end && e.end.dateTime ? e.end.dateTime : (e.end && e.end.date),
-    allDay: e.isAllDay || false,
-    location: (e.location && e.location.displayName) || "",
-    description: (e.body && e.body.content) || "",
-    htmlLink: e.webLink || ""
+async function listMicrosoftCalendars(account) {
+  const r = await graphRequest(account.accessToken, "GET", "/me/calendars?$top=50");
+  if (!r.body || !r.body.value) throw new Error("microsoft_calendar_list_failed");
+  return r.body.value.map((c) => ({
+    id: c.id, name: c.name || "Calendar",
+    color: c.hexColor && c.hexColor !== "" ? c.hexColor : "#0078d4",
+    canEdit: c.canEdit !== false, primary: !!c.isDefaultCalendar
   }));
 }
 
-async function createMicrosoftEvent(userId, event) {
-  const token = await getValidToken(userId, "microsoft");
-  if (!token) throw new Error("Not connected to Microsoft Calendar");
-  const body = {
-    subject: event.title,
-    body: { contentType: "text", content: event.description || "" },
-    start: { dateTime: event.start, timeZone: "UTC" },
-    end: { dateTime: event.end || event.start, timeZone: "UTC" },
-    isAllDay: event.allDay || false
-  };
-  const r = await graphRequest(token.accessToken, "POST", "/me/events", body);
-  return r.body;
+async function fetchMicrosoftCalendarEvents(account, cal, timeMin, timeMax) {
+  const r = await graphRequest(account.accessToken, "GET",
+    `/me/calendars/${encodeURIComponent(cal.id)}/calendarView?startDateTime=${encodeURIComponent(timeMin)}&endDateTime=${encodeURIComponent(timeMax)}&$top=250`);
+  if (!r.body || !r.body.value) return [];
+  return r.body.value.map((e) => ({
+    externalId: e.id, title: e.subject || "(No title)",
+    start: e.isAllDay ? (e.start && e.start.dateTime || "").slice(0, 10) : msTime(e.start && e.start.dateTime),
+    end: e.isAllDay ? (e.end && e.end.dateTime || "").slice(0, 10) : msTime(e.end && e.end.dateTime),
+    allDay: !!e.isAllDay,
+    description: (e.bodyPreview) || "", htmlLink: e.webLink || ""
+  }));
 }
 
-async function updateMicrosoftEvent(userId, externalId, event) {
-  const token = await getValidToken(userId, "microsoft");
-  if (!token) return;
-  const body = {
+function microsoftEventBody(event) {
+  return {
     subject: event.title,
     body: { contentType: "text", content: event.description || "" },
-    start: { dateTime: event.start, timeZone: "UTC" },
-    end: { dateTime: event.end || event.start, timeZone: "UTC" }
+    start: { dateTime: msInputTime(event.start), timeZone: "UTC" },
+    end: { dateTime: msInputTime(event.end || event.start), timeZone: "UTC" }
   };
-  await graphRequest(token.accessToken, "PATCH", `/me/events/${externalId}`, body);
 }
 
-async function deleteMicrosoftEvent(userId, externalId) {
-  const token = await getValidToken(userId, "microsoft");
-  if (!token) return;
-  await graphRequest(token.accessToken, "DELETE", `/me/events/${externalId}`);
+async function listCalendarsFor(account) {
+  return account.provider === "google" ? listGoogleCalendars(account) : listMicrosoftCalendars(account);
 }
 
 function uid(prefix) {
@@ -1569,6 +1564,9 @@ io.on("connection", (socket) => {
 });
 
 // ---- Google & Microsoft OAuth routes ----
+// prompt=select_account makes the provider ask WHICH account to connect every
+// time, so the same person can add a second Google or Microsoft account
+// instead of silently reconnecting whichever one the browser is signed into.
 app.get("/auth/google", requireAuth, (req, res) => {
   if (!GOOGLE_CLIENT_ID) return res.status(503).send("Google Calendar not configured");
   const params = new URLSearchParams({
@@ -1577,14 +1575,14 @@ app.get("/auth/google", requireAuth, (req, res) => {
     response_type: "code",
     scope: "https://www.googleapis.com/auth/calendar",
     access_type: "offline",
-    prompt: "consent"
+    prompt: "consent select_account"
   });
   res.redirect("https://accounts.google.com/o/oauth2/v2/auth?" + params);
 });
 
 app.get("/auth/google/callback", requireAuth, async (req, res) => {
   const { code, error } = req.query;
-  if (error || !code) return res.redirect("/#calendar?error=google_denied");
+  if (error || !code) return res.redirect("/#admin?cal=error");
   const params = new URLSearchParams({
     code, client_id: GOOGLE_CLIENT_ID, client_secret: GOOGLE_CLIENT_SECRET,
     redirect_uri: GOOGLE_REDIRECT, grant_type: "authorization_code"
@@ -1594,17 +1592,23 @@ app.get("/auth/google/callback", requireAuth, async (req, res) => {
       hostname: "oauth2.googleapis.com", path: "/token", method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(params) }
     }, params);
-    if (!r.body.access_token) return res.redirect("/#calendar?error=google_token");
-    const userInfoR = await httpsRequest({ hostname: "www.googleapis.com", path: "/oauth2/v3/userinfo",
-      method: "GET", headers: { Authorization: "Bearer " + r.body.access_token } });
-    setToken(req.session.userId, "google", {
+    if (!r.body.access_token) return res.redirect("/#admin?cal=error");
+    // A Google account's primary calendar id IS its email address — reuse it
+    // as the account label, so no extra profile/email permission is needed.
+    let email = "";
+    try {
+      const list = await googleApiRequest(r.body.access_token, "GET", "/calendar/v3/users/me/calendarList");
+      const primary = list.body && list.body.items && list.body.items.find((c) => c.primary);
+      email = primary ? primary.id : "";
+    } catch (e) {}
+    saveAccount(req.session.userId, "google", {
+      email,
       accessToken: r.body.access_token,
       refreshToken: r.body.refresh_token,
-      expiresAt: new Date(Date.now() + (r.body.expires_in || 3600) * 1000).toISOString(),
-      email: userInfoR.body.email || ""
+      expiresAt: new Date(Date.now() + (r.body.expires_in || 3600) * 1000).toISOString()
     });
-    res.redirect("/#calendar?connected=google");
-  } catch (e) { res.redirect("/#calendar?error=google_failed"); }
+    res.redirect("/#admin?cal=connected");
+  } catch (e) { res.redirect("/#admin?cal=error"); }
 });
 
 app.get("/auth/microsoft", requireAuth, (req, res) => {
@@ -1614,14 +1618,15 @@ app.get("/auth/microsoft", requireAuth, (req, res) => {
     redirect_uri: MICROSOFT_REDIRECT,
     response_type: "code",
     scope: "Calendars.ReadWrite offline_access User.Read",
-    response_mode: "query"
+    response_mode: "query",
+    prompt: "select_account"
   });
   res.redirect(`https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize?` + params);
 });
 
 app.get("/auth/microsoft/callback", requireAuth, async (req, res) => {
   const { code, error } = req.query;
-  if (error || !code) return res.redirect("/#calendar?error=microsoft_denied");
+  if (error || !code) return res.redirect("/#admin?cal=error");
   const params = new URLSearchParams({
     client_id: MICROSOFT_CLIENT_ID, client_secret: MICROSOFT_CLIENT_SECRET,
     code, redirect_uri: MICROSOFT_REDIRECT, grant_type: "authorization_code",
@@ -1634,71 +1639,107 @@ app.get("/auth/microsoft/callback", requireAuth, async (req, res) => {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(params) }
     }, params);
-    if (!r.body.access_token) return res.redirect("/#calendar?error=microsoft_token");
+    if (!r.body.access_token) return res.redirect("/#admin?cal=error");
     const meR = await graphRequest(r.body.access_token, "GET", "/me");
-    setToken(req.session.userId, "microsoft", {
+    saveAccount(req.session.userId, "microsoft", {
+      email: (meR.body && (meR.body.mail || meR.body.userPrincipalName)) || "",
       accessToken: r.body.access_token,
       refreshToken: r.body.refresh_token,
-      expiresAt: new Date(Date.now() + (r.body.expires_in || 3600) * 1000).toISOString(),
-      email: (meR.body && meR.body.mail) || (meR.body && meR.body.userPrincipalName) || ""
+      expiresAt: new Date(Date.now() + (r.body.expires_in || 3600) * 1000).toISOString()
     });
-    res.redirect("/#calendar?connected=microsoft");
-  } catch (e) { res.redirect("/#calendar?error=microsoft_failed"); }
+    res.redirect("/#admin?cal=connected");
+  } catch (e) { res.redirect("/#admin?cal=error"); }
 });
 
-app.delete("/auth/:provider", requireAuth, (req, res) => {
-  const { provider } = req.params;
-  if (!["google", "microsoft"].includes(provider)) return res.status(400).json({ error: "invalid_provider" });
-  removeToken(req.session.userId, provider);
+// Disconnect ONE specific connected account (only if it belongs to you)
+app.delete("/api/calendar/accounts/:id", requireAuth, (req, res) => {
+  if (!getAccount(req.session.userId, req.params.id)) return res.status(404).json({ error: "not_found" });
+  removeAccount(req.session.userId, req.params.id);
   res.json({ ok: true });
 });
 
-// ---- Calendar API endpoints ----
-app.get("/api/calendar/status", requireAuth, (req, res) => {
-  const google = getToken(req.session.userId, "google");
-  const microsoft = getToken(req.session.userId, "microsoft");
-  res.json({
-    google: google ? { connected: true, email: google.email } : { connected: false },
-    microsoft: microsoft ? { connected: true, email: microsoft.email } : { connected: false },
-    calendarEnabled: CALENDAR_ENABLED
-  });
+// ---- Calendar API endpoints (all scoped to the logged-in user's own connections) ----
+
+// Every connected account, with the calendars inside each one
+app.get("/api/calendar/accounts", requireAuth, async (req, res) => {
+  const accounts = listAccounts(req.session.userId);
+  const out = await Promise.all(accounts.map(async (acct) => {
+    try {
+      const a = await freshToken(acct);
+      const calendars = await listCalendarsFor(a);
+      return { id: acct.id, provider: acct.provider, email: acct.email, calendars };
+    } catch (e) {
+      // e.g. access was revoked on Google/Microsoft's side — show it so it can be reconnected
+      return { id: acct.id, provider: acct.provider, email: acct.email, calendars: [], error: true };
+    }
+  }));
+  res.json({ accounts: out, googleConfigured: !!GOOGLE_CLIENT_ID, microsoftConfigured: !!MICROSOFT_CLIENT_ID });
 });
 
+// Events from every calendar in every connected account, for a date range
 app.get("/api/calendar/events", requireAuth, async (req, res) => {
-  try {
-    const [googleEvents, microsoftEvents] = await Promise.all([
-      fetchGoogleEvents(req.session.userId).catch(() => []),
-      fetchMicrosoftEvents(req.session.userId).catch(() => [])
-    ]);
-    res.json({ events: [...googleEvents, ...microsoftEvents] });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  const timeMin = req.query.start ? new Date(req.query.start).toISOString() : new Date(Date.now() - 31 * 86400000).toISOString();
+  const timeMax = req.query.end ? new Date(req.query.end).toISOString() : new Date(Date.now() + 62 * 86400000).toISOString();
+  const accounts = listAccounts(req.session.userId);
+  const all = [];
+  await Promise.all(accounts.map(async (acct) => {
+    try {
+      const a = await freshToken(acct);
+      const calendars = await listCalendarsFor(a);
+      await Promise.all(calendars.map(async (cal) => {
+        try {
+          const events = a.provider === "google"
+            ? await fetchGoogleCalendarEvents(a, cal, timeMin, timeMax)
+            : await fetchMicrosoftCalendarEvents(a, cal, timeMin, timeMax);
+          events.forEach((ev) => all.push({
+            ...ev, provider: a.provider, accountId: a.id, accountEmail: a.email,
+            calendarId: cal.id, calendarName: cal.name, color: cal.color, canEdit: cal.canEdit
+          }));
+        } catch (e) {}
+      }));
+    } catch (e) {}
+  }));
+  res.json({ events: all });
 });
 
 app.post("/api/calendar/events", requireAuth, async (req, res) => {
-  const { provider, title, start, end, allDay, description } = req.body;
-  if (!["google", "microsoft"].includes(provider)) return res.status(400).json({ error: "invalid_provider" });
+  const { accountId, calendarId, title, start, end, description } = req.body || {};
+  const acct = getAccount(req.session.userId, accountId);
+  if (!acct || !calendarId || !title || !start) return res.status(400).json({ error: "invalid_request" });
   try {
-    const result = provider === "google"
-      ? await createGoogleEvent(req.session.userId, { title, start, end, allDay, description })
-      : await createMicrosoftEvent(req.session.userId, { title, start, end, allDay, description });
-    res.json({ ok: true, event: result });
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put("/api/calendar/events/:provider/:id", requireAuth, async (req, res) => {
-  const { provider, id } = req.params;
-  try {
-    if (provider === "google") await updateGoogleEvent(req.session.userId, id, req.body);
-    else if (provider === "microsoft") await updateMicrosoftEvent(req.session.userId, id, req.body);
+    const a = await freshToken(acct);
+    const ev = { title, start, end, description };
+    const r = a.provider === "google"
+      ? await googleApiRequest(a.accessToken, "POST", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`, googleEventBody(ev))
+      : await graphRequest(a.accessToken, "POST", `/me/calendars/${encodeURIComponent(calendarId)}/events`, microsoftEventBody(ev));
+    if (r.status >= 300) return res.status(502).json({ error: "provider_rejected" });
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete("/api/calendar/events/:provider/:id", requireAuth, async (req, res) => {
-  const { provider, id } = req.params;
+app.put("/api/calendar/events", requireAuth, async (req, res) => {
+  const { accountId, calendarId, eventId, title, start, end, description } = req.body || {};
+  const acct = getAccount(req.session.userId, accountId);
+  if (!acct || !eventId) return res.status(400).json({ error: "invalid_request" });
   try {
-    if (provider === "google") await deleteGoogleEvent(req.session.userId, id);
-    else if (provider === "microsoft") await deleteMicrosoftEvent(req.session.userId, id);
+    const a = await freshToken(acct);
+    const ev = { title, start, end, description };
+    const r = a.provider === "google"
+      ? await googleApiRequest(a.accessToken, "PATCH", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`, googleEventBody(ev))
+      : await graphRequest(a.accessToken, "PATCH", `/me/events/${encodeURIComponent(eventId)}`, microsoftEventBody(ev));
+    if (r.status >= 300) return res.status(502).json({ error: "provider_rejected" });
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete("/api/calendar/events", requireAuth, async (req, res) => {
+  const { accountId, calendarId, eventId } = req.query;
+  const acct = getAccount(req.session.userId, accountId);
+  if (!acct || !eventId) return res.status(400).json({ error: "invalid_request" });
+  try {
+    const a = await freshToken(acct);
+    if (a.provider === "google") await googleApiRequest(a.accessToken, "DELETE", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`);
+    else await graphRequest(a.accessToken, "DELETE", `/me/events/${encodeURIComponent(eventId)}`);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
