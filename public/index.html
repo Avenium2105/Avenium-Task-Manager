@@ -456,8 +456,7 @@
   .cal-view-btn.active { background: var(--pine) !important; color: var(--bg-raised) !important; border-color: var(--pine) !important; }
   .cal-search-wrap { margin: 0 0 0 auto; }
   .cal-search-wrap input { font-family: inherit; font-size: 12.5px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; width: 160px; }
-  .board-search-wrap { display: flex; align-items: center; padding: 0 8px; }
-  .board-search-wrap input { font-family: inherit; font-size: 12.5px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; width: 200px; }
+  .board-search-input { font-family: inherit; font-size: 12px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; width: 150px; }
   .cal-type-row { display: flex; gap: 6px; flex-wrap: wrap; }
   .cal-type-btn { font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 6px 12px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg); color: var(--ink-soft); cursor: pointer; }
   .cal-type-btn:hover { border-color: var(--pine); }
@@ -737,6 +736,11 @@
     adminLink.addEventListener("click", function (e) { routedClick(e, "#admin"); });
     adminLink.style.display = "none";
     bar.appendChild(adminLink);
+
+    var boardSearch = el("input", "board-search-input", { type: "text", placeholder: "Search tasks\u2026", autocomplete: "off", id: "boardSearchInput" });
+    boardSearch.style.display = "none"; // shown only on boards view
+    bar.appendChild(boardSearch);
+
     var logoutBtn = el("button", "link logout", { type: "button", text: "Log out" });
     logoutBtn.addEventListener("click", function () {
       fetch("/api/logout", { method: "POST" }).then(function () { window.location.href = "/login.html"; });
@@ -754,9 +758,12 @@
     // active view's button reads as "selected" the way tabs do.
     markActive: function () {
       var hash = window.location.hash;
-      if (boardsNavLink) boardsNavLink.classList.toggle("active", hash === "#boards" || hash === "" || hash === "#");
+      var isBoards = hash === "#boards" || hash === "" || hash === "#";
+      if (boardsNavLink) boardsNavLink.classList.toggle("active", isBoards);
       if (adminLink) adminLink.classList.toggle("active", hash === "#admin");
       if (calNavLink) calNavLink.classList.toggle("active", hash === "#calendar");
+      var bs = document.getElementById("boardSearchInput");
+      if (bs) bs.style.display = isBoards ? "" : "none";
     }
   };
 
@@ -774,9 +781,6 @@
 </script>
 <div id="boardsView">
 <div class="board-tabs" id="boardTabs"></div>
-<div class="board-search-wrap">
-  <input id="boardSearchInput" type="text" placeholder="Search tasks…" autocomplete="off">
-</div>
 <div class="page">
 <aside class="todo-sidebar" id="todoSidebar">
   <div class="todo-sidebar-head">Action Items</div>
