@@ -456,7 +456,8 @@
   .cal-view-btn.active { background: var(--pine) !important; color: var(--bg-raised) !important; border-color: var(--pine) !important; }
   .cal-search-wrap { margin: 0 0 0 auto; }
   .cal-search-wrap input { font-family: inherit; font-size: 12.5px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; width: 160px; }
-  .board-search-input { font-family: inherit; font-size: 12px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; width: 150px; }
+  .board-search-spacer { flex: 1 1 auto; }
+  .board-search-input { font-family: inherit; font-size: 12px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; width: 150px; flex-shrink: 0; margin-bottom: 6px; }
   .cal-type-row { display: flex; gap: 6px; flex-wrap: wrap; }
   .cal-type-btn { font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 6px 12px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg); color: var(--ink-soft); cursor: pointer; }
   .cal-type-btn:hover { border-color: var(--pine); }
@@ -735,11 +736,6 @@
     adminLink.addEventListener("click", function (e) { routedClick(e, "#admin"); });
     adminLink.style.display = "none";
     bar.appendChild(adminLink);
-
-    var boardSearch = el("input", "board-search-input", { type: "text", placeholder: "Search tasks\u2026", autocomplete: "off", id: "boardSearchInput" });
-    boardSearch.style.display = "none"; // shown only on boards view
-    bar.appendChild(boardSearch);
-
     var logoutBtn = el("button", "link logout", { type: "button", text: "Log out" });
     logoutBtn.addEventListener("click", function () {
       fetch("/api/logout", { method: "POST" }).then(function () { window.location.href = "/login.html"; });
@@ -761,8 +757,6 @@
       if (boardsNavLink) boardsNavLink.classList.toggle("active", isBoards);
       if (adminLink) adminLink.classList.toggle("active", hash === "#admin");
       if (calNavLink) calNavLink.classList.toggle("active", hash === "#calendar");
-      var bs = document.getElementById("boardSearchInput");
-      if (bs) bs.style.display = isBoards ? "" : "none";
     }
   };
 
@@ -1532,6 +1526,17 @@
       setTimeout(function () { nameInput2.focus(); }, 0);
     }
     mount.appendChild(addWrap);
+
+    // Search input, right-aligned in the tab strip
+    var searchSpacer = el("span", "board-search-spacer");
+    mount.appendChild(searchSpacer);
+    var searchInput = el("input", "board-search-input", { type: "text", placeholder: "Search tasks\u2026", autocomplete: "off", id: "boardSearchInput" });
+    searchInput.value = boardSearchQuery;
+    searchInput.addEventListener("input", function () {
+      boardSearchQuery = this.value.trim().toLowerCase();
+      render();
+    });
+    mount.appendChild(searchInput);
 
     // Same idea as nav.js's --nav-h: record this bar's real height so the
     // chat sidebar (sticky, positioned below both bars) always clears it
@@ -3959,12 +3964,6 @@
     state.todos = s.todos || [];
     stateLoaded = true;
     if (selectedBoardId !== "__all__" && !state.boards.some(function (b) { return b.id === selectedBoardId; })) selectedBoardId = "__all__";
-    render();
-  });
-
-  // Boards search
-  document.getElementById("boardSearchInput").addEventListener("input", function () {
-    boardSearchQuery = this.value.trim().toLowerCase();
     render();
   });
 
