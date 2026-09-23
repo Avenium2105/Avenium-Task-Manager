@@ -577,11 +577,10 @@
   .cal-hebrew-date-pick select { flex: 1 1 0; min-width: 0; width: auto; }
   .cal-details-group { display: flex; flex-direction: column; gap: 8px; }
   .cal-details-group input { width: 100%; }
-  .cal-calendar-pick { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
-  .cal-calendar-pick-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); margin-bottom: 4px; }
-  .cal-calendar-pick label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); cursor: pointer; padding: 3px 0; }
-  .cal-calendar-pick label input[type="radio"] { width: auto !important; margin: 0; cursor: pointer; accent-color: var(--pine); }
-  .cal-calendar-pick .cal-swatch { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+  .cal-calendar-pick { display: flex; flex-direction: column; gap: 4px; }
+  .cal-calendar-pick-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-faint); margin-bottom: 2px; }
+  .cal-calendar-pick select { font-family: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); outline: none; width: 100%; box-sizing: border-box; }
+  .cal-calendar-pick select:focus { border-color: var(--pine); }
   .cal-event-modal-foot { padding: 14px 20px; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: flex-end; }
   .cal-event-modal-foot button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 18px; border: none; border-radius: 7px; cursor: pointer; }
   #calModalSave { background: var(--pine); color: var(--bg-raised); }
@@ -978,6 +977,7 @@
 
         <div class="cal-calendar-pick" id="calCalendarPick">
           <div class="cal-calendar-pick-label">Calendar</div>
+          <select id="calModalCalendar"></select>
         </div>
       </div>
       <div class="cal-event-modal-foot">
@@ -3173,15 +3173,20 @@
         document.getElementById("calRepeatOptions").style.display = on ? "flex" : "none";
         if (on) {
           var val = document.getElementById("calModalRepeat").value;
-          document.getElementById("calModalRepeatUntil").style.display = val !== "daily" ? "" : "none";
+          var isJewish = val === "jewish-monthly" || val === "jewish-yearly";
+          document.getElementById("calModalRepeatUntil").style.display = (val === "daily" || isJewish) ? "none" : "";
           updateHebrewDatePick(val);
         } else {
           document.getElementById("calHebrewDatePick").style.display = "none";
         }
       };
       document.getElementById("calModalRepeat").onchange = function () {
-        document.getElementById("calModalRepeatUntil").style.display = this.value === "daily" ? "none" : "";
-        updateHebrewDatePick(this.value);
+        var val = this.value;
+        var isJewish = val === "jewish-monthly" || val === "jewish-yearly";
+        if (!isJewish) {
+          document.getElementById("calModalRepeatUntil").style.display = val === "daily" ? "none" : "";
+        }
+        updateHebrewDatePick(val);
       };
     }
     if (calendarAccounts.length || builtinCalendars.length) {
@@ -3581,31 +3586,22 @@
   }
 
   function fillCalendarPicker(selectedAccountId, selectedCalendarId, lockToIt) {
-    var wrap = document.getElementById("calCalendarPick");
-    wrap.innerHTML = '<div class="cal-calendar-pick-label">Calendar</div>';
-    var first = null;
+    var sel = document.getElementById("calModalCalendar");
+    sel.innerHTML = "";
     calendarAccounts.forEach(function (acct) {
       acct.calendars.forEach(function (c) {
         var isSelected = acct.id === selectedAccountId && c.id === selectedCalendarId;
         if (!c.canEdit && !isSelected) return;
-        var lbl = el("label");
-        var rad = el("input", "", { type: "radio", name: "calModalCalendar", value: acct.id + "|" + c.id });
-        if (isSelected) rad.checked = true;
-        if (lockToIt) rad.disabled = true;
-        lbl.appendChild(rad);
-        var sw = el("span", "cal-swatch"); sw.style.background = c.color || "#3C5A46";
-        lbl.appendChild(sw);
         var calLabel = c.name;
-        if (acct.email) calLabel += " — " + acct.email;
-        else if (acct.provider === "google") calLabel += " — Google";
-        else if (acct.provider === "microsoft") calLabel += " — Outlook";
-        lbl.appendChild(document.createTextNode(calLabel));
-        wrap.appendChild(lbl);
-        if (!first) first = rad;
+        if (acct.email) calLabel += " \u2014 " + acct.email;
+        else if (acct.provider === "google") calLabel += " \u2014 Google";
+        else if (acct.provider === "microsoft") calLabel += " \u2014 Outlook";
+        var opt = el("option", "", { value: acct.id + "|" + c.id, text: calLabel });
+        if (isSelected) opt.selected = true;
+        sel.appendChild(opt);
       });
     });
-    // If nothing is pre-selected, check the first one
-    if (!wrap.querySelector("input:checked") && first) first.checked = true;
+    sel.disabled = !!lockToIt;
   }
 
   // Meeting / Appointment / Call / All-day — presets that decide the default
@@ -3623,17 +3619,19 @@
     var isJewish = repeatVal === "jewish-monthly" || repeatVal === "jewish-yearly";
     var pick = document.getElementById("calHebrewDatePick");
     pick.style.display = isJewish ? "flex" : "none";
+    // Hide the Gregorian "repeat until" date for Jewish repeat types
+    document.getElementById("calModalRepeatUntil").style.display = (isJewish || repeatVal === "daily") ? "none" : "";
     if (!isJewish) return;
-    // Pre-fill from the start date if the fields are empty
-    var dayEl = document.getElementById("calHebrewDay");
+    // Always update month visibility based on current type
     var monthEl = document.getElementById("calHebrewMonth");
-    if (dayEl.value) return; // already filled
-    // Get the start date from whichever fields are active
+    monthEl.style.display = repeatVal === "jewish-monthly" ? "none" : "";
+    // Pre-fill from the start date if the day field is empty
+    var dayEl = document.getElementById("calHebrewDay");
+    if (dayEl.value) return; // already filled, just needed to toggle month visibility
     var startDate = calIsAllDay()
       ? document.getElementById("calModalStartDateOnly").value
       : document.getElementById("calModalStartDate2").value;
     if (!startDate) return;
-    // Fetch the Hebrew date for this Gregorian date
     fetch("/api/calendar/hebrew-dates?start=" + startDate + "&end=" + startDate)
       .then(function (r) { return r.json(); })
       .then(function (d) {
@@ -3641,13 +3639,9 @@
           var heb = d.dates[startDate];
           if (!dayEl.value) dayEl.value = heb.day;
           if (monthEl.value === "Tishri" && heb.month !== "Tishri") monthEl.value = heb.month;
-          // For monthly, hide the month selector — it repeats every month on that day
-          document.getElementById("calHebrewMonth").style.display = repeatVal === "jewish-monthly" ? "none" : "";
         }
       })
       .catch(function () {});
-    // For monthly, hide month selector immediately
-    document.getElementById("calHebrewMonth").style.display = repeatVal === "jewish-monthly" ? "none" : "";
   }
 
   function applyWhenToggle() {
@@ -3739,7 +3733,7 @@
     fillCalendarPicker(event ? event.accountId : null, event ? event.calendarId : null, readOnly);
 
     // Disable fields for read-only
-    ["calModalName", "calModalDesc", "calModalStartDate2", "calModalStartTime", "calModalEndDate2", "calModalEndTime", "calModalLocation", "calModalAttendees", "calModalStartDateOnly", "calModalEndDateOnly", "calModalRepeat", "calModalRepeatCheck", "calWhenTimed", "calWhenAllDay"].forEach(function (id) {
+    ["calModalName", "calModalDesc", "calModalStartDate2", "calModalStartTime", "calModalEndDate2", "calModalEndTime", "calModalLocation", "calModalAttendees", "calModalStartDateOnly", "calModalEndDateOnly", "calModalRepeat", "calModalRepeatCheck", "calWhenTimed", "calWhenAllDay", "calModalCalendar"].forEach(function (id) {
       var elem = document.getElementById(id);
       if (elem) elem.disabled = readOnly;
     });
@@ -3807,9 +3801,9 @@
     }
     // Calendar selection
     var method = "POST";
-    var checkedRadio = document.querySelector("input[name='calModalCalendar']:checked");
-    if (!checkedRadio) { alert("Please select a calendar."); return; }
-    var picked = checkedRadio.value.split("|");
+    var calSel = document.getElementById("calModalCalendar");
+    if (!calSel.value) { alert("Please select a calendar."); return; }
+    var picked = calSel.value.split("|");
     var pickedAccountId = picked[0];
     var pickedCalendarId = picked.slice(1).join("|");
 
