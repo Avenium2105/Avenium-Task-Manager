@@ -4375,6 +4375,10 @@
       seriesNote.textContent = "Repeating event \u2014 changes apply to every occurrence. You opened " +
         occDay.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" }) + ".";
       seriesNote.style.display = "";
+    } else if (event && event.recurring && (event.provider === "google" || event.provider === "microsoft")) {
+      seriesNote.textContent = "This is one occurrence of a repeating series in " + (event.provider === "google" ? "Google" : "Outlook") +
+        ". Changes here apply to this occurrence only; change the repeat itself in " + (event.provider === "google" ? "Google Calendar" : "Outlook") + ".";
+      seriesNote.style.display = "";
     } else seriesNote.style.display = "none";
 
     // Timed fields
@@ -4397,8 +4401,9 @@
     applyWhenToggle();
 
     // Repeat — show for new events and editable events
-    // Google/Outlook repeats are managed in Google/Outlook; the app edits one occurrence there
-    var showRepeat = !readOnly && (!event || event.provider === "local");
+    // Any event that isn't already part of a Google/Outlook series can be made
+    // repeating (or changed). A series occurrence can't take its own repeat.
+    var showRepeat = !readOnly && (!event || event.provider === "local" || !event.recurring);
     document.querySelector(".cal-repeat-row").style.display = showRepeat ? "" : "none";
     var hasRepeat = event && event.repeat && event.repeat !== "none";
     document.getElementById("calModalRepeatCheck").checked = !!hasRepeat;
@@ -4478,7 +4483,7 @@
     var repeat = repeatChecked ? document.getElementById("calModalRepeat").value : "none";
     var isLocalEvent = calEditingEvent ? calEditingEvent.provider === "local" : false;
     try { payload.timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
-    var canSetRepeat = !calEditingEvent || isLocalEvent;
+    var canSetRepeat = !calEditingEvent || isLocalEvent || !calEditingEvent.recurring;
     if (canSetRepeat) {
       // Always sent, so un-ticking "Repeats" or clearing the end date sticks
       payload.repeat = repeat;
@@ -4518,6 +4523,12 @@
       payload.eventId = calEditingEvent.externalId;
       // If the user picked a different calendar, tell the server to move it
       if (pickedAccountId !== calEditingEvent.accountId || pickedCalendarId !== calEditingEvent.calendarId) {
+        var fromName = calEditingEvent.provider === "google" ? "Google" : calEditingEvent.provider === "microsoft" ? "Outlook" : "Avenium";
+        var toName = calSel.options[calSel.selectedIndex].text;
+        var why = (repeat === "jewish-monthly" || repeat === "jewish-yearly") && calEditingEvent.provider !== "local"
+          ? "Jewish repeats only work in the Avenium calendar, so this event will move there.\n\n" : "";
+        if (!window.confirm(why + "Move \"" + title + "\" from " + fromName + " to " + toName + "?" +
+            (calEditingEvent.provider !== "local" ? " It will be removed from " + fromName + "." : ""))) return;
         payload.newAccountId = pickedAccountId;
         payload.newCalendarId = pickedCalendarId;
       }
@@ -4528,8 +4539,20 @@
     var btn = document.getElementById("calModalSave");
     btn.disabled = true;
     fetch("/api/calendar/events", { method: method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
-      .then(function (r) { if (!r.ok) throw new Error(); btn.disabled = false; closeCalModal(); calMonthCache = {}; loadCalendarEvents(); if (calSearchQuery) { calSearchResults = null; runCalSearch(); } })
-      .catch(function () { btn.disabled = false; alert("Couldn't save that event. Please try again."); });
+      .then(function (r) {
+        if (!r.ok) return r.json().catch(function () { return {}; }).then(function (d) { throw new Error(calSaveErrorText(d)); });
+        btn.disabled = false; closeCalModal(); calMonthCache = {}; loadCalendarEvents(); if (calSearchQuery) { calSearchResults = null; runCalSearch(); }
+      })
+      .catch(function (err) { btn.disabled = false; alert(err && err.message ? err.message : "Couldn't save that event. Please try again."); });
+  }
+
+  // Say WHY a save failed (Google/Outlook's own reason) instead of a generic message
+  function calSaveErrorText(d) {
+    d = d || {};
+    if (d.error === "jewish_repeat_avenium_only") return "Jewish repeats can only be saved to the Avenium calendar.";
+    if (d.error === "invalid_hebrew_date") return "That Hebrew date doesn\u2019t exist.";
+    if (d.error === "provider_rejected") return "Couldn\u2019t save \u2014 " + String(d.message || "Google/Outlook rejected the change").replace(/\.+$/, "") + ".";
+    return "Couldn\u2019t save that event" + (d.error ? " (" + d.error + ")" : "") + ". Please try again.";
   }
 
   function deleteCalEvent() {

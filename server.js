@@ -639,7 +639,7 @@ async function fetchGoogleCalendarEvents(account, cal, timeMin, timeMax) {
       `/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500` +
       (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "") +
       // only the fields actually used — smaller payloads come back faster
-      `&fields=${encodeURIComponent("nextPageToken,items(id,summary,start,end,description,location,htmlLink,attendees/email)")}`);
+      `&fields=${encodeURIComponent("nextPageToken,items(id,recurringEventId,summary,start,end,description,location,htmlLink,attendees/email)")}`);
     if (r.status >= 400) throw providerError("Google", r);
     if (!r.body || !r.body.items) break;
     r.body.items.forEach((e) => out.push({
@@ -649,7 +649,8 @@ async function fetchGoogleCalendarEvents(account, cal, timeMin, timeMax) {
       allDay: !!(e.start && e.start.date),
       description: e.description || "", htmlLink: e.htmlLink || "",
       location: e.location || "",
-      attendees: (e.attendees || []).map((a) => a.email).filter(Boolean)
+      attendees: (e.attendees || []).map((a) => a.email).filter(Boolean),
+      recurring: !!e.recurringEventId   // part of a repeating series in Google
     }));
     pageToken = r.body.nextPageToken;
     if (!pageToken) break;
@@ -687,7 +688,9 @@ function googleEventBody(event) {
   const freq = { daily: "DAILY", weekly: "WEEKLY", monthly: "MONTHLY", yearly: "YEARLY" }[event.repeat];
   if (freq) {
     let rule = "RRULE:FREQ=" + freq;
-    if (event.repeatUntil) rule += ";UNTIL=" + String(event.repeatUntil).replace(/-/g, "") + "T235959Z";
+    // Google requires UNTIL to be a plain date for all-day events and a UTC
+    // date-time for timed ones — the wrong form makes it reject the event.
+    if (event.repeatUntil) rule += ";UNTIL=" + String(event.repeatUntil).slice(0, 10).replace(/-/g, "") + (event.allDay ? "" : "T235959Z");
     body.recurrence = [rule];
   }
   return body;
@@ -719,7 +722,7 @@ const MS_FLOOR = "1980-01-01T00:00:00.000Z";
 async function fetchMicrosoftWindow(account, cal, timeMin, timeMax) {
   const out = [];
   let path2 = `/me/calendars/${encodeURIComponent(cal.id)}/calendarView?startDateTime=${encodeURIComponent(timeMin)}&endDateTime=${encodeURIComponent(timeMax)}&$top=250` +
-    `&$select=${encodeURIComponent("id,subject,start,end,isAllDay,location,attendees,bodyPreview,webLink")}`;
+    `&$select=${encodeURIComponent("id,type,seriesMasterId,subject,start,end,isAllDay,location,attendees,bodyPreview,webLink")}`;
   for (let page = 0; page < 500 && path2; page++) {
     const r = await graphRequest(account.accessToken, "GET", path2);
     if (r.status >= 400) throw providerError("Outlook", r);
@@ -731,7 +734,8 @@ async function fetchMicrosoftWindow(account, cal, timeMin, timeMax) {
       allDay: !!e.isAllDay,
       description: (e.bodyPreview) || "", htmlLink: e.webLink || "",
       location: (e.location && e.location.displayName) || "",
-      attendees: (e.attendees || []).map((a) => a.emailAddress && a.emailAddress.address).filter(Boolean)
+      attendees: (e.attendees || []).map((a) => a.emailAddress && a.emailAddress.address).filter(Boolean),
+      recurring: !!e.seriesMasterId || e.type === "occurrence" || e.type === "exception" || e.type === "seriesMaster"
     }));
     const next = r.body["@odata.nextLink"];
     path2 = next ? next.replace(/^https:\/\/graph\.microsoft\.com\/v1\.0/, "") : "";
@@ -2454,7 +2458,7 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
     const r = a.provider === "google"
       ? await googleApiRequest(a.accessToken, "POST", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`, googleEventBody(ev))
       : await graphRequest(a.accessToken, "POST", `/me/calendars/${encodeURIComponent(calendarId)}/events`, microsoftEventBody(ev));
-    if (r.status >= 300) return res.status(502).json({ error: "provider_rejected" });
+    if (r.status >= 300) return res.status(502).json({ error: "provider_rejected", message: providerError(a.provider === "google" ? "Google" : "Outlook", r).message });
     invalidateCalendarCache(`ev:${a.id}:`); // own change must show immediately
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -2501,7 +2505,7 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
         const r2 = a2.provider === "google"
           ? await googleApiRequest(a2.accessToken, "POST", `/calendar/v3/calendars/${encodeURIComponent(moveTarget.calendarId)}/events`, googleEventBody(evBody))
           : await graphRequest(a2.accessToken, "POST", `/me/calendars/${encodeURIComponent(moveTarget.calendarId)}/events`, microsoftEventBody(evBody));
-        if (r2.status >= 300) return res.status(502).json({ error: "provider_rejected" });
+        if (r2.status >= 300) return res.status(502).json({ error: "provider_rejected", message: providerError(a2.provider === "google" ? "Google" : "Outlook", r2).message });
         localEvents = localEvents.filter((e) => e.id !== eventId);
         persistLocalEvents();
         invalidateCalendarCache(`ev:${a2.id}:`);
@@ -2523,21 +2527,34 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
       if (a.provider === "google") await googleApiRequest(a.accessToken, "DELETE", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`);
       else await graphRequest(a.accessToken, "DELETE", `/me/events/${encodeURIComponent(eventId)}`);
       const id = "lev_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-      localEvents.push({
+      const moved = {
         id, userId: req.session.userId, title: title || "", start: start || "", end: end || start || "", allDay: !!allDay,
         description: description || "", location: location || "", attendees: attendees || [],
         repeat: repeat || "none", repeatUntil: repeatUntil || "", createdAt: new Date().toISOString()
-      });
+      };
+      if (hebrewDay) moved.hebrewDay = hebrewDay;
+      if (hebrewMonth) moved.hebrewMonth = hebrewMonth;
+      if (hebrewYear && (repeat === "jewish-monthly" || repeat === "jewish-yearly")) moved.hebrewYear = Number(hebrewYear);
+      if (validTimeZone(timeZone)) moved.timeZone = timeZone;
+      localEvents.push(moved);
       persistLocalEvents();
       invalidateCalendarCache(`ev:${a.id}:`);
       return res.json({ ok: true });
     }
 
     const ev = { title, start, end, description, location, attendees, allDay, reminderMinutes, timeZone };
+    // Turning a one-off Google/Outlook event into a repeating one. (An event
+    // that's already an occurrence of a series can't take its own repeat —
+    // the client doesn't offer it, and the provider would reject it.)
+    if (repeat && repeat !== "none") {
+      if (repeat === "jewish-monthly" || repeat === "jewish-yearly") return res.status(400).json({ error: "jewish_repeat_avenium_only" });
+      ev.repeat = repeat;
+      ev.repeatUntil = repeatUntil || "";
+    }
     const r = a.provider === "google"
       ? await googleApiRequest(a.accessToken, "PATCH", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`, googleEventBody(ev))
       : await graphRequest(a.accessToken, "PATCH", `/me/events/${encodeURIComponent(eventId)}`, microsoftEventBody(ev));
-    if (r.status >= 300) return res.status(502).json({ error: "provider_rejected" });
+    if (r.status >= 300) return res.status(502).json({ error: "provider_rejected", message: providerError(a.provider === "google" ? "Google" : "Outlook", r).message });
     invalidateCalendarCache(`ev:${a.id}:`);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
