@@ -644,6 +644,8 @@
   .cal-hebrew-date-pick #calHebrewYear { width: 76px !important; flex: 0 0 76px; }
   .cal-heb-greg { flex: 1 0 100%; font-size: 12px; color: var(--pine); line-height: 1.4; }
   .cal-heb-greg.warn { color: var(--brick); }
+  .cal-heb-note { flex: 1 0 100%; font-size: 11.5px; color: var(--ink-faint); }
+  .cal-series-note { font-size: 12px; color: var(--ink-soft); background: var(--pine-soft); border-radius: 7px; padding: 7px 10px; margin-bottom: 8px; line-height: 1.4; }
   .cal-hebrew-date-pick select { flex: 1 1 0; min-width: 0; width: auto; }
   .cal-details-group { display: flex; flex-direction: column; gap: 8px; }
   .cal-details-group input { width: 100%; }
@@ -1014,6 +1016,7 @@
         <button id="calModalClose" type="button">&#10005;</button>
       </div>
       <div class="cal-event-modal-body">
+        <div id="calSeriesNote" class="cal-series-note" style="display:none;"></div>
         <div class="cal-type-row" id="calTypeRow">
           <button type="button" data-type="meeting" class="cal-type-btn active">Meeting</button>
           <button type="button" data-type="appointment" class="cal-type-btn">Appointment</button>
@@ -1085,6 +1088,7 @@
             </select>
             <input id="calHebrewYear" type="number" min="5000" max="6500" placeholder="Year" title="Hebrew year the series starts, e.g. 5787">
             <div id="calHebrewGreg" class="cal-heb-greg"></div>
+            <div class="cal-heb-note">Jewish repeats are saved to the Avenium calendar &mdash; Google and Outlook can&rsquo;t repeat by the Hebrew calendar.</div>
           </div>
         </div>
 
@@ -3518,7 +3522,7 @@
           if (document.getElementById("calHebrewDatePick").style.display === "none") return;
           document.getElementById("calHebrewDay").value = "";
           document.getElementById("calHebrewYear").value = "";
-          if (calEditingEvent) calEditingEvent.seriesStart = null;
+          if (calEditingEvent) calEditingEvent.seriesFirstDate = null;
           updateHebrewDatePick(document.getElementById("calModalRepeat").value);
         });
       });
@@ -4252,12 +4256,17 @@
     // Hide the Gregorian "repeat until" date for Jewish repeat types
     document.getElementById("calModalRepeatUntil").style.display = (isJewish || repeatVal === "daily") ? "none" : "";
     if (!isJewish) return;
+    var calSel = document.getElementById("calModalCalendar");
+    if (calSel && calSel.value && calSel.value.indexOf("local|") !== 0) {
+      var localOpt = [].find.call(calSel.options, function (o) { return o.value.indexOf("local|") === 0; });
+      if (localOpt) calSel.value = localOpt.value;
+    }
     var dayEl = document.getElementById("calHebrewDay");
     var monthEl = document.getElementById("calHebrewMonth");
     var yearEl = document.getElementById("calHebrewYear");
     if (dayEl.value && yearEl.value) { updateHebrewGreg(); return; }
     // Fill what's missing from the series' first date (or the form's start date)
-    var src = (calEditingEvent && calEditingEvent.seriesStart) ? String(calEditingEvent.seriesStart).slice(0, 10) : calModalStartDateValue();
+    var src = (calEditingEvent && calEditingEvent.seriesFirstDate) ? calEditingEvent.seriesFirstDate : calModalStartDateValue();
     if (!src) { updateHebrewGreg(); return; }
     var dayWasEmpty = !dayEl.value;
     fetch("/api/calendar/hebrew-dates?start=" + src + "&end=" + src)
@@ -4354,27 +4363,42 @@
     document.getElementById("calWhenAllDay").checked = isAllDay;
     document.getElementById("calWhenTimed").checked = !isAllDay;
 
+    // A repeating Avenium event opens as the whole SERIES: its own first
+    // start/end, not the occurrence you clicked (saving used to move the
+    // series start to that occurrence and hide everything before it).
+    var isSeries = !!(event && event.provider === "local" && event.repeat && event.repeat !== "none" && event.seriesStart);
+    var evStart = isSeries ? event.seriesStart : (event && event.start);
+    var evEnd = isSeries ? (event.seriesEnd || event.seriesStart) : (event && event.end);
+    var seriesNote = document.getElementById("calSeriesNote");
+    if (isSeries) {
+      var occDay = new Date(String(event._instanceDate || event.start).slice(0, 10) + "T12:00:00");
+      seriesNote.textContent = "Repeating event \u2014 changes apply to every occurrence. You opened " +
+        occDay.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" }) + ".";
+      seriesNote.style.display = "";
+    } else seriesNote.style.display = "none";
+
     // Timed fields
     var startIso = defaultStart || "";
-    if (event && !event.allDay && event.start) startIso = toLocalInput(event.start);
+    if (event && !event.allDay && evStart) startIso = toLocalInput(evStart);
     var endIso = "";
     if (defaultStart) { var de = new Date(defaultStart); de.setHours(de.getHours() + 1); endIso = toLocalInput(de.toISOString()); }
-    if (event && !event.allDay && event.end) endIso = toLocalInput(event.end);
+    if (event && !event.allDay && evEnd) endIso = toLocalInput(evEnd);
     document.getElementById("calModalStartDate2").value = startIso ? startIso.slice(0, 10) : "";
     document.getElementById("calModalStartTime").value = startIso ? startIso.slice(11, 16) : "";
     document.getElementById("calModalEndDate2").value = endIso ? endIso.slice(0, 10) : "";
     document.getElementById("calModalEndTime").value = endIso ? endIso.slice(11, 16) : "";
 
     // All-day fields
-    var startDateStr = (event && event.allDay) ? String(event.start).slice(0, 10) : (startIso ? startIso.slice(0, 10) : "");
+    var startDateStr = (event && event.allDay) ? String(evStart).slice(0, 10) : (startIso ? startIso.slice(0, 10) : "");
     document.getElementById("calModalStartDateOnly").value = startDateStr;
-    var endDateStr = (event && event.allDay && event.end) ? String(event.end).slice(0, 10) : "";
+    var endDateStr = (event && event.allDay && evEnd) ? String(evEnd).slice(0, 10) : "";
     document.getElementById("calModalEndDateOnly").value = endDateStr;
 
     applyWhenToggle();
 
     // Repeat — show for new events and editable events
-    var showRepeat = !readOnly;
+    // Google/Outlook repeats are managed in Google/Outlook; the app edits one occurrence there
+    var showRepeat = !readOnly && (!event || event.provider === "local");
     document.querySelector(".cal-repeat-row").style.display = showRepeat ? "" : "none";
     var hasRepeat = event && event.repeat && event.repeat !== "none";
     document.getElementById("calModalRepeatCheck").checked = !!hasRepeat;
@@ -4453,10 +4477,19 @@
     var repeatChecked = document.getElementById("calModalRepeatCheck").checked;
     var repeat = repeatChecked ? document.getElementById("calModalRepeat").value : "none";
     var isLocalEvent = calEditingEvent ? calEditingEvent.provider === "local" : false;
-    if ((!calEditingEvent || isLocalEvent) && repeat && repeat !== "none") {
+    try { payload.timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
+    var canSetRepeat = !calEditingEvent || isLocalEvent;
+    if (canSetRepeat) {
+      // Always sent, so un-ticking "Repeats" or clearing the end date sticks
       payload.repeat = repeat;
-      var until = document.getElementById("calModalRepeatUntil").value;
-      if (until) payload.repeatUntil = until;
+      payload.repeatUntil = (repeat !== "none" && document.getElementById("calModalRepeatUntil").style.display !== "none")
+        ? document.getElementById("calModalRepeatUntil").value : "";
+    }
+    if (canSetRepeat && (repeat === "jewish-monthly" || repeat === "jewish-yearly") && document.getElementById("calModalCalendar").value.indexOf("local|") !== 0) {
+      alert("Jewish repeats can only be saved to the Avenium calendar \u2014 Google and Outlook can\u2019t repeat by the Hebrew calendar.");
+      return;
+    }
+    if (canSetRepeat && repeat && repeat !== "none") {
       // Hebrew date for Jewish repeat options
       if (repeat === "jewish-monthly" || repeat === "jewish-yearly") {
         var hebDay = parseInt(document.getElementById("calHebrewDay").value, 10);
@@ -4501,7 +4534,10 @@
 
   function deleteCalEvent() {
     if (!calEditingEvent) return;
-    if (!window.confirm("Delete \"" + calEditingEvent.title + "\"? This removes it from your calendar.")) return;
+    var isSeriesDel = calEditingEvent.provider === "local" && calEditingEvent.repeat && calEditingEvent.repeat !== "none";
+    if (!window.confirm(isSeriesDel
+      ? "Delete \"" + calEditingEvent.title + "\" and ALL its occurrences? This removes the whole repeating series."
+      : "Delete \"" + calEditingEvent.title + "\"? This removes it from your calendar.")) return;
     var ev = calEditingEvent;
     fetch("/api/calendar/events?accountId=" + encodeURIComponent(ev.accountId) + "&calendarId=" + encodeURIComponent(ev.calendarId) + "&eventId=" + encodeURIComponent(ev.externalId), { method: "DELETE" })
       .then(function () { closeCalModal(); calMonthCache = {}; loadCalendarEvents(); if (calSearchQuery) { calSearchResults = null; runCalSearch(); } });

@@ -183,6 +183,50 @@ function hebrewToGregorian(hYear, hMonthName, hDay) {
   return null;
 }
 
+// ---- Time zones for repeating events ----
+// A repeating 10:00 AM meeting must stay at 10:00 AM local time across
+// daylight-saving changes. Repeats used to be anchored in UTC, so they
+// shifted by an hour twice a year (and Outlook got the weekday in UTC, so
+// evening events repeated on the wrong day). Each event now records the
+// browser's time zone; older events without one use APP_TIMEZONE.
+const DEFAULT_TZ = validTimeZone(process.env.APP_TIMEZONE) ? process.env.APP_TIMEZONE : "America/New_York";
+function validTimeZone(tz) {
+  if (!tz || typeof tz !== "string") return false;
+  try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); return true; } catch (e) { return false; }
+}
+const _tzFmts = {};
+function tzParts(date, tz) {
+  if (!_tzFmts[tz]) _tzFmts[tz] = new Intl.DateTimeFormat("en-US", { timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const o = {};
+  _tzFmts[tz].formatToParts(date).forEach((p) => { o[p.type] = p.value; });
+  return { y: +o.year, m: +o.month, d: +o.day, h: (+o.hour) % 24, min: +o.minute, s: +o.second };
+}
+function dayKeyOf(y, m, d) { return y + "-" + String(m).padStart(2, "0") + "-" + String(d).padStart(2, "0"); }
+function tzOffsetMs(date, tz) {
+  const p = tzParts(date, tz);
+  return Date.UTC(p.y, p.m - 1, p.d, p.h, p.min, p.s) - Math.floor(date.getTime() / 1000) * 1000;
+}
+// wall-clock time on a given local day in `tz` -> the real instant
+function zonedToUtc(dayKey, h, min, tz) {
+  const [y, m, d] = dayKey.split("-").map(Number);
+  const guess = Date.UTC(y, m - 1, d, h, min);
+  let t = guess - tzOffsetMs(new Date(guess), tz);
+  t = guess - tzOffsetMs(new Date(t), tz); // second pass settles DST edges
+  return new Date(t);
+}
+function eventTimeZone(ev) { return validTimeZone(ev.timeZone) ? ev.timeZone : DEFAULT_TZ; }
+// Outlook wants Windows zone names. Unknown zones fall back to UTC.
+const WINDOWS_TZ = {
+  "America/New_York": "Eastern Standard Time", "America/Detroit": "Eastern Standard Time", "America/Toronto": "Eastern Standard Time",
+  "America/Indiana/Indianapolis": "US Eastern Standard Time", "America/Chicago": "Central Standard Time",
+  "America/Denver": "Mountain Standard Time", "America/Phoenix": "US Mountain Standard Time",
+  "America/Los_Angeles": "Pacific Standard Time", "America/Anchorage": "Alaskan Standard Time",
+  "Pacific/Honolulu": "Hawaiian Standard Time", "Asia/Jerusalem": "Israel Standard Time", "Asia/Tel_Aviv": "Israel Standard Time",
+  "Europe/London": "GMT Standard Time", "Europe/Paris": "Romance Standard Time", "Europe/Berlin": "W. Europe Standard Time",
+  "Europe/Amsterdam": "W. Europe Standard Time", "Europe/Zurich": "W. Europe Standard Time", "Europe/Moscow": "Russian Standard Time",
+  "Australia/Sydney": "AUS Eastern Standard Time", "Asia/Tokyo": "Tokyo Standard Time", "UTC": "UTC"
+};
+
 // Like hebrewToGregorian, but handles Adar across leap/non-leap years:
 // "Adar" in a leap year falls on Adar II (the customary choice for
 // birthdays and anniversaries); "Adar I"/"Adar II" in a normal year falls on
@@ -205,7 +249,20 @@ function jewishSeriesFirstDate(ev) {
     var g = hebrewToGregorianFlex(Number(ev.hebrewYear), ev.hebrewMonth || "Tishri", Number(ev.hebrewDay));
     if (g) return gregKey(g);
   }
+  if (!ev.allDay && ev.start) { const p = tzParts(new Date(ev.start), eventTimeZone(ev)); return dayKeyOf(p.y, p.m, p.d); }
   return String(ev.start || "").slice(0, 10);
+}
+// Every occurrence carries the series' own start/end so the form edits the
+// SERIES (editing from a later occurrence used to move the series start there).
+function occurrence(ev, dayKey, firstDate) {
+  const base = { ...ev, _instanceDate: dayKey, seriesStart: ev.start, seriesEnd: ev.end, seriesFirstDate: firstDate };
+  if (ev.allDay) return { ...base, start: dayKey, end: dayKey };
+  const tz = eventTimeZone(ev);
+  const orig = new Date(ev.start);
+  const dur = ev.end ? Math.max(0, new Date(ev.end) - orig) : 3600000;
+  const wall = tzParts(orig, tz);
+  const st = zonedToUtc(dayKey, wall.h, wall.min, tz);
+  return { ...base, start: st.toISOString(), end: new Date(st.getTime() + dur).toISOString() };
 }
 
 // Expand a single local event into all its occurrences within a date range
@@ -248,7 +305,7 @@ function expandLocalEvent(ev, startDate, endDate) {
         if (!greg) continue;
         var d = greg.year + "-" + String(greg.month).padStart(2, "0") + "-" + String(greg.day).padStart(2, "0");
         if (d >= startDate && d >= firstDate && d <= endDate && d <= until) {
-          results.push({ ...ev, start: d, end: d, _instanceDate: d, seriesStart: firstDate });
+          results.push(occurrence(ev, d, firstDate));
         }
       }
     } else {
@@ -260,7 +317,7 @@ function expandLocalEvent(ev, startDate, endDate) {
           if (!greg2) continue;
           var d2 = greg2.year + "-" + String(greg2.month).padStart(2, "0") + "-" + String(greg2.day).padStart(2, "0");
           if (d2 >= startDate && d2 <= endDate && d2 <= until && d2 >= firstDate) {
-            results.push({ ...ev, start: d2, end: d2, _instanceDate: d2, seriesStart: firstDate });
+            results.push(occurrence(ev, d2, firstDate));
           }
         }
       }
@@ -268,33 +325,48 @@ function expandLocalEvent(ev, startDate, endDate) {
     return results;
   }
 
-  // Secular recurrence: daily, weekly, monthly, yearly
-  var cur = new Date(ev.start.slice(0, 10) + "T12:00:00");
-  var maxIter = 20000;
-  while (maxIter-- > 0) {
-    var key = cur.getFullYear() + "-" + String(cur.getMonth() + 1).padStart(2, "0") + "-" + String(cur.getDate()).padStart(2, "0");
-    if (key > until) break;
-    if (key >= startDate && key <= endDate) {
-      if (ev.allDay) {
-        results.push({ ...ev, start: key, end: key, _instanceDate: key });
-      } else {
-        var origStart = new Date(ev.start);
-        var origEnd = ev.end ? new Date(ev.end) : null;
-        var diff = origEnd ? (origEnd - origStart) : 3600000;
-        var instStart = new Date(cur);
-        instStart.setHours(origStart.getHours(), origStart.getMinutes(), 0, 0);
-        var instEnd = new Date(instStart.getTime() + diff);
-        results.push({ ...ev, start: instStart.toISOString(), end: instEnd.toISOString(), _instanceDate: key });
+  // Secular recurrence: daily, weekly, monthly, yearly.
+  // Each occurrence is computed from the FIRST date (not the previous one),
+  // so a monthly series on the 31st lands on the 31st of every month that has
+  // one — like Google/Outlook — instead of drifting to the 3rd forever.
+  var tz = eventTimeZone(ev);
+  var baseKey;
+  if (ev.allDay) baseKey = String(ev.start).slice(0, 10);
+  else { var bp = tzParts(new Date(ev.start), tz); baseKey = dayKeyOf(bp.y, bp.m, bp.d); }
+  var by = +baseKey.slice(0, 4), bm = +baseKey.slice(5, 7), bd = +baseKey.slice(8, 10);
+  var baseUtc = Date.UTC(by, bm - 1, bd);
+  var step = ev.repeat === "daily" ? 1 : ev.repeat === "weekly" ? 7 : 0;
+  if (!step && ev.repeat !== "monthly" && ev.repeat !== "yearly") return results;
+  var n = 0;
+  if (step) { // jump straight to the requested range
+    var sk = Date.UTC(+startDate.slice(0, 4), +startDate.slice(5, 7) - 1, +startDate.slice(8, 10));
+    n = Math.max(0, Math.floor((sk - baseUtc) / 86400000 / step) - 1);
+  } else if (ev.repeat === "monthly") {
+    n = Math.max(0, ((+startDate.slice(0, 4)) - by) * 12 + (+startDate.slice(5, 7)) - bm - 1);
+  } else {
+    n = Math.max(0, (+startDate.slice(0, 4)) - by - 1);
+  }
+  for (var guard = 0; guard < 20000; guard++, n++) {
+    var key;
+    if (step) {
+      var dt = new Date(baseUtc + n * step * 86400000);
+      key = dayKeyOf(dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate());
+    } else {
+      var y2 = ev.repeat === "monthly" ? by + Math.floor((bm - 1 + n) / 12) : by + n;
+      var m2 = ev.repeat === "monthly" ? ((bm - 1 + n) % 12) + 1 : bm;
+      var dt2 = new Date(Date.UTC(y2, m2 - 1, bd));
+      if (dt2.getUTCMonth() + 1 !== m2) { // no such day that month/year (e.g. 31st, Feb 29) -> skip it
+        if (dayKeyOf(y2, m2, 1) > until || dayKeyOf(y2, m2, 1) > endDate) break;
+        continue;
       }
+      key = dayKeyOf(y2, m2, bd);
     }
-    if (ev.repeat === "daily") cur.setDate(cur.getDate() + 1);
-    else if (ev.repeat === "weekly") cur.setDate(cur.getDate() + 7);
-    else if (ev.repeat === "monthly") cur.setMonth(cur.getMonth() + 1);
-    else if (ev.repeat === "yearly") cur.setFullYear(cur.getFullYear() + 1);
-    else break;
+    if (key > until || key > endDate) break;
+    if (key >= startDate && key >= baseKey) results.push(occurrence(ev, key, baseKey));
   }
   return results;
 }
+
 
 // Jewish holidays come from Hebcal's free public API — no account or key.
 // Major + minor holidays, fast days and special Shabbatot, diaspora dates.
@@ -600,8 +672,11 @@ function googleEventBody(event) {
     body.start = { date: startDate };
     body.end = { date: endExclusive.toISOString().slice(0, 10) };
   } else {
-    body.start = { dateTime: event.start, timeZone: "UTC" };
-    body.end = { dateTime: event.end || event.start, timeZone: "UTC" };
+    // The instant is exact either way; timeZone is what Google uses to repeat
+    // it, so it must be the user's zone or repeats shift at daylight saving.
+    const tz = validTimeZone(event.timeZone) ? event.timeZone : "UTC";
+    body.start = { dateTime: event.start, timeZone: tz };
+    body.end = { dateTime: event.end || event.start, timeZone: tz };
   }
   if (Array.isArray(event.attendees) && event.attendees.length) {
     body.attendees = event.attendees.map((e) => ({ email: e }));
@@ -700,8 +775,15 @@ function microsoftEventBody(event) {
     body.start = { dateTime: startDate + "T00:00:00", timeZone: "UTC" };
     body.end = { dateTime: endExclusive.toISOString().slice(0, 10) + "T00:00:00", timeZone: "UTC" };
   } else {
-    body.start = { dateTime: msInputTime(event.start), timeZone: "UTC" };
-    body.end = { dateTime: msInputTime(event.end || event.start), timeZone: "UTC" };
+    const winTz = validTimeZone(event.timeZone) && WINDOWS_TZ[event.timeZone];
+    if (winTz) {
+      const wall = (iso) => { const p = tzParts(new Date(iso), event.timeZone); return dayKeyOf(p.y, p.m, p.d) + "T" + String(p.h).padStart(2, "0") + ":" + String(p.min).padStart(2, "0") + ":00"; };
+      body.start = { dateTime: wall(event.start), timeZone: winTz };
+      body.end = { dateTime: wall(event.end || event.start), timeZone: winTz };
+    } else {
+      body.start = { dateTime: msInputTime(event.start), timeZone: "UTC" };
+      body.end = { dateTime: msInputTime(event.end || event.start), timeZone: "UTC" };
+    }
   }
   if (Array.isArray(event.attendees) && event.attendees.length) {
     body.attendees = event.attendees.map((e) => ({ emailAddress: { address: e }, type: "required" }));
@@ -712,7 +794,8 @@ function microsoftEventBody(event) {
   }
   const msType = { daily: "daily", weekly: "weekly", monthly: "absoluteMonthly", yearly: "absoluteYearly" }[event.repeat];
   if (msType) {
-    const startDate = String(event.start).slice(0, 10);
+    // the series starts on the LOCAL day (an 9 PM Thursday is Friday in UTC)
+    const startDate = body.start.dateTime.slice(0, 10);
     const d = new Date(startDate + "T00:00:00Z");
     const pattern = { type: msType, interval: 1 };
     if (msType === "weekly") {
@@ -2335,9 +2418,12 @@ app.get("/api/calendar/search", requireAuth, async (req, res) => {
 });
 
 app.post("/api/calendar/events", requireAuth, async (req, res) => {
-  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear } = req.body || {};
+  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, timeZone } = req.body || {};
   if (!title || !start) return res.status(400).json({ error: "invalid_request" });
   const isJewishRepeat = repeat === "jewish-monthly" || repeat === "jewish-yearly";
+  // Google and Outlook have no Hebrew-calendar repeat; saving there used to
+  // silently create ONE event. Refuse instead of pretending it worked.
+  if (isJewishRepeat && accountId !== "local") return res.status(400).json({ error: "jewish_repeat_avenium_only" });
   if (isJewishRepeat && hebrewYear && !hebrewToGregorianFlex(Number(hebrewYear), hebrewMonth || "Tishri", Number(hebrewDay))) {
     return res.status(400).json({ error: "invalid_hebrew_date" });
   }
@@ -2354,6 +2440,7 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
     if (hebrewDay) ev.hebrewDay = hebrewDay;
     if (hebrewMonth) ev.hebrewMonth = hebrewMonth;
     if (isJewishRepeat && hebrewYear) ev.hebrewYear = Number(hebrewYear);
+    if (validTimeZone(timeZone)) ev.timeZone = timeZone;
     localEvents.push(ev);
     persistLocalEvents();
     return res.json({ ok: true });
@@ -2363,7 +2450,7 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
   if (!acct || !calendarId) return res.status(400).json({ error: "invalid_request" });
   try {
     const a = await freshToken(acct);
-    const ev = { title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil };
+    const ev = { title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, timeZone };
     const r = a.provider === "google"
       ? await googleApiRequest(a.accessToken, "POST", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`, googleEventBody(ev))
       : await graphRequest(a.accessToken, "POST", `/me/calendars/${encodeURIComponent(calendarId)}/events`, microsoftEventBody(ev));
@@ -2374,7 +2461,7 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
 });
 
 app.put("/api/calendar/events", requireAuth, async (req, res) => {
-  const { accountId, calendarId, eventId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, newAccountId, newCalendarId } = req.body || {};
+  const { accountId, calendarId, eventId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, timeZone, newAccountId, newCalendarId } = req.body || {};
   if ((repeat === "jewish-monthly" || repeat === "jewish-yearly") && hebrewYear && !hebrewToGregorianFlex(Number(hebrewYear), hebrewMonth || "Tishri", Number(hebrewDay))) {
     return res.status(400).json({ error: "invalid_hebrew_date" });
   }
@@ -2399,6 +2486,10 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
     if (hebrewDay !== undefined) ev.hebrewDay = hebrewDay || null;
     if (hebrewMonth !== undefined) ev.hebrewMonth = hebrewMonth || null;
     if (hebrewYear !== undefined) ev.hebrewYear = hebrewYear ? Number(hebrewYear) : null;
+    if (validTimeZone(timeZone)) ev.timeZone = timeZone;
+    if (moveTarget && moveTarget.accountId !== "local" && (ev.repeat === "jewish-monthly" || ev.repeat === "jewish-yearly")) {
+      return res.status(400).json({ error: "jewish_repeat_avenium_only" });
+    }
 
     if (moveTarget && moveTarget.accountId !== "local") {
       // Moving from local to Google/Outlook — create there and delete local
@@ -2406,7 +2497,7 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
       if (!acct2) return res.status(400).json({ error: "invalid_target" });
       try {
         const a2 = await freshToken(acct2);
-        const evBody = { title: ev.title, start: ev.start, end: ev.end, description: ev.description, location: ev.location, attendees: ev.attendees, allDay: ev.allDay };
+        const evBody = { title: ev.title, start: ev.start, end: ev.end, description: ev.description, location: ev.location, attendees: ev.attendees, allDay: ev.allDay, repeat: ev.repeat, repeatUntil: ev.repeatUntil, timeZone: ev.timeZone };
         const r2 = a2.provider === "google"
           ? await googleApiRequest(a2.accessToken, "POST", `/calendar/v3/calendars/${encodeURIComponent(moveTarget.calendarId)}/events`, googleEventBody(evBody))
           : await graphRequest(a2.accessToken, "POST", `/me/calendars/${encodeURIComponent(moveTarget.calendarId)}/events`, microsoftEventBody(evBody));
@@ -2442,7 +2533,7 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
       return res.json({ ok: true });
     }
 
-    const ev = { title, start, end, description, location, attendees, allDay, reminderMinutes };
+    const ev = { title, start, end, description, location, attendees, allDay, reminderMinutes, timeZone };
     const r = a.provider === "google"
       ? await googleApiRequest(a.accessToken, "PATCH", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`, googleEventBody(ev))
       : await graphRequest(a.accessToken, "PATCH", `/me/events/${encodeURIComponent(eventId)}`, microsoftEventBody(ev));
