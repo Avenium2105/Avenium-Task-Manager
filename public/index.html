@@ -148,22 +148,22 @@
   .board-head .quote-line { color: var(--ink-faint); font-size: 13px; font-style: italic; margin: 6px 0 0; }
 
   /* board tabs — a modern segmented control instead of underlined text tabs */
-  .board-tabs { display: flex; align-items: flex-end; gap: 3px; flex-wrap: wrap; margin: 0; background: var(--line-soft); border-bottom: 2px solid var(--line); padding: 10px 32px 0; position: sticky; top: var(--nav-h, 67px); z-index: 400; }
+  .board-tabs { display: flex; align-items: flex-end; gap: 3px; flex-wrap: wrap; margin: 0; background: #6b8f79; border-bottom: 2px solid #5a7e68; padding: 10px 32px 0; position: sticky; top: var(--nav-h, 67px); z-index: 400; }
   .board-tab-wrap { display: inline-flex; align-items: center; border-radius: 9px 9px 0 0; cursor: grab; position: relative; }
   .board-tab-wrap:active { cursor: grabbing; }
   .board-tab-wrap.drag-over { box-shadow: inset 0 0 0 2px var(--slate); }
   .board-tab {
-    font-family: inherit; font-size: 13px; font-weight: 700; color: var(--ink-soft); background: var(--line-soft); border: 1px solid var(--line); border-bottom: none;
+    font-family: inherit; font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.15); border: none;
     padding: 9px 18px; cursor: pointer; border-radius: 9px 9px 0 0; transition: background 0.15s, color 0.15s; margin-bottom: -2px;
   }
-  .board-tab:hover { color: var(--ink); }
-  .board-tab.active { color: var(--pine); background: var(--bg-raised); border-color: var(--line); box-shadow: 0 -1px 4px rgba(34,38,31,0.06); position: relative; z-index: 2; }
-  .board-tab.add-board { color: var(--ink-faint); font-weight: 700; background: transparent; border-color: transparent; }
-  .board-tab.add-board:hover { color: var(--pine); background: var(--bg-raised); }
-  .board-tab-rename { font-family: inherit; font-size: 14px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 6px 6px; border-radius: 6px; }
-  .board-tab-rename:hover { color: var(--pine); background: var(--bg-raised); }
-  .board-tab-delete { font-family: inherit; font-size: 14px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 6px 6px; border-radius: 6px; }
-  .board-tab-delete:hover { color: var(--brick); background: var(--bg-raised); }
+  .board-tab:hover { color: #fff; background: rgba(255,255,255,0.25); }
+  .board-tab.active { color: var(--pine); background: var(--bg-raised); border: 1px solid var(--line); border-bottom: none; box-shadow: 0 -1px 4px rgba(34,38,31,0.06); position: relative; z-index: 2; }
+  .board-tab.add-board { color: rgba(255,255,255,0.7); font-weight: 700; background: transparent; border: none; }
+  .board-tab.add-board:hover { color: #fff; background: rgba(255,255,255,0.2); }
+  .board-tab-rename { font-family: inherit; font-size: 14px; color: rgba(255,255,255,0.6); background: none; border: none; cursor: pointer; padding: 6px 6px; border-radius: 6px; }
+  .board-tab-rename:hover { color: #fff; background: rgba(255,255,255,0.2); }
+  .board-tab-delete { font-family: inherit; font-size: 14px; color: rgba(255,255,255,0.6); background: none; border: none; cursor: pointer; padding: 6px 6px; border-radius: 6px; }
+  .board-tab-delete:hover { color: #ffcccc; background: rgba(255,255,255,0.2); }
   .board-section { margin-bottom: 30px; border-radius: 8px; transition: background 0.1s; }
   .board-section.drag-over { background: var(--slate-soft); }
   .board-section-head { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; }
