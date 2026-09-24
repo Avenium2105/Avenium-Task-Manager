@@ -240,7 +240,7 @@ function expandLocalEvent(ev, startDate, endDate) {
 
   // Secular recurrence: daily, weekly, monthly, yearly
   var cur = new Date(ev.start.slice(0, 10) + "T12:00:00");
-  var maxIter = 1500;
+  var maxIter = 20000;
   while (maxIter-- > 0) {
     var key = cur.getFullYear() + "-" + String(cur.getMonth() + 1).padStart(2, "0") + "-" + String(cur.getDate()).padStart(2, "0");
     if (key > until) break;
@@ -476,20 +476,31 @@ async function listGoogleCalendars(account) {
 }
 
 async function fetchGoogleCalendarEvents(account, cal, timeMin, timeMax) {
-  const r = await googleApiRequest(account.accessToken, "GET",
-    `/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=250` +
-    // only the fields actually used — smaller payloads come back faster
-    `&fields=${encodeURIComponent("items(id,summary,start,end,description,location,htmlLink,attendees/email)")}`);
-  if (!r.body || !r.body.items) return [];
-  return r.body.items.map((e) => ({
-    externalId: e.id, title: e.summary || "(No title)",
-    start: e.start && (e.start.dateTime || e.start.date),
-    end: e.end && (e.end.dateTime || e.end.date),
-    allDay: !!(e.start && e.start.date),
-    description: e.description || "", htmlLink: e.htmlLink || "",
-    location: e.location || "",
-    attendees: (e.attendees || []).map((a) => a.email).filter(Boolean)
-  }));
+  // Page through EVERY result. Google caps one page at 2500 and used to be
+  // asked for 250 with no paging, which silently dropped everything past the
+  // oldest 250 events on wide ranges (search, agenda "All time").
+  const out = [];
+  let pageToken = "";
+  for (let page = 0; page < 200; page++) {
+    const r = await googleApiRequest(account.accessToken, "GET",
+      `/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500` +
+      (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "") +
+      // only the fields actually used — smaller payloads come back faster
+      `&fields=${encodeURIComponent("nextPageToken,items(id,summary,start,end,description,location,htmlLink,attendees/email)")}`);
+    if (!r.body || !r.body.items) break;
+    r.body.items.forEach((e) => out.push({
+      externalId: e.id, title: e.summary || "(No title)",
+      start: e.start && (e.start.dateTime || e.start.date),
+      end: e.end && (e.end.dateTime || e.end.date),
+      allDay: !!(e.start && e.start.date),
+      description: e.description || "", htmlLink: e.htmlLink || "",
+      location: e.location || "",
+      attendees: (e.attendees || []).map((a) => a.email).filter(Boolean)
+    }));
+    pageToken = r.body.nextPageToken;
+    if (!pageToken) break;
+  }
+  return out;
 }
 
 function googleEventBody(event) {
@@ -544,19 +555,27 @@ async function listMicrosoftCalendars(account) {
 }
 
 async function fetchMicrosoftCalendarEvents(account, cal, timeMin, timeMax) {
-  const r = await graphRequest(account.accessToken, "GET",
-    `/me/calendars/${encodeURIComponent(cal.id)}/calendarView?startDateTime=${encodeURIComponent(timeMin)}&endDateTime=${encodeURIComponent(timeMax)}&$top=250` +
-    `&$select=${encodeURIComponent("id,subject,start,end,isAllDay,location,attendees,bodyPreview,webLink")}`);
-  if (!r.body || !r.body.value) return [];
-  return r.body.value.map((e) => ({
-    externalId: e.id, title: e.subject || "(No title)",
-    start: e.isAllDay ? (e.start && e.start.dateTime || "").slice(0, 10) : msTime(e.start && e.start.dateTime),
-    end: e.isAllDay ? (e.end && e.end.dateTime || "").slice(0, 10) : msTime(e.end && e.end.dateTime),
-    allDay: !!e.isAllDay,
-    description: (e.bodyPreview) || "", htmlLink: e.webLink || "",
-    location: (e.location && e.location.displayName) || "",
-    attendees: (e.attendees || []).map((a) => a.emailAddress && a.emailAddress.address).filter(Boolean)
-  }));
+  // Follow @odata.nextLink until there are no more pages (was a single
+  // 250-event page, which truncated wide ranges).
+  const out = [];
+  let path2 = `/me/calendars/${encodeURIComponent(cal.id)}/calendarView?startDateTime=${encodeURIComponent(timeMin)}&endDateTime=${encodeURIComponent(timeMax)}&$top=500` +
+    `&$select=${encodeURIComponent("id,subject,start,end,isAllDay,location,attendees,bodyPreview,webLink")}`;
+  for (let page = 0; page < 200 && path2; page++) {
+    const r = await graphRequest(account.accessToken, "GET", path2);
+    if (!r.body || !r.body.value) break;
+    r.body.value.forEach((e) => out.push({
+      externalId: e.id, title: e.subject || "(No title)",
+      start: e.isAllDay ? (e.start && e.start.dateTime || "").slice(0, 10) : msTime(e.start && e.start.dateTime),
+      end: e.isAllDay ? (e.end && e.end.dateTime || "").slice(0, 10) : msTime(e.end && e.end.dateTime),
+      allDay: !!e.isAllDay,
+      description: (e.bodyPreview) || "", htmlLink: e.webLink || "",
+      location: (e.location && e.location.displayName) || "",
+      attendees: (e.attendees || []).map((a) => a.emailAddress && a.emailAddress.address).filter(Boolean)
+    }));
+    const next = r.body["@odata.nextLink"];
+    path2 = next ? next.replace(/^https:\/\/graph\.microsoft\.com\/v1\.0/, "") : "";
+  }
+  return out;
 }
 
 function microsoftEventBody(event) {
@@ -2142,6 +2161,66 @@ app.get("/api/calendar/events", requireAuth, async (req, res) => {
     });
   }
   res.json({ events: all });
+});
+
+// Search every visible calendar the user has (Avenium, Google, Outlook) for
+// events whose title, description or location contain every word typed.
+// Independent of whatever month the grid is showing. No result cap.
+// Built-in holiday/parsha feeds are excluded, same as the agenda.
+app.get("/api/calendar/search", requireAuth, async (req, res) => {
+  const q = String(req.query.q || "").trim().toLowerCase();
+  if (!q) return res.json({ events: [], total: 0, errors: [] });
+  const words = q.split(/\s+/).filter(Boolean);
+  const thisYear = new Date().getUTCFullYear();
+  const timeMin = req.query.start ? new Date(req.query.start + "T00:00:00Z").toISOString() : "1900-01-01T00:00:00.000Z";
+  const timeMax = req.query.end ? new Date(new Date(req.query.end + "T00:00:00Z").getTime() + 86400000).toISOString() : (thisYear + 11) + "-01-01T00:00:00.000Z";
+  if (isNaN(new Date(timeMin)) || isNaN(new Date(timeMax))) return res.status(400).json({ error: "invalid_range" });
+  const rangeKey = timeMin.slice(0, 10) + ".." + timeMax.slice(0, 10);
+  const hidden = hiddenSet(req.session.userId);
+  const rangeStartDay = timeMin.slice(0, 10);
+  const rangeEndDay = new Date(new Date(timeMax).getTime() - 1).toISOString().slice(0, 10); // timeMax is exclusive
+  const inRange = (ev) => { const d = String(ev.start || "").slice(0, 10); return d >= rangeStartDay && d <= rangeEndDay; };
+  const matches = (ev) => {
+    if (!inRange(ev)) return false;
+    const hay = ((ev.title || "") + " " + (ev.description || "") + " " + (ev.location || "")).toLowerCase();
+    return words.every((w) => hay.indexOf(w) !== -1);
+  };
+  const found = [];
+  const errors = [];
+  await Promise.all(listAccounts(req.session.userId).map(async (acct) => {
+    try {
+      const a = await freshToken(acct);
+      const calendars = (await listCalendarsFor(a)).filter((c) => !hidden.has(acct.id + "|" + c.id));
+      await Promise.all(calendars.map(async (cal) => {
+        try {
+          // Same "ev:<account>:" prefix as the grid cache, so creating/editing
+          // an event here clears this too. 5 minutes so typing is instant.
+          const events = await cachedFetch(`ev:${a.id}:${cal.id}:${rangeKey}`, 5 * 60 * 1000, () =>
+            a.provider === "google"
+              ? fetchGoogleCalendarEvents(a, cal, timeMin, timeMax)
+              : fetchMicrosoftCalendarEvents(a, cal, timeMin, timeMax));
+          events.filter(matches).forEach((ev) => found.push({
+            ...ev, provider: a.provider, accountId: a.id, accountEmail: a.email,
+            calendarId: cal.id, calendarName: cal.name, color: cal.color, canEdit: cal.canEdit
+          }));
+        } catch (e) { errors.push(acct.email + " / " + cal.name); }
+      }));
+    } catch (e) { errors.push(acct.email); }
+  }));
+  if (!hidden.has("local|avenium")) {
+    const startDate = timeMin.slice(0, 10), endDate = timeMax.slice(0, 10);
+    localEvents.filter((e) => e.userId === req.session.userId).forEach((ev) => {
+      const hay = ((ev.title || "") + " " + (ev.description || "") + " " + (ev.location || "")).toLowerCase();
+      if (!words.every((w) => hay.indexOf(w) !== -1)) return;
+      expandLocalEvent(ev, startDate, endDate).filter(inRange).forEach((inst) => found.push({
+        ...inst, provider: "local", accountId: "local", accountEmail: "",
+        calendarId: "avenium", calendarName: "Avenium", color: "#3C5A46", canEdit: true,
+        externalId: ev.id
+      }));
+    });
+  }
+  found.sort((x, y) => new Date(x.start) - new Date(y.start));
+  res.json({ events: found, total: found.length, errors });
 });
 
 app.post("/api/calendar/events", requireAuth, async (req, res) => {
