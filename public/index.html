@@ -594,6 +594,15 @@
   .cal-cell { min-width: 0; min-height: 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 6px; padding: 4px 5px; cursor: pointer; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; }
   .cal-cell:hover { background: var(--bg); }
   .cal-cell.today { border-color: var(--pine); }
+  .cal-cell.jumped { border: 2px solid var(--ochre); background: var(--ochre-soft); }
+  .cal-agenda-row.jumped { background: var(--ochre-soft); }
+  .cal-jump-wrap { position: relative; }
+  .cal-jump-drop { left: 50%; right: auto; transform: translateX(-50%); min-width: 200px; gap: 2px; }
+  .cal-jump-opt { font-family: inherit; font-size: 13px; text-align: left; background: none; border: none; padding: 6px 8px; border-radius: 6px; cursor: pointer; color: var(--ink); }
+  .cal-jump-opt:hover, .cal-jump-opt.active { background: var(--bg); }
+  .cal-jump-pick { display: flex; gap: 6px; padding: 4px 0 2px; align-items: center; }
+  .cal-jump-pick input { font-family: inherit; font-size: 12px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); outline: none; flex: 1; min-width: 0; }
+  .cal-jump-pick .cal-filter-apply { flex: 0 0 auto; }
   .cal-cell.other-month { opacity: 0.45; }
   .cal-day-num { font-size: 11.5px; font-weight: 600; color: var(--ink-soft); margin-bottom: 3px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: baseline; }
   .cal-heb-date { font-size: 9.5px; font-weight: 400; color: var(--ink-faint); direction: ltr; }
@@ -933,7 +942,17 @@
         <button id="calNextYear" type="button" class="cal-arrow-btn cal-arrow-sm" title="Next year">&raquo;</button>
       </div>
       <div class="cal-nav-view-row">
-        <button id="calTodayBtn" type="button" class="cal-pill-btn">Today</button>
+        <div class="cal-jump-wrap">
+          <button id="calJumpBtn" type="button" class="cal-pill-btn">Search Date &#9662;</button>
+          <div id="calJumpDrop" class="cal-filter-drop cal-jump-drop" style="display:none;">
+            <button id="calJumpToday" type="button" class="cal-jump-opt">Today</button>
+            <button id="calJumpSelect" type="button" class="cal-jump-opt">Select&hellip;</button>
+            <div id="calJumpPick" class="cal-jump-pick" style="display:none;">
+              <input id="calJumpDate" type="date">
+              <button id="calJumpGo" type="button" class="cal-filter-apply">Go</button>
+            </div>
+          </div>
+        </div>
         <button id="calViewMonth" type="button" class="cal-pill-btn active">Calendar</button>
         <button id="calViewAgenda" type="button" class="cal-pill-btn">Agenda</button>
       </div>
@@ -1230,6 +1249,7 @@
     // Reset to month view with all searches and filters cleared
     calViewMode = "month";
     calViewDate = new Date(); calViewDate.setDate(1);
+    calJumpDay = ""; calJumpScroll = false;
     resetCalSearch();
     var viewMonthBtn = document.getElementById("calViewMonth");
     var viewAgendaBtn = document.getElementById("calViewAgenda");
@@ -3174,6 +3194,8 @@
   var boardSearchQuery = "";   // boards search filter
   var calSearchQuery = "";     // calendar search filter
   var calViewMode = "month"; // "month" or "agenda"
+  var calJumpDay = "";         // "2026-09-30" — day picked in Search Date, highlighted until you leave the calendar
+  var calJumpScroll = false;   // agenda: scroll to calJumpDay once after the jump
 
   // Google/Outlook hand out their own colours and often reuse the same blue for
   // several calendars, so we ignore those and give every calendar its own
@@ -3324,7 +3346,40 @@
         calViewDate.setFullYear(calViewDate.getFullYear() + 1);
         loadCalendarEvents();
       };
-      document.getElementById("calTodayBtn").onclick = function () { calViewDate = new Date(); calViewDate.setDate(1); loadCalendarEvents(); };
+      // ----- Search Date: jump to Today or a picked date -----
+      document.getElementById("calJumpBtn").onclick = function (e) {
+        e.stopPropagation();
+        var drop = document.getElementById("calJumpDrop");
+        var open = drop.style.display === "none";
+        closeCalPopovers();
+        if (open) {
+          document.getElementById("calJumpPick").style.display = "none";
+          document.getElementById("calJumpSelect").classList.remove("active");
+          drop.style.display = "flex";
+        }
+      };
+      document.getElementById("calJumpDrop").addEventListener("click", function (e) { e.stopPropagation(); });
+      document.getElementById("calJumpToday").onclick = function () {
+        var t = new Date();
+        calJumpToDate(t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0"));
+      };
+      document.getElementById("calJumpSelect").onclick = function () {
+        var pick = document.getElementById("calJumpPick");
+        var input = document.getElementById("calJumpDate");
+        pick.style.display = "flex";
+        this.classList.add("active");
+        if (!input.value) input.value = calJumpDay || (calViewDate.getFullYear() + "-" + String(calViewDate.getMonth() + 1).padStart(2, "0") + "-01");
+        input.focus();
+        try { if (input.showPicker) input.showPicker(); } catch (err) {}
+      };
+      document.getElementById("calJumpGo").onclick = function () {
+        var v = document.getElementById("calJumpDate").value;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) { document.getElementById("calJumpDate").focus(); return; }
+        calJumpToDate(v);
+      };
+      document.getElementById("calJumpDate").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); document.getElementById("calJumpGo").click(); }
+      });
       document.getElementById("calViewMonth").onclick = function () {
         calViewMode = "month";
         document.getElementById("calViewMonth").classList.add("active");
@@ -3384,7 +3439,7 @@
         calSearchTimer = setTimeout(runCalSearch, 250); // wait for a pause in typing
       });
       searchInput.addEventListener("focus", function () {
-        ["calFilterDrop", "calAgendaAcctDrop"].forEach(function (id) { document.getElementById(id).style.display = "none"; });
+        ["calFilterDrop", "calAgendaAcctDrop", "calJumpDrop"].forEach(function (id) { document.getElementById(id).style.display = "none"; });
         if (calSearchQuery) renderCalSearchDropdown();
       });
       searchInput.addEventListener("keydown", function (e) {
@@ -3778,8 +3833,19 @@
           row.appendChild(el("span", "cal-agenda-repeat", { text: "\u21BB " + (repeatLabels[ev.repeat] || ev.repeat) }));
         }
         row.onclick = function () { openCalModal(ev); };
+        row.dataset.day = calDayKey(ev);
+        if (row.dataset.day === calJumpDay) row.classList.add("jumped");
         grid.appendChild(row);
       });
+      if (calJumpScroll && calJumpDay) {
+        // first event on or after the picked day (or the last one if all are earlier)
+        var rowsEls = grid.querySelectorAll(".cal-agenda-row");
+        var target = null;
+        for (var ri = 0; ri < rowsEls.length; ri++) { if (rowsEls[ri].dataset.day >= calJumpDay) { target = rowsEls[ri]; break; } }
+        target = target || rowsEls[rowsEls.length - 1];
+        if (target && target.scrollIntoView) target.scrollIntoView({ block: "start" });
+        calJumpScroll = false;
+      }
       return;
     }
 
@@ -3882,9 +3948,20 @@
     });
     updateAgendaAcctBtnLabel();
   }
+  // Go to the month containing `key` ("YYYY-MM-DD") and highlight that day.
+  // Works in both views: the grid outlines the day, the agenda scrolls to it.
+  function calJumpToDate(key) {
+    var parts = key.split("-");
+    calViewDate = new Date(+parts[0], +parts[1] - 1, 1);
+    calJumpDay = key;
+    calJumpScroll = true;
+    document.getElementById("calJumpDrop").style.display = "none";
+    loadCalendarEvents();
+  }
+
   // Only one calendar popover open at a time
   function closeCalPopovers() {
-    ["calFilterDrop", "calAgendaAcctDrop"].forEach(function (id) { var d = document.getElementById(id); if (d) d.style.display = "none"; });
+    ["calFilterDrop", "calAgendaAcctDrop", "calJumpDrop"].forEach(function (id) { var d = document.getElementById(id); if (d) d.style.display = "none"; });
     hideCalSearchDrop();
   }
 
@@ -4068,7 +4145,7 @@
         var inMonth = date.getMonth() === month;
         var isToday = date.getTime() === today.getTime();
         var key = date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0");
-        var cell = el("div", "cal-cell" + (isToday ? " today" : "") + (inMonth ? "" : " other-month"));
+        var cell = el("div", "cal-cell" + (isToday ? " today" : "") + (key === calJumpDay ? " jumped" : "") + (inMonth ? "" : " other-month"));
         var dayNumRow = el("div", "cal-day-num");
         dayNumRow.appendChild(document.createTextNode(String(date.getDate())));
         if (showHebrewDates) {
@@ -4498,6 +4575,8 @@
     if (aad) aad.style.display = "none";
     var cfd = document.getElementById("calFilterDrop");
     if (cfd) cfd.style.display = "none";
+    var cjd = document.getElementById("calJumpDrop");
+    if (cjd) cjd.style.display = "none";
     var changed = Object.keys(openAssigneePickers).length || Object.keys(openBoardAccess).length || Object.keys(openStepMenus).length || Object.keys(openBoardMenus).length || Object.keys(openStepRowMenus).length || Object.keys(openMessagePopovers).length || Object.keys(openTodoDeleteMenus).length || Object.keys(openNoteMenus).length || openNewBoardForm || document.querySelectorAll(".floating-popover").length;
     if (changed) {
       openAssigneePickers = {}; openBoardAccess = {}; openStepMenus = {}; openBoardMenus = {}; openStepRowMenus = {}; openMessagePopovers = {}; openTodoDeleteMenus = {}; openNoteMenus = {}; openNewBoardForm = false;
