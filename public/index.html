@@ -2061,6 +2061,23 @@
       render();
     });
 
+    row.addEventListener("contextmenu", function (e) {
+      if (e.target.closest("input, textarea")) return; // don't hijack text field right-click
+      e.preventDefault();
+      document.querySelectorAll(".floating-popover").forEach(function (n) { n.remove(); });
+      var pop = el("div", "read-receipt-popover");
+      pop.addEventListener("click", function (ev) { ev.stopPropagation(); });
+      var actions = el("div", "read-receipt-actions");
+      var addBtn = el("button", "", { type: "button", text: "Add to Action Items" });
+      addBtn.addEventListener("click", function () {
+        pop.remove();
+        socket.emit("addTodo", { text: item.title, sharedWith: [] });
+      });
+      actions.appendChild(addBtn);
+      pop.appendChild(actions);
+      anchorPopover(row, pop, "left");
+    });
+
     return row;
   }
 
@@ -2165,15 +2182,25 @@
           });
           rowMenu.appendChild(completeTaskBtn2);
         }
-        var addTodoBtn = el("button", "", { type: "button", text: "Add to Action Items" });
-        addTodoBtn.addEventListener("click", function () {
-          delete openStepRowMenus[s.id];
-          socket.emit("addTodo", { text: item.title + " — " + s.text, sharedWith: [] });
-          render();
-        });
-        rowMenu.appendChild(addTodoBtn);
         anchorPopover(rowUpdateBtn, rowMenu, "left");
       }
+
+      stepRow.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        document.querySelectorAll(".floating-popover").forEach(function (n) { n.remove(); });
+        var pop = el("div", "read-receipt-popover");
+        pop.addEventListener("click", function (ev) { ev.stopPropagation(); });
+        var actions = el("div", "read-receipt-actions");
+        var addBtn = el("button", "", { type: "button", text: "Add to Action Items" });
+        addBtn.addEventListener("click", function () {
+          pop.remove();
+          socket.emit("addTodo", { text: item.title + " \u2014 " + s.text, sharedWith: [] });
+        });
+        actions.appendChild(addBtn);
+        pop.appendChild(actions);
+        anchorPopover(stepRow, pop, "left");
+      });
 
       return stepRow;
     }
