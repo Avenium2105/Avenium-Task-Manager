@@ -387,8 +387,8 @@ function httpsRequest(options, body) {
       let data = "";
       res.on("data", (c) => { data += c; });
       res.on("end", () => {
-        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
-        catch (e) { resolve({ status: res.statusCode, body: data }); }
+        try { resolve({ status: res.statusCode, body: JSON.parse(data), headers: res.headers }); }
+        catch (e) { resolve({ status: res.statusCode, body: data, headers: res.headers }); }
       });
     });
     req.on("error", reject);
@@ -457,12 +457,63 @@ function msTime(s) {
 // Browsers send ISO times ending in "Z"; Graph wants them without it (timeZone given separately).
 function msInputTime(s) { return String(s || "").replace(/\.\d+Z$/, "").replace(/Z$/, ""); }
 
+// ---- Provider request pacing ----
+// Outlook allows only ~4 simultaneous requests per mailbox and Google
+// throttles bursts. Searching every calendar at once used to blow past that;
+// the throttled account then quietly returned nothing. Every provider call
+// now goes through a per-account queue and retries when throttled.
+const reqLimiters = new Map();
+function limited(key, max, fn) {
+  let l = reqLimiters.get(key);
+  if (!l) { l = { active: 0, q: [] }; reqLimiters.set(key, l); }
+  return new Promise((resolve, reject) => {
+    const run = () => {
+      l.active++;
+      Promise.resolve().then(fn).then(resolve, reject).finally(() => {
+        l.active--;
+        const next = l.q.shift();
+        if (next) next(); else if (!l.active) reqLimiters.delete(key);
+      });
+    };
+    if (l.active < max) run(); else l.q.push(run);
+  });
+}
+function isThrottled(r) {
+  if (r.status === 429 || r.status === 503 || r.status === 504) return true;
+  if (r.status === 403) { const t = JSON.stringify(r.body || ""); return /rateLimit|RateLimit|quota/i.test(t); }
+  return false;
+}
+async function requestWithRetry(send) {
+  for (let attempt = 0; ; attempt++) {
+    const r = await send();
+    if (!isThrottled(r) || attempt >= 5) return r;
+    const ra = r.headers && parseInt(r.headers["retry-after"], 10);
+    const wait = ra > 0 ? Math.min(ra, 30) * 1000 : 500 * Math.pow(2, attempt);
+    await new Promise((res) => setTimeout(res, wait));
+  }
+}
+// Turn a provider failure into a readable error instead of "no events"
+function providerError(provider, r) {
+  const b = r.body || {};
+  const msg = (b.error && (b.error.message || b.error.code || (typeof b.error === "string" ? b.error : ""))) || "";
+  return new Error(provider + " " + r.status + (msg ? " — " + String(msg).slice(0, 140) : ""));
+}
+async function mapLimit(items, max, fn) {
+  const out = new Array(items.length);
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(max, items.length) }, async () => {
+    while (i < items.length) { const k = i++; out[k] = await fn(items[k], k); }
+  }));
+  return out;
+}
+
 // ---- Google Calendar API calls ----
 async function googleApiRequest(accessToken, method, path2, body) {
   const bodyStr = body ? JSON.stringify(body) : null;
   const headers = { Authorization: "Bearer " + accessToken, Accept: "application/json" };
   if (bodyStr) { headers["Content-Type"] = "application/json"; headers["Content-Length"] = Buffer.byteLength(bodyStr); }
-  return httpsRequest({ hostname: "www.googleapis.com", path: path2, method, headers }, bodyStr);
+  return limited("google:" + accessToken, 6, () =>
+    requestWithRetry(() => httpsRequest({ hostname: "www.googleapis.com", path: path2, method, headers }, bodyStr)));
 }
 
 async function listGoogleCalendars(account) {
@@ -487,6 +538,7 @@ async function fetchGoogleCalendarEvents(account, cal, timeMin, timeMax) {
       (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "") +
       // only the fields actually used — smaller payloads come back faster
       `&fields=${encodeURIComponent("nextPageToken,items(id,summary,start,end,description,location,htmlLink,attendees/email)")}`);
+    if (r.status >= 400) throw providerError("Google", r);
     if (!r.body || !r.body.items) break;
     r.body.items.forEach((e) => out.push({
       externalId: e.id, title: e.summary || "(No title)",
@@ -541,7 +593,8 @@ async function graphRequest(accessToken, method, path2, body) {
   const bodyStr = body ? JSON.stringify(body) : null;
   const headers = { Authorization: "Bearer " + accessToken, Accept: "application/json", Prefer: 'outlook.timezone="UTC"' };
   if (bodyStr) { headers["Content-Type"] = "application/json"; headers["Content-Length"] = Buffer.byteLength(bodyStr); }
-  return httpsRequest({ hostname: "graph.microsoft.com", path: "/v1.0" + path2, method, headers }, bodyStr);
+  return limited("microsoft:" + accessToken, 3, () =>
+    requestWithRetry(() => httpsRequest({ hostname: "graph.microsoft.com", path: "/v1.0" + path2, method, headers }, bodyStr)));
 }
 
 async function listMicrosoftCalendars(account) {
@@ -554,14 +607,17 @@ async function listMicrosoftCalendars(account) {
   }));
 }
 
-async function fetchMicrosoftCalendarEvents(account, cal, timeMin, timeMax) {
-  // Follow @odata.nextLink until there are no more pages (was a single
-  // 250-event page, which truncated wide ranges).
+// Exchange won't return one calendar view spanning decades, so a wide range
+// is split into one-year windows (each paged). Outlook/Exchange calendars
+// don't hold usable data before 1980, so wide ranges start there.
+const MS_FLOOR = "1980-01-01T00:00:00.000Z";
+async function fetchMicrosoftWindow(account, cal, timeMin, timeMax) {
   const out = [];
-  let path2 = `/me/calendars/${encodeURIComponent(cal.id)}/calendarView?startDateTime=${encodeURIComponent(timeMin)}&endDateTime=${encodeURIComponent(timeMax)}&$top=500` +
+  let path2 = `/me/calendars/${encodeURIComponent(cal.id)}/calendarView?startDateTime=${encodeURIComponent(timeMin)}&endDateTime=${encodeURIComponent(timeMax)}&$top=250` +
     `&$select=${encodeURIComponent("id,subject,start,end,isAllDay,location,attendees,bodyPreview,webLink")}`;
-  for (let page = 0; page < 200 && path2; page++) {
+  for (let page = 0; page < 500 && path2; page++) {
     const r = await graphRequest(account.accessToken, "GET", path2);
+    if (r.status >= 400) throw providerError("Outlook", r);
     if (!r.body || !r.body.value) break;
     r.body.value.forEach((e) => out.push({
       externalId: e.id, title: e.subject || "(No title)",
@@ -575,6 +631,26 @@ async function fetchMicrosoftCalendarEvents(account, cal, timeMin, timeMax) {
     const next = r.body["@odata.nextLink"];
     path2 = next ? next.replace(/^https:\/\/graph\.microsoft\.com\/v1\.0/, "") : "";
   }
+  return out;
+}
+async function fetchMicrosoftCalendarEvents(account, cal, timeMin, timeMax) {
+  let start = new Date(timeMin < MS_FLOOR ? MS_FLOOR : timeMin);
+  const end = new Date(timeMax);
+  if (!(start < end)) return [];
+  const windows = [];
+  while (start < end) {
+    const next = new Date(start); next.setUTCFullYear(next.getUTCFullYear() + 1);
+    const wEnd = next < end ? next : end;
+    windows.push([start.toISOString(), wEnd.toISOString()]);
+    start = wEnd;
+  }
+  const chunks = await mapLimit(windows, 3, (w) => fetchMicrosoftWindow(account, cal, w[0], w[1]));
+  // an event crossing a window edge comes back twice — keep one
+  const seen = new Set(), out = [];
+  chunks.forEach((list) => list.forEach((ev) => {
+    const k = ev.externalId + "|" + ev.start;
+    if (!seen.has(k)) { seen.add(k); out.push(ev); }
+  }));
   return out;
 }
 
@@ -2187,10 +2263,14 @@ app.get("/api/calendar/search", requireAuth, async (req, res) => {
   };
   const found = [];
   const errors = [];
+  const searched = [];
+  if (!hidden.has("local|avenium")) searched.push({ label: "Avenium", calendars: 1 });
   await Promise.all(listAccounts(req.session.userId).map(async (acct) => {
     try {
       const a = await freshToken(acct);
+      if (!a || !a.accessToken) throw new Error("sign-in expired — reconnect on the Admin page");
       const calendars = (await listCalendarsFor(a)).filter((c) => !hidden.has(acct.id + "|" + c.id));
+      searched.push({ label: acct.email || acct.provider, provider: acct.provider, calendars: calendars.length });
       await Promise.all(calendars.map(async (cal) => {
         try {
           // Same "ev:<account>:" prefix as the grid cache, so creating/editing
@@ -2203,9 +2283,9 @@ app.get("/api/calendar/search", requireAuth, async (req, res) => {
             ...ev, provider: a.provider, accountId: a.id, accountEmail: a.email,
             calendarId: cal.id, calendarName: cal.name, color: cal.color, canEdit: cal.canEdit
           }));
-        } catch (e) { errors.push(acct.email + " / " + cal.name); }
+        } catch (e) { errors.push(acct.email + " / " + cal.name + " (" + e.message + ")"); }
       }));
-    } catch (e) { errors.push(acct.email); }
+    } catch (e) { errors.push(acct.email + " (" + e.message + ")"); }
   }));
   if (!hidden.has("local|avenium")) {
     const startDate = timeMin.slice(0, 10), endDate = timeMax.slice(0, 10);
@@ -2220,7 +2300,8 @@ app.get("/api/calendar/search", requireAuth, async (req, res) => {
     });
   }
   found.sort((x, y) => new Date(x.start) - new Date(y.start));
-  res.json({ events: found, total: found.length, errors });
+  searched.sort((x, y) => (x.label === "Avenium" ? -1 : y.label === "Avenium" ? 1 : x.label.localeCompare(y.label)));
+  res.json({ events: found, total: found.length, errors, searched });
 });
 
 app.post("/api/calendar/events", requireAuth, async (req, res) => {
