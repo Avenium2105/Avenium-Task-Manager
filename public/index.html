@@ -452,11 +452,6 @@
   .ai-clear { font-family: inherit; font-size: 13px; padding: 8px 14px; border: none; border-radius: 8px; background: var(--line-soft); color: var(--ink-soft); cursor: pointer; }
 
   /* ---- New event: type presets ---- */
-  .cal-new-btn { background: var(--pine) !important; color: var(--bg-raised) !important; border-color: var(--pine) !important; font-weight: 600 !important; }
-  .cal-view-btn { font-size: 12px !important; padding: 4px 10px !important; }
-  .cal-view-btn.active { background: var(--pine) !important; color: var(--bg-raised) !important; border-color: var(--pine) !important; }
-  .cal-search-wrap { margin: 0 0 0 auto; display: flex; align-items: center; gap: 6px; }
-  .cal-search-wrap input[type="text"] { font-family: inherit; font-size: 12px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; width: 140px; }
   .cal-filter-wrap { position: relative; }
   .cal-filter-btn { font-family: inherit; font-size: 12px; padding: 5px 12px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg-raised); color: var(--ink-soft); cursor: pointer; }
   .cal-filter-btn:hover { border-color: var(--pine); color: var(--pine); }
@@ -515,7 +510,7 @@
   .cal-agenda-day { font-size: 11px; font-weight: 700; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.04em; padding: 14px 0 4px; }
   .cal-agenda-row { display: flex; align-items: baseline; gap: 0; width: 100%; text-align: left; font-family: inherit; background: none; border: none; border-bottom: 1px solid var(--line-soft); padding: 7px 4px; cursor: pointer; }
   .cal-agenda-row:hover { background: var(--bg); }
-  .cal-agenda-date { flex: 0 0 110px; font-size: 12px; color: var(--ink-faint); }
+  .cal-agenda-date { flex: 0 0 140px; font-size: 12px; color: var(--ink-faint); }
   .cal-agenda-time { flex: 0 0 72px; font-size: 12px; color: var(--ink-soft); }
   .cal-agenda-name { font-size: 13px; color: var(--ink); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cal-agenda-empty { color: var(--ink-faint); font-size: 13px; padding: 20px 0; }
@@ -526,17 +521,27 @@
   /* One screen, no page scrolling: the view is exactly the height left under
      the nav bar, the grid fills whatever is left after the header, and a busy
      day scrolls inside its own box instead of growing the page. */
-  .calendar-wrap { max-width: none; margin: 0; padding: 14px 22px 10px; height: calc(100vh - var(--nav-h, 67px)); box-sizing: border-box; overflow: hidden; background: var(--bg); }
+  .calendar-wrap { max-width: none; margin: 0; padding: 14px 22px 10px; height: calc(100vh - var(--nav-h, 67px)); box-sizing: border-box; overflow: hidden; background: #6b8f79; }
   .cal-layout { display: flex; gap: 0; height: 100%; align-items: stretch; }
   .cal-side { display: none; }
+  .cal-main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; background: var(--bg); border-radius: var(--radius); padding: 10px 16px; box-sizing: border-box; }
+  .calendar-nav-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .cal-add-event-btn { font-family: inherit; font-size: 13px; font-weight: 600; padding: 8px 16px; border: none; border-radius: 8px; background: var(--pine); color: var(--bg-raised); cursor: pointer; flex-shrink: 0; }
+  .cal-add-event-btn:hover { opacity: 0.9; }
+  .cal-nav-center { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; }
+  .cal-nav-date-row { display: flex; align-items: center; gap: 10px; }
+  .cal-arrow-btn { font-family: inherit; font-size: 16px; background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; color: var(--ink-soft); }
+  .cal-arrow-btn:hover { border-color: var(--pine); color: var(--pine); }
+  #calMonthLabel { font-size: 18px; font-weight: 600; color: var(--ink); min-width: 170px; text-align: center; }
+  .cal-nav-view-row { display: flex; gap: 4px; }
+  .cal-pill-btn { font-family: inherit; font-size: 12px; font-weight: 500; padding: 5px 14px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg-raised); color: var(--ink-soft); cursor: pointer; }
+  .cal-pill-btn:hover { border-color: var(--pine); color: var(--pine); }
+  .cal-pill-btn.active { background: var(--pine); color: var(--bg-raised); border-color: var(--pine); font-weight: 600; }
+  .cal-nav-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .cal-search-input { font-family: inherit; font-size: 12px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; width: 130px; }
+  .cal-agenda-filter-bar { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+  .cal-agenda-select { font-family: inherit; font-size: 12px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); outline: none; }
   .cal-side-title { font-weight: 600; font-size: 13px; color: var(--ink); margin-bottom: 10px; flex-shrink: 0; }
-  .cal-main { flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; }
-  .calendar-header { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; flex-shrink: 0; }
-  .calendar-header h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 25px; margin: 0; letter-spacing: -0.01em; }
-  .calendar-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-shrink: 0; }
-  .calendar-nav button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 5px 13px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg-raised); color: var(--ink); cursor: pointer; }
-  .calendar-nav button:hover { background: var(--bg); }
-  #calMonthLabel { font-size: 17px; font-weight: 600; color: var(--ink); min-width: 155px; text-align: center; }
   .cal-grid-head { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; margin-bottom: 2px; flex-shrink: 0; }
   .cal-grid-head span { text-align: center; font-size: 12px; font-weight: 600; color: var(--ink-faint); padding: 2px 0; }
   /* minmax(0,1fr) on rows AND columns is what keeps all 42 boxes identical —
@@ -874,19 +879,22 @@
     <div class="cal-legend" id="calLegend"></div>
   </aside>
   <div class="cal-main">
-  <div class="calendar-header">
-    <h1>Calendar</h1>
-  </div>
-  <div class="calendar-nav">
-    <button id="calPrevBtn" type="button">&#8592;</button>
-    <span id="calMonthLabel"></span>
-    <button id="calNextBtn" type="button">&#8594;</button>
-    <button id="calTodayBtn" type="button">Today</button>
-    <button id="calViewMonth" type="button" class="cal-view-btn active">Calendar</button>
-    <button id="calViewAgenda" type="button" class="cal-view-btn">Agenda</button>
-    <button id="calNewBtn" type="button" class="cal-new-btn">+ New</button>
-    <div class="cal-search-wrap">
-      <input id="calSearchInput" type="text" placeholder="Search events…" autocomplete="off">
+  <div class="calendar-nav-top">
+    <button id="calNewBtn" type="button" class="cal-add-event-btn">+ Add Event</button>
+    <div class="cal-nav-center">
+      <div class="cal-nav-date-row">
+        <button id="calPrevBtn" type="button" class="cal-arrow-btn">←</button>
+        <span id="calMonthLabel"></span>
+        <button id="calNextBtn" type="button" class="cal-arrow-btn">→</button>
+      </div>
+      <div class="cal-nav-view-row">
+        <button id="calTodayBtn" type="button" class="cal-pill-btn">Today</button>
+        <button id="calViewMonth" type="button" class="cal-pill-btn active">Calendar</button>
+        <button id="calViewAgenda" type="button" class="cal-pill-btn">Agenda</button>
+      </div>
+    </div>
+    <div class="cal-nav-right">
+      <input id="calSearchInput" type="text" placeholder="Search events…" autocomplete="off" class="cal-search-input">
       <div class="cal-filter-wrap">
         <button id="calFilterBtn" type="button" class="cal-filter-btn">Filter</button>
         <div id="calFilterDrop" class="cal-filter-drop" style="display:none;">
@@ -894,12 +902,16 @@
           <label class="cal-filter-opt"><input type="radio" name="calFilter" value="all"> All time</label>
           <label class="cal-filter-opt"><input type="radio" name="calFilter" value="range"> Date range</label>
           <div id="calFilterDates" class="cal-filter-dates" style="display:none;">
-            <input id="calSearchFrom" type="date" placeholder="From">
-            <input id="calSearchTo" type="date" placeholder="To">
+            <input id="calSearchFrom" type="date">
+            <input id="calSearchTo" type="date">
           </div>
         </div>
       </div>
     </div>
+  </div>
+  <div id="calAgendaFilterBar" class="cal-agenda-filter-bar" style="display:none;">
+    <select id="calAgendaAcctFilter" class="cal-agenda-select"><option value="all">All accounts</option></select>
+    <select id="calAgendaTimeFilter" class="cal-agenda-select"><option value="year">This year</option><option value="month">This month</option><option value="all">All time</option></select>
   </div>
   <div class="cal-grid-head">
     <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
@@ -3213,14 +3225,28 @@
         calViewMode = "month";
         document.getElementById("calViewMonth").classList.add("active");
         document.getElementById("calViewAgenda").classList.remove("active");
+        document.getElementById("calAgendaFilterBar").style.display = "none";
+        // Reset search filter to current view
+        var viewRadio = document.querySelector("input[name='calFilter'][value='view']");
+        if (viewRadio) viewRadio.checked = true;
+        document.getElementById("calFilterDates").style.display = "none";
+        document.getElementById("calSearchFrom").value = "";
+        document.getElementById("calSearchTo").value = "";
         loadCalendarEvents();
       };
       document.getElementById("calViewAgenda").onclick = function () {
         calViewMode = "agenda";
         document.getElementById("calViewAgenda").classList.add("active");
         document.getElementById("calViewMonth").classList.remove("active");
+        document.getElementById("calAgendaFilterBar").style.display = "flex";
+        populateAgendaAccountFilter();
+        // Default agenda to current year
+        var allRadio = document.querySelector("input[name='calFilter'][value='all']");
+        if (allRadio) allRadio.checked = true;
         loadCalendarEvents();
       };
+      document.getElementById("calAgendaAcctFilter").addEventListener("change", function () { renderCalendarBody(); });
+      document.getElementById("calAgendaTimeFilter").addEventListener("change", function () { loadCalendarEvents(); });
       document.getElementById("calSearchInput").addEventListener("input", function () {
         calSearchQuery = this.value.trim().toLowerCase();
         renderCalendarBody();
@@ -3312,14 +3338,14 @@
     document.querySelectorAll(".floating-popover").forEach(function (n) { n.remove(); });
     var grid = document.getElementById("calGrid");
     var head = document.querySelector(".cal-grid-head");
-    // Apply search and date range filter
+    // Apply search and date range filter (date range only applies to search results)
     var filteredEvents = calendarEvents;
     var filterMode = "view";
     var checkedFilter = document.querySelector("input[name='calFilter']:checked");
     if (checkedFilter) filterMode = checkedFilter.value;
-    var searchFrom = filterMode === "range" ? document.getElementById("calSearchFrom").value : "";
-    var searchTo = filterMode === "range" ? document.getElementById("calSearchTo").value : "";
-    if (calSearchQuery || searchFrom || searchTo) {
+    var searchFrom = (filterMode === "range" && calSearchQuery) ? document.getElementById("calSearchFrom").value : "";
+    var searchTo = (filterMode === "range" && calSearchQuery) ? document.getElementById("calSearchTo").value : "";
+    if (calSearchQuery) {
       filteredEvents = calendarEvents.filter(function (e) {
         if (calSearchQuery) {
           var match = (e.title || "").toLowerCase().indexOf(calSearchQuery) >= 0 ||
@@ -3345,7 +3371,14 @@
       grid.classList.add("cal-agenda");
       grid.style.cssText = "";
       grid.innerHTML = "";
-      var evs = filteredEvents.slice().sort(function (a, b) { return new Date(a.start) - new Date(b.start); });
+      // Apply agenda account filter
+      var acctFilter = document.getElementById("calAgendaAcctFilter").value;
+      var agendaEvs = filteredEvents;
+      if (acctFilter !== "all") {
+        var parts = acctFilter.split("|");
+        agendaEvs = agendaEvs.filter(function (e) { return e.accountId === parts[0] && e.calendarId === parts.slice(1).join("|"); });
+      }
+      var evs = agendaEvs.slice().sort(function (a, b) { return new Date(a.start) - new Date(b.start); });
       if (!evs.length) {
         grid.appendChild(el("div", "cal-agenda-empty", { text: "No events found." }));
         return;
@@ -3353,7 +3386,7 @@
       evs.forEach(function (ev) {
         var row = el("button", "cal-agenda-row", { type: "button" });
         var d = new Date(calDayKey(ev) + "T12:00:00");
-        var dateStr = d.toLocaleDateString(undefined, { month: "short", day: "numeric", weekday: "short" });
+        var dateStr = d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", weekday: "short" });
         row.appendChild(el("span", "cal-agenda-date", { text: dateStr }));
         var time = ev.allDay ? "All day" : new Date(ev.start).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
         row.appendChild(el("span", "cal-agenda-time", { text: time }));
@@ -3405,15 +3438,43 @@
     }
   }
 
+  function populateAgendaAccountFilter() {
+    var sel = document.getElementById("calAgendaAcctFilter");
+    var curVal = sel.value;
+    sel.innerHTML = '<option value="all">All accounts</option>';
+    calendarAccounts.forEach(function (acct) {
+      acct.calendars.forEach(function (c) {
+        var label = c.name;
+        if (acct.email) label += " \u2014 " + acct.email;
+        var opt = el("option", "", { value: acct.id + "|" + c.id, text: label });
+        sel.appendChild(opt);
+      });
+    });
+    if (curVal) sel.value = curVal;
+  }
+
   function calGridRange() {
     var year = calViewDate.getFullYear(), month = calViewDate.getMonth();
-    // "All time" filter — fetch 5 years in each direction
+    var now = new Date();
+    // Agenda time filter
+    if (calViewMode === "agenda") {
+      var agendaTime = document.getElementById("calAgendaTimeFilter").value;
+      if (agendaTime === "all") return { start: new Date(2000, 0, 1), end: new Date(now.getFullYear() + 10, 0, 1) };
+      if (agendaTime === "month") {
+        var first = new Date(year, month, 1);
+        var last = new Date(year, month + 1, 0);
+        return { start: first, end: new Date(last.getTime() + 86400000) };
+      }
+      // year (default for agenda)
+      return { start: new Date(year, 0, 1), end: new Date(year + 1, 0, 1) };
+    }
+    // Search filter
     var checkedFilter = document.querySelector("input[name='calFilter']:checked");
     if (checkedFilter && checkedFilter.value === "all") {
-      return { start: new Date(year - 5, 0, 1), end: new Date(year + 5, 0, 1) };
+      return { start: new Date(2000, 0, 1), end: new Date(now.getFullYear() + 10, 0, 1) };
     }
-    var first = new Date(year, month, 1);
-    var start = new Date(first); start.setDate(1 - first.getDay());
+    var first2 = new Date(year, month, 1);
+    var start = new Date(first2); start.setDate(1 - first2.getDay());
     var end = new Date(start); end.setDate(start.getDate() + 42);
     return { start: start, end: end };
   }
