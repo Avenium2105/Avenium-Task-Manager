@@ -2422,7 +2422,7 @@ app.get("/api/calendar/search", requireAuth, async (req, res) => {
 });
 
 app.post("/api/calendar/events", requireAuth, async (req, res) => {
-  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, timeZone } = req.body || {};
+  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, timeZone, kind } = req.body || {};
   if (!title || !start) return res.status(400).json({ error: "invalid_request" });
   const isJewishRepeat = repeat === "jewish-monthly" || repeat === "jewish-yearly";
   // Google and Outlook have no Hebrew-calendar repeat; saving there used to
@@ -2445,6 +2445,7 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
     if (hebrewMonth) ev.hebrewMonth = hebrewMonth;
     if (isJewishRepeat && hebrewYear) ev.hebrewYear = Number(hebrewYear);
     if (validTimeZone(timeZone)) ev.timeZone = timeZone;
+    if (kind === "occasion") ev.kind = "occasion";   // birthday / anniversary / yahrzeit — yearly, all-day
     localEvents.push(ev);
     persistLocalEvents();
     return res.json({ ok: true });
@@ -2465,7 +2466,7 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
 });
 
 app.put("/api/calendar/events", requireAuth, async (req, res) => {
-  const { accountId, calendarId, eventId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, timeZone, newAccountId, newCalendarId } = req.body || {};
+  const { accountId, calendarId, eventId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, timeZone, kind, newAccountId, newCalendarId } = req.body || {};
   if ((repeat === "jewish-monthly" || repeat === "jewish-yearly") && hebrewYear && !hebrewToGregorianFlex(Number(hebrewYear), hebrewMonth || "Tishri", Number(hebrewDay))) {
     return res.status(400).json({ error: "invalid_hebrew_date" });
   }
@@ -2491,6 +2492,7 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
     if (hebrewMonth !== undefined) ev.hebrewMonth = hebrewMonth || null;
     if (hebrewYear !== undefined) ev.hebrewYear = hebrewYear ? Number(hebrewYear) : null;
     if (validTimeZone(timeZone)) ev.timeZone = timeZone;
+    if (kind === "occasion") ev.kind = "occasion";
     if (moveTarget && moveTarget.accountId !== "local" && (ev.repeat === "jewish-monthly" || ev.repeat === "jewish-yearly")) {
       return res.status(400).json({ error: "jewish_repeat_avenium_only" });
     }
@@ -2536,6 +2538,7 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
       if (hebrewMonth) moved.hebrewMonth = hebrewMonth;
       if (hebrewYear && (repeat === "jewish-monthly" || repeat === "jewish-yearly")) moved.hebrewYear = Number(hebrewYear);
       if (validTimeZone(timeZone)) moved.timeZone = timeZone;
+      if (kind === "occasion") moved.kind = "occasion";
       localEvents.push(moved);
       persistLocalEvents();
       invalidateCalendarCache(`ev:${a.id}:`);

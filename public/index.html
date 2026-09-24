@@ -645,6 +645,11 @@
   .cal-heb-greg { flex: 1 0 100%; font-size: 12px; color: var(--pine); line-height: 1.4; }
   .cal-heb-greg.warn { color: var(--brick); }
   .cal-heb-note { flex: 1 0 100%; font-size: 11.5px; color: var(--ink-faint); }
+  .cal-occasion-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 8px 12px; background: var(--ochre-soft); border: 1px solid var(--line); border-radius: 8px; }
+  .cal-occasion-badge { font-size: 12px; font-weight: 600; color: var(--ochre); }
+  .cal-occasion-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink); cursor: pointer; }
+  .cal-occasion-check input { width: auto !important; margin: 0; accent-color: var(--pine); cursor: pointer; }
+  .cal-occasion-hint { flex: 1 0 100%; font-size: 11.5px; color: var(--ink-soft); }
   .cal-series-note { font-size: 12px; color: var(--ink-soft); background: var(--pine-soft); border-radius: 7px; padding: 7px 10px; margin-bottom: 8px; line-height: 1.4; }
   .cal-hebrew-date-pick select { flex: 1 1 0; min-width: 0; width: auto; }
   .cal-details-group { display: flex; flex-direction: column; gap: 8px; }
@@ -1021,6 +1026,7 @@
           <button type="button" data-type="meeting" class="cal-type-btn active">Meeting</button>
           <button type="button" data-type="appointment" class="cal-type-btn">Appointment</button>
           <button type="button" data-type="call" class="cal-type-btn">Call</button>
+          <button type="button" data-type="occasion" class="cal-type-btn" title="Birthdays, anniversaries, yahrzeits \u2014 repeats every year">Occasion</button>
         </div>
 
         <input id="calModalName" type="text" placeholder="Title" autocomplete="off" class="cal-field-full">
@@ -1044,10 +1050,10 @@
           </div>
           <div id="calAllDayFields" class="cal-date-group" style="display:none;">
             <div class="cal-date-row">
-              <span class="cal-date-row-label">Date</span>
+              <span class="cal-date-row-label" id="calAllDayDateLabel">Date</span>
               <input id="calModalStartDateOnly" type="date">
             </div>
-            <div class="cal-date-row">
+            <div class="cal-date-row" id="calAllDayEndRow">
               <span class="cal-date-row-label">End</span>
               <input id="calModalEndDateOnly" type="date">
             </div>
@@ -1055,6 +1061,11 @@
         </div>
 
         <div class="cal-repeat-row">
+          <div id="calOccasionRow" class="cal-occasion-row" style="display:none;">
+            <span class="cal-occasion-badge">&#8635; Every year</span>
+            <label class="cal-occasion-check"><input id="calOccasionJewish" type="checkbox"> Jewish (Hebrew) date</label>
+            <div id="calOccasionHint" class="cal-occasion-hint"></div>
+          </div>
           <label class="cal-repeat-check-label"><input id="calModalRepeatCheck" type="checkbox"> Repeats</label>
           <div id="calRepeatOptions" class="cal-repeat-options" style="display:none;">
             <select id="calModalRepeat">
@@ -3497,6 +3508,7 @@
       [].forEach.call(document.querySelectorAll("#calTypeRow .cal-type-btn"), function (b) {
         b.onclick = function () { applyCalType(b.dataset.type); };
       });
+      document.getElementById("calOccasionJewish").onchange = function () { applyOccasionMode(true, this.checked); };
       document.getElementById("calWhenTimed").onchange = applyWhenToggle;
       document.getElementById("calWhenAllDay").onchange = applyWhenToggle;
       document.getElementById("calModalRepeatCheck").onchange = function () {
@@ -4235,9 +4247,62 @@
   var CAL_TYPES = {
     meeting:     { minutes: 60, attendees: true,  label: "Meeting" },
     appointment: { minutes: 30, attendees: false, label: "Appointment" },
-    call:        { minutes: 30, attendees: true,  label: "Call" }
+    call:        { minutes: 30, attendees: true,  label: "Call" },
+    occasion:    { minutes: 0,  attendees: false, label: "Occasion" }
   };
   var calModalType = "meeting";
+
+  // ----- Occasions: birthdays, anniversaries, yahrzeits -----
+  // Always all-day and repeating every year. Gregorian by default; the
+  // "Jewish (Hebrew) date" box makes it repeat on the Hebrew date instead,
+  // with the English and Hebrew dates kept in sync (type either one).
+  var calOccasionMode = false;
+  function setOccasionUi(on) {
+    document.querySelector(".cal-when-row").style.display = on ? "none" : "";
+    document.getElementById("calOccasionRow").style.display = on ? "flex" : "none";
+    document.getElementById("calAllDayEndRow").style.display = on ? "none" : "";
+    document.querySelector(".cal-repeat-check-label").style.display = on ? "none" : "";
+    var hebLabel = document.querySelector("#calHebrewDatePick .cal-date-row-label");
+    if (hebLabel) hebLabel.textContent = on ? "Hebrew date" : "Starts";
+    if (!on) document.getElementById("calAllDayDateLabel").textContent = "Date";
+  }
+  function applyOccasionMode(on, jewish) {
+    calOccasionMode = on;
+    setOccasionUi(on);
+    var $ = function (id) { return document.getElementById(id); };
+    if (!on) {
+      // back to an ordinary one-off event
+      $("calModalRepeatCheck").checked = false;
+      $("calRepeatOptions").style.display = "none";
+      $("calHebrewDatePick").style.display = "none";
+      if (!calEditingEvent) $("calModalTitle").textContent = "New Event";
+      return;
+    }
+    if (!calIsAllDay()) {
+      // carry the chosen day over from the timed fields
+      if ($("calModalStartDate2").value) $("calModalStartDateOnly").value = $("calModalStartDate2").value;
+      $("calWhenAllDay").checked = true; $("calWhenTimed").checked = false;
+      applyWhenToggle();
+    }
+    if (!$("calModalStartDateOnly").value) {
+      var t = new Date();
+      $("calModalStartDateOnly").value = t.getFullYear() + "-" + String(t.getMonth() + 1).padStart(2, "0") + "-" + String(t.getDate()).padStart(2, "0");
+    }
+    $("calModalEndDateOnly").value = "";
+    $("calOccasionJewish").checked = !!jewish;
+    $("calModalRepeatCheck").checked = true;
+    $("calModalRepeat").value = jewish ? "jewish-yearly" : "yearly";
+    $("calModalRepeatUntil").value = "";
+    updateHebrewDatePick($("calModalRepeat").value); // shows the Hebrew date for Jewish, and moves it to Avenium
+    $("calRepeatOptions").style.display = "none";
+    $("calModalRepeatUntil").style.display = "none";
+    $("calAllDayDateLabel").textContent = jewish ? "English date" : "Date";
+    $("calOccasionHint").textContent = jewish
+      ? "Repeats every year on the Hebrew date. Enter the English or the Hebrew date \u2014 the other fills in. Saved to the Avenium calendar."
+      : "Repeats every year on this date.";
+    if (!calEditingEvent) $("calModalTitle").textContent = "New Occasion";
+    $("calModalName").placeholder = "e.g. Dassi\u2019s birthday";
+  }
 
   function calIsAllDay() { return document.getElementById("calWhenAllDay").checked; }
 
@@ -4332,6 +4397,8 @@
     });
     document.getElementById("calModalAttendees").style.display = def.attendees ? "" : "none";
     document.getElementById("calModalName").placeholder = def.label + " title";
+    if (type === "occasion") { applyOccasionMode(true, document.getElementById("calOccasionJewish").checked); return; }
+    if (calOccasionMode) applyOccasionMode(false);
     if (!keepTimes && !calIsAllDay()) {
       var startDate = document.getElementById("calModalStartDate2").value;
       var startTime = document.getElementById("calModalStartTime").value;
@@ -4351,6 +4418,9 @@
       return;
     }
     calEditingEvent = event || null;
+    calOccasionMode = false;
+    setOccasionUi(false);
+    document.getElementById("calOccasionJewish").checked = false;
     var readOnly = !!(event && (event.canEdit === false || event.provider === "builtin"));
     document.getElementById("calModalTitle").textContent = event ? (readOnly ? "Event (read-only)" : "Edit Event") : "New Event";
     document.getElementById("calModalName").value = event ? event.title : "";
@@ -4424,6 +4494,10 @@
     }
 
     applyCalType(event ? ((event.attendees && event.attendees.length) ? "meeting" : "appointment") : "meeting", true);
+    if (event && event.kind === "occasion" && event.provider === "local" && !readOnly) {
+      applyOccasionMode(true, event.repeat === "jewish-yearly");
+      document.getElementById("calModalTitle").textContent = "Edit Occasion";
+    }
     document.getElementById("calTypeRow").style.display = event ? "none" : "";
 
     fillCalendarPicker(event ? event.accountId : null, event ? event.calendarId : null, readOnly);
@@ -4483,6 +4557,7 @@
     var repeat = repeatChecked ? document.getElementById("calModalRepeat").value : "none";
     var isLocalEvent = calEditingEvent ? calEditingEvent.provider === "local" : false;
     try { payload.timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
+    if (calOccasionMode) { payload.kind = "occasion"; payload.allDay = true; payload.end = payload.start; }
     var canSetRepeat = !calEditingEvent || isLocalEvent || !calEditingEvent.recurring;
     if (canSetRepeat) {
       // Always sent, so un-ticking "Repeats" or clearing the end date sticks
