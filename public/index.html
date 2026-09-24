@@ -17,7 +17,7 @@
   }
   /* Always light — intentionally ignores the device's dark-mode setting so the app looks the same on mobile as on desktop. */
   * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+  html, body { margin: 0; padding: 0; background: #6b8f79; color: var(--ink); }
   /* Always reserve the vertical scrollbar's space, whether or not the current
      view is long enough to need one. Without this, a long view (Boards) shows a
      scrollbar and a short view (Admin) doesn't, so the page width changes by the
@@ -60,7 +60,7 @@
   .topbar button.logout:hover { background: #9a3e32; }
   .topbar .dot { display: none; }
 
-  .page { display: flex; align-items: flex-start; justify-content: center; gap: 28px; max-width: 1800px; margin: 0 auto; padding: 0 28px; }
+  .page { display: flex; align-items: flex-start; justify-content: center; gap: 28px; max-width: 1800px; margin: 0 auto; padding: 0 28px; background: var(--bg); }
   .wrap { max-width: none; flex: 2.5 1 0; min-width: 0; margin: 0; padding: 20px 0 100px; }
 
   .board-chat { flex: 2 1 0; min-width: 0; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: calc(var(--nav-h, 67px) + var(--tabs-h, 54px) + 12px); align-self: flex-start; display: flex; flex-direction: column; max-height: calc(100vh - var(--nav-h, 67px) - var(--tabs-h, 54px) - 32px); transition: none; }
@@ -383,7 +383,7 @@
   /* ---- Admin view: merged in from the old standalone users.html page so
      switching between Boards and Admin is an instant client-side swap with
      no page reload / nav-bar flash, instead of two separate HTML documents. ---- */
-  .admin-wrap { max-width: 720px; margin: 0 auto; padding: 24px 20px 100px; }
+  .admin-wrap { max-width: 720px; margin: 0 auto; padding: 24px 20px 100px; background: var(--bg); min-height: 100vh; box-sizing: border-box; }
   .admin-wrap h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 30px; margin: 0 0 24px; letter-spacing: -0.01em; }
   .admin-wrap h2 { font-size: 15px; font-weight: 600; margin: 0 0 12px; }
   .admin-wrap table { width: 100%; border-collapse: collapse; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
@@ -455,8 +455,10 @@
   .cal-new-btn { background: var(--pine) !important; color: var(--bg-raised) !important; border-color: var(--pine) !important; font-weight: 600 !important; }
   .cal-view-btn { font-size: 12px !important; padding: 4px 10px !important; }
   .cal-view-btn.active { background: var(--pine) !important; color: var(--bg-raised) !important; border-color: var(--pine) !important; }
-  .cal-search-wrap { margin: 0 0 0 auto; }
-  .cal-search-wrap input { font-family: inherit; font-size: 12.5px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; width: 160px; }
+  .cal-search-wrap { margin: 0 0 0 auto; display: flex; align-items: center; gap: 6px; }
+  .cal-search-wrap input { font-family: inherit; font-size: 12px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; }
+  .cal-search-wrap input[type="text"] { width: 140px; }
+  .cal-search-date { width: 115px; font-size: 11px !important; }
   .board-search-spacer { flex: 1 1 auto; }
   .board-search-input { font-family: inherit; font-size: 12px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; width: 150px; flex-shrink: 0; margin-bottom: 6px; }
   .cal-type-row { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -494,10 +496,10 @@
   .cal-legend > span { display: flex; align-items: flex-start; gap: 7px; line-height: 1.35; word-break: break-word; }
   .cal-legend .cal-swatch { margin-top: 3px; }
   .cal-legend a { color: var(--pine); }
-  .cal-legend-item { display: flex; align-items: flex-start; gap: 7px; line-height: 1.35; width: 100%; text-align: left; font-family: inherit; font-size: 12.5px; color: var(--ink-soft); background: none; border: none; padding: 3px 5px; margin: 0 -5px; border-radius: 6px; cursor: pointer; word-break: break-word; }
+  .cal-legend-item { display: flex; align-items: center; gap: 7px; line-height: 1.35; width: 100%; text-align: left; font-family: inherit; font-size: 12.5px; color: var(--ink-soft); background: none; border: none; padding: 3px 5px; margin: 0 -5px; border-radius: 6px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cal-legend-item:hover { background: var(--bg); color: var(--ink); }
   .cal-legend-item.active { background: var(--pine-soft); color: var(--pine); font-weight: 600; }
-  .cal-legend-item .cal-swatch { margin-top: 3px; }
+  .cal-legend-item .cal-swatch { margin-top: 0; flex-shrink: 0; }
   /* agenda takes over the grid area when a calendar is clicked */
   .cal-grid.cal-agenda { display: flex !important; flex-direction: column !important; grid-template-columns: none !important; grid-template-rows: none !important; overflow-y: auto; padding: 0 4px 0 0; gap: 0 !important; }
   .cal-agenda-head { display: flex; align-items: center; gap: 8px; padding: 6px 0 12px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
@@ -511,14 +513,14 @@
   .cal-agenda-time { flex: 0 0 72px; font-size: 12px; color: var(--ink-soft); }
   .cal-agenda-name { font-size: 13px; color: var(--ink); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cal-agenda-empty { color: var(--ink-faint); font-size: 13px; padding: 20px 0; }
-  .cal-legend-account { font-size: 11px; font-weight: 600; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 4px; word-break: break-all; }
+  .cal-legend-account { font-size: 11px; font-weight: 600; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cal-event-pill { background: #1a73e8; }
 
   /* ---- Calendar view ---- */
   /* One screen, no page scrolling: the view is exactly the height left under
      the nav bar, the grid fills whatever is left after the header, and a busy
      day scrolls inside its own box instead of growing the page. */
-  .calendar-wrap { max-width: none; margin: 0; padding: 14px 22px 10px; height: calc(100vh - var(--nav-h, 67px)); box-sizing: border-box; overflow: hidden; }
+  .calendar-wrap { max-width: none; margin: 0; padding: 14px 22px 10px; height: calc(100vh - var(--nav-h, 67px)); box-sizing: border-box; overflow: hidden; background: var(--bg); }
   .cal-layout { display: flex; gap: 18px; height: 100%; align-items: stretch; }
   .cal-side { flex: 0 0 210px; min-width: 0; display: flex; flex-direction: column; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); padding: 12px 14px; overflow-y: auto; }
   .cal-side-title { font-weight: 600; font-size: 13px; color: var(--ink); margin-bottom: 10px; flex-shrink: 0; }
@@ -877,7 +879,11 @@
     <button id="calViewMonth" type="button" class="cal-view-btn active">Month</button>
     <button id="calViewYear" type="button" class="cal-view-btn">Year</button>
     <button id="calNewBtn" type="button" class="cal-new-btn">+ New</button>
-    <div class="cal-search-wrap"><input id="calSearchInput" type="text" placeholder="Search events…" autocomplete="off"></div>
+    <div class="cal-search-wrap">
+      <input id="calSearchInput" type="text" placeholder="Search events…" autocomplete="off">
+      <input id="calSearchFrom" type="date" title="From date" class="cal-search-date">
+      <input id="calSearchTo" type="date" title="To date" class="cal-search-date">
+    </div>
   </div>
   <div class="cal-grid-head">
     <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
@@ -1122,6 +1128,9 @@
   }
 
   function routeTo(hash) {
+    // Clean up any floating popovers from the previous view
+    document.querySelectorAll(".floating-popover").forEach(function (n) { n.remove(); });
+    openTodoDeleteMenus = {}; openNoteMenus = {};
     // A hash can carry a status after "?" — e.g. "#admin?cal=connected" when
     // Google/Microsoft sends you back after connecting a calendar account.
     var parts = String(hash || "").split("?");
@@ -3192,6 +3201,8 @@
         calSearchQuery = this.value.trim().toLowerCase();
         renderCalendarBody();
       });
+      document.getElementById("calSearchFrom").addEventListener("change", function () { renderCalendarBody(); });
+      document.getElementById("calSearchTo").addEventListener("change", function () { renderCalendarBody(); });
       document.getElementById("calModalClose").onclick = closeCalModal;
       document.getElementById("calModalCancel").onclick = closeCalModal;
       document.getElementById("calModalSave").onclick = saveCalEvent;
@@ -3263,13 +3274,24 @@
   function renderCalendarBody() {
     var grid = document.getElementById("calGrid");
     var head = document.querySelector(".cal-grid-head");
-    // Apply search filter to events
+    // Apply search and date range filter to events
     var filteredEvents = calendarEvents;
-    if (calSearchQuery) {
+    var searchFrom = document.getElementById("calSearchFrom").value;
+    var searchTo = document.getElementById("calSearchTo").value;
+    if (calSearchQuery || searchFrom || searchTo) {
       filteredEvents = calendarEvents.filter(function (e) {
-        return (e.title || "").toLowerCase().indexOf(calSearchQuery) >= 0 ||
-               (e.description || "").toLowerCase().indexOf(calSearchQuery) >= 0 ||
-               (e.location || "").toLowerCase().indexOf(calSearchQuery) >= 0;
+        if (calSearchQuery) {
+          var match = (e.title || "").toLowerCase().indexOf(calSearchQuery) >= 0 ||
+                 (e.description || "").toLowerCase().indexOf(calSearchQuery) >= 0 ||
+                 (e.location || "").toLowerCase().indexOf(calSearchQuery) >= 0;
+          if (!match) return false;
+        }
+        if (searchFrom || searchTo) {
+          var evDate = String(e.start).slice(0, 10);
+          if (searchFrom && evDate < searchFrom) return false;
+          if (searchTo && evDate > searchTo) return false;
+        }
+        return true;
       });
     }
     if (!calAgenda) {
@@ -3285,6 +3307,8 @@
     head.style.display = "none";
     grid.classList.add("cal-agenda");
     grid.innerHTML = "";
+    // Set the nav label to show the current viewing period
+    document.getElementById("calMonthLabel").textContent = calViewDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
     var evs = calendarEvents.filter(function (e) {
       if (e.accountId !== calAgenda.accountId || e.calendarId !== calAgenda.calendarId) return false;
       if (calSearchQuery) {
@@ -3299,7 +3323,7 @@
     var sw = el("span", "cal-swatch"); sw.style.background = calAgenda.color;
     header.appendChild(sw);
     header.appendChild(el("span", "cal-agenda-title", { text: calAgenda.name + (calAgenda.accountEmail ? " \u00b7 " + calAgenda.accountEmail : "") }));
-    var back = el("button", "cal-agenda-back", { type: "button", text: "Back to month" });
+    var back = el("button", "cal-agenda-back", { type: "button", text: "Back to all calendars" });
     back.onclick = function () { calAgenda = null; renderCalendarLegend(); renderCalendarBody(); };
     header.appendChild(back);
     grid.appendChild(header);
