@@ -3320,9 +3320,8 @@
       });
       document.getElementById("calFilterApply").onclick = function () {
         document.getElementById("calFilterDrop").style.display = "none";
-        var filterVal = document.querySelector("input[name='calFilter']:checked").value;
-        if (filterVal === "all") loadCalendarEvents();
-        else renderCalendarBody();
+        calMonthCache = {}; // clear cache to refetch with new range
+        loadCalendarEvents();
       };
       document.getElementById("calFilterCancel").onclick = function () {
         document.getElementById("calFilterDrop").style.display = "none";
@@ -3402,60 +3401,63 @@
     document.querySelectorAll(".floating-popover").forEach(function (n) { n.remove(); });
     var grid = document.getElementById("calGrid");
     var head = document.querySelector(".cal-grid-head");
-    // Apply search and date range filter (date range only applies to search results)
-    var filteredEvents = calendarEvents;
-    var filterMode = "view";
-    var checkedFilter = document.querySelector("input[name='calFilter']:checked");
-    if (checkedFilter) filterMode = checkedFilter.value;
-    var searchFrom = (filterMode === "range" && calSearchQuery) ? document.getElementById("calSearchFrom").value : "";
-    var searchTo = (filterMode === "range" && calSearchQuery) ? document.getElementById("calSearchTo").value : "";
-    if (calSearchQuery) {
-      filteredEvents = calendarEvents.filter(function (e) {
-        if (calSearchQuery) {
-          var match = (e.title || "").toLowerCase().indexOf(calSearchQuery) >= 0 ||
-                 (e.description || "").toLowerCase().indexOf(calSearchQuery) >= 0 ||
-                 (e.location || "").toLowerCase().indexOf(calSearchQuery) >= 0;
-          if (!match) return false;
-        }
-        if (searchFrom || searchTo) {
-          var evDate = String(e.start).slice(0, 10);
-          if (searchFrom && evDate < searchFrom) return false;
-          if (searchTo && evDate > searchTo) return false;
-        }
-        return true;
-      });
-    }
+    // --- SEARCH and AGENDA filters are INDEPENDENT ---
+    // Search: text match + optional date range from Filter dropdown. Ignores agenda filters.
+    // Agenda: account + time filters. Only applies when no search is active.
+    var isSearching = !!calSearchQuery;
 
     // Set the nav label
     document.getElementById("calMonthLabel").textContent = calViewDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
 
     if (calViewMode === "agenda") {
-      // Agenda view — flat list of all events
       head.style.display = "none";
       grid.classList.add("cal-agenda");
       grid.style.cssText = "";
       grid.innerHTML = "";
-      // Apply agenda account filter — exclude built-in calendars (holidays, parsha)
-      var acctFilter = document.getElementById("calAgendaAcctFilter").value;
-      var agendaEvs = filteredEvents.filter(function (e) { return e.provider !== "builtin"; });
-      if (acctFilter !== "all") {
-        var selectedAccts = Array.from(document.getElementById("calAgendaAcctFilter").selectedOptions).map(function (o) { return o.value; }).filter(function (v) { return v !== "all"; });
-        if (selectedAccts.length) {
-          agendaEvs = agendaEvs.filter(function (e) {
-            return selectedAccts.some(function (s) { var p = s.split("|"); return e.accountId === p[0] && e.calendarId === p.slice(1).join("|"); });
-          });
-        }
-      }
-      // Agenda date range filter
-      var agendaFrom = document.getElementById("calAgendaFrom").value;
-      var agendaTo = document.getElementById("calAgendaTo").value;
-      if (agendaFrom || agendaTo) {
-        agendaEvs = agendaEvs.filter(function (e) {
-          var d = String(e.start).slice(0, 10);
-          if (agendaFrom && d < agendaFrom) return false;
-          if (agendaTo && d > agendaTo) return false;
+
+      var agendaEvs;
+      if (isSearching) {
+        // SEARCH MODE: filter all loaded events by text, apply search Filter date range only
+        var filterMode = "view";
+        var checkedFilter = document.querySelector("input[name='calFilter']:checked");
+        if (checkedFilter) filterMode = checkedFilter.value;
+        var searchFrom = filterMode === "range" ? document.getElementById("calSearchFrom").value : "";
+        var searchTo = filterMode === "range" ? document.getElementById("calSearchTo").value : "";
+        agendaEvs = calendarEvents.filter(function (e) {
+          if (e.provider === "builtin") return false;
+          var match = (e.title || "").toLowerCase().indexOf(calSearchQuery) >= 0 ||
+                 (e.description || "").toLowerCase().indexOf(calSearchQuery) >= 0 ||
+                 (e.location || "").toLowerCase().indexOf(calSearchQuery) >= 0;
+          if (!match) return false;
+          if (searchFrom || searchTo) {
+            var evDate = String(e.start).slice(0, 10);
+            if (searchFrom && evDate < searchFrom) return false;
+            if (searchTo && evDate > searchTo) return false;
+          }
           return true;
         });
+      } else {
+        // AGENDA MODE: apply agenda account + time filters
+        agendaEvs = calendarEvents.filter(function (e) { return e.provider !== "builtin"; });
+        var acctFilter = document.getElementById("calAgendaAcctFilter").value;
+        if (acctFilter !== "all") {
+          var selectedAccts = Array.from(document.getElementById("calAgendaAcctFilter").selectedOptions).map(function (o) { return o.value; }).filter(function (v) { return v !== "all"; });
+          if (selectedAccts.length) {
+            agendaEvs = agendaEvs.filter(function (e) {
+              return selectedAccts.some(function (s) { var p = s.split("|"); return e.accountId === p[0] && e.calendarId === p.slice(1).join("|"); });
+            });
+          }
+        }
+        var agendaFrom = document.getElementById("calAgendaFrom").value;
+        var agendaTo = document.getElementById("calAgendaTo").value;
+        if (agendaFrom || agendaTo) {
+          agendaEvs = agendaEvs.filter(function (e) {
+            var d = String(e.start).slice(0, 10);
+            if (agendaFrom && d < agendaFrom) return false;
+            if (agendaTo && d > agendaTo) return false;
+            return true;
+          });
+        }
       }
       var evs = agendaEvs.slice().sort(function (a, b) { return new Date(a.start) - new Date(b.start); });
       if (!evs.length) {
@@ -3499,7 +3501,15 @@
     head.style.display = "";
     grid.classList.remove("cal-agenda");
     grid.style.cssText = "";
-    renderCalGrid(filteredEvents);
+    var calEvs = calendarEvents;
+    if (isSearching) {
+      calEvs = calendarEvents.filter(function (e) {
+        return (e.title || "").toLowerCase().indexOf(calSearchQuery) >= 0 ||
+               (e.description || "").toLowerCase().indexOf(calSearchQuery) >= 0 ||
+               (e.location || "").toLowerCase().indexOf(calSearchQuery) >= 0;
+      });
+    }
+    renderCalGrid(calEvs);
   }
 
   function renderCalendarLegend() {
@@ -3558,8 +3568,13 @@
   function calGridRange() {
     var year = calViewDate.getFullYear(), month = calViewDate.getMonth();
     var now = new Date();
-    // Agenda time filter
-    if (calViewMode === "agenda") {
+    // When searching with "All time" filter, fetch everything regardless of view mode
+    var searchFilter = document.querySelector("input[name='calFilter']:checked");
+    if (calSearchQuery && searchFilter && searchFilter.value === "all") {
+      return { start: new Date(1900, 0, 1), end: new Date(now.getFullYear() + 10, 0, 1) };
+    }
+    // Agenda time filter (only when not searching)
+    if (calViewMode === "agenda" && !calSearchQuery) {
       var agendaTime = document.getElementById("calAgendaTimeFilter").value;
       if (agendaTime === "all") return { start: new Date(1900, 0, 1), end: new Date(now.getFullYear() + 10, 0, 1) };
       if (agendaTime === "range") {
