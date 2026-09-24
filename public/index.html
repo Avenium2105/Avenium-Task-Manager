@@ -460,6 +460,9 @@
   .cal-filter-opt input { width: auto !important; margin: 0; accent-color: var(--pine); cursor: pointer; }
   .cal-filter-dates { display: flex; gap: 6px; padding-left: 20px; }
   .cal-filter-dates input { font-family: inherit; font-size: 11px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--ink); outline: none; width: 110px; }
+  .cal-filter-actions { display: flex; gap: 6px; margin-top: 4px; padding-top: 6px; border-top: 1px solid var(--line-soft); }
+  .cal-filter-apply { font-family: inherit; font-size: 12px; font-weight: 600; padding: 5px 14px; border: none; border-radius: 6px; background: var(--pine); color: var(--bg-raised); cursor: pointer; flex: 1; }
+  .cal-filter-cancel { font-family: inherit; font-size: 12px; padding: 5px 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-raised); color: var(--ink-soft); cursor: pointer; flex: 1; }
   .board-search-spacer { flex: 1 1 auto; }
   .board-search-input { font-family: inherit; font-size: 12px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; width: 150px; flex-shrink: 0; margin-bottom: 6px; }
   .cal-type-row { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -513,6 +516,7 @@
   .cal-agenda-date { flex: 0 0 140px; font-size: 12px; color: var(--ink-faint); }
   .cal-agenda-time { flex: 0 0 72px; font-size: 12px; color: var(--ink-soft); }
   .cal-agenda-name { font-size: 13px; color: var(--ink); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-agenda-repeat { font-size: 10.5px; color: var(--ink-faint); flex-shrink: 0; padding: 2px 6px; background: var(--line-soft); border-radius: 10px; }
   .cal-agenda-empty { color: var(--ink-faint); font-size: 13px; padding: 20px 0; }
   .cal-legend-account { font-size: 11px; font-weight: 600; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .cal-event-pill { background: #1a73e8; }
@@ -532,6 +536,7 @@
   .cal-nav-date-row { display: flex; align-items: center; gap: 10px; }
   .cal-arrow-btn { font-family: inherit; font-size: 16px; background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; color: var(--ink-soft); }
   .cal-arrow-btn:hover { border-color: var(--pine); color: var(--pine); }
+  .cal-arrow-sm { font-size: 14px; padding: 4px 7px; }
   #calMonthLabel { font-size: 18px; font-weight: 600; color: var(--ink); min-width: 170px; text-align: center; }
   .cal-nav-view-row { display: flex; gap: 4px; }
   .cal-pill-btn { font-family: inherit; font-size: 12px; font-weight: 500; padding: 5px 14px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg-raised); color: var(--ink-soft); cursor: pointer; }
@@ -539,8 +544,12 @@
   .cal-pill-btn.active { background: var(--pine); color: var(--bg-raised); border-color: var(--pine); font-weight: 600; }
   .cal-nav-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
   .cal-search-input { font-family: inherit; font-size: 12px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; width: 130px; }
-  .cal-agenda-filter-bar { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+  .cal-agenda-filter-bar { display: flex; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); margin-bottom: 4px; align-items: center; flex-wrap: wrap; }
   .cal-agenda-select { font-family: inherit; font-size: 12px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); outline: none; }
+  .cal-agenda-date-input { font-family: inherit; font-size: 11px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--ink); outline: none; width: 110px; }
+  .cal-bulk-del-btn { font-family: inherit; font-size: 11px; padding: 4px 10px; border: none; border-radius: 6px; background: var(--brick-soft); color: var(--brick); cursor: pointer; font-weight: 600; }
+  .cal-bulk-del-btn:hover { opacity: 0.8; }
+  .cal-agenda-check { width: auto !important; margin: 0 6px 0 0; cursor: pointer; accent-color: var(--pine); flex-shrink: 0; }
   .cal-side-title { font-weight: 600; font-size: 13px; color: var(--ink); margin-bottom: 10px; flex-shrink: 0; }
   .cal-grid-head { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; margin-bottom: 2px; flex-shrink: 0; }
   .cal-grid-head span { text-align: center; font-size: 12px; font-weight: 600; color: var(--ink-faint); padding: 2px 0; }
@@ -883,9 +892,11 @@
     <button id="calNewBtn" type="button" class="cal-add-event-btn">+ Add Event</button>
     <div class="cal-nav-center">
       <div class="cal-nav-date-row">
-        <button id="calPrevBtn" type="button" class="cal-arrow-btn">←</button>
+        <button id="calPrevYear" type="button" class="cal-arrow-btn cal-arrow-sm" title="Previous year">&laquo;</button>
+        <button id="calPrevBtn" type="button" class="cal-arrow-btn" title="Previous month">&lsaquo;</button>
         <span id="calMonthLabel"></span>
-        <button id="calNextBtn" type="button" class="cal-arrow-btn">→</button>
+        <button id="calNextBtn" type="button" class="cal-arrow-btn" title="Next month">&rsaquo;</button>
+        <button id="calNextYear" type="button" class="cal-arrow-btn cal-arrow-sm" title="Next year">&raquo;</button>
       </div>
       <div class="cal-nav-view-row">
         <button id="calTodayBtn" type="button" class="cal-pill-btn">Today</button>
@@ -905,13 +916,20 @@
             <input id="calSearchFrom" type="date">
             <input id="calSearchTo" type="date">
           </div>
+          <div class="cal-filter-actions">
+            <button id="calFilterApply" type="button" class="cal-filter-apply">Apply</button>
+            <button id="calFilterCancel" type="button" class="cal-filter-cancel">Cancel</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
   <div id="calAgendaFilterBar" class="cal-agenda-filter-bar" style="display:none;">
-    <select id="calAgendaAcctFilter" class="cal-agenda-select"><option value="all">All accounts</option></select>
-    <select id="calAgendaTimeFilter" class="cal-agenda-select"><option value="year">This year</option><option value="month">This month</option><option value="all">All time</option></select>
+    <select id="calAgendaAcctFilter" class="cal-agenda-select" multiple size="1"><option value="all" selected>All accounts</option></select>
+    <select id="calAgendaTimeFilter" class="cal-agenda-select"><option value="year">This year</option><option value="month">This month</option><option value="range">Date range</option><option value="all">All time</option></select>
+    <input id="calAgendaFrom" type="date" class="cal-agenda-date-input" style="display:none;">
+    <input id="calAgendaTo" type="date" class="cal-agenda-date-input" style="display:none;">
+    <button id="calAgendaBulkDel" type="button" class="cal-bulk-del-btn" style="display:none;">Delete selected</button>
   </div>
   <div class="cal-grid-head">
     <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
@@ -1131,6 +1149,12 @@
     document.getElementById("adminView").style.display = "none";
     document.getElementById("calendarView").style.display = "none";
     document.title = "Avenium";
+    // Reset calendar filters
+    calSearchQuery = "";
+    var searchEl = document.getElementById("calSearchInput");
+    if (searchEl) searchEl.value = "";
+    var viewRadio = document.querySelector("input[name='calFilter'][value='view']");
+    if (viewRadio) viewRadio.checked = true;
     render();
   }
 
@@ -3220,13 +3244,23 @@
         calViewDate.setMonth(calViewDate.getMonth() + 1);
         loadCalendarEvents();
       };
+      document.getElementById("calPrevYear").onclick = function () {
+        calViewDate.setFullYear(calViewDate.getFullYear() - 1);
+        loadCalendarEvents();
+      };
+      document.getElementById("calNextYear").onclick = function () {
+        calViewDate.setFullYear(calViewDate.getFullYear() + 1);
+        loadCalendarEvents();
+      };
       document.getElementById("calTodayBtn").onclick = function () { calViewDate = new Date(); calViewDate.setDate(1); loadCalendarEvents(); };
       document.getElementById("calViewMonth").onclick = function () {
         calViewMode = "month";
         document.getElementById("calViewMonth").classList.add("active");
         document.getElementById("calViewAgenda").classList.remove("active");
         document.getElementById("calAgendaFilterBar").style.display = "none";
-        // Reset search filter to current view
+        // Reset search and filter
+        calSearchQuery = "";
+        document.getElementById("calSearchInput").value = "";
         var viewRadio = document.querySelector("input[name='calFilter'][value='view']");
         if (viewRadio) viewRadio.checked = true;
         document.getElementById("calFilterDates").style.display = "none";
@@ -3246,7 +3280,29 @@
         loadCalendarEvents();
       };
       document.getElementById("calAgendaAcctFilter").addEventListener("change", function () { renderCalendarBody(); });
-      document.getElementById("calAgendaTimeFilter").addEventListener("change", function () { loadCalendarEvents(); });
+      document.getElementById("calAgendaTimeFilter").addEventListener("change", function () {
+        var val = this.value;
+        document.getElementById("calAgendaFrom").style.display = val === "range" ? "" : "none";
+        document.getElementById("calAgendaTo").style.display = val === "range" ? "" : "none";
+        loadCalendarEvents();
+      });
+      document.getElementById("calAgendaFrom").addEventListener("change", function () { renderCalendarBody(); });
+      document.getElementById("calAgendaTo").addEventListener("change", function () { renderCalendarBody(); });
+      document.getElementById("calAgendaBulkDel").addEventListener("click", function () {
+        var checked = document.querySelectorAll(".cal-agenda-check:checked");
+        if (!checked.length) return;
+        if (!window.confirm("Delete " + checked.length + " selected event(s)?")) return;
+        var promises = [];
+        checked.forEach(function (chk) {
+          promises.push(
+            fetch("/api/calendar/events?accountId=" + encodeURIComponent(chk.dataset.accountId) + "&calendarId=" + encodeURIComponent(chk.dataset.calendarId) + "&eventId=" + encodeURIComponent(chk.dataset.eventId), { method: "DELETE" })
+          );
+        });
+        Promise.all(promises).then(function () {
+          calMonthCache = {};
+          loadCalendarEvents();
+        });
+      });
       document.getElementById("calSearchInput").addEventListener("input", function () {
         calSearchQuery = this.value.trim().toLowerCase();
         renderCalendarBody();
@@ -3256,15 +3312,23 @@
         var drop = document.getElementById("calFilterDrop");
         drop.style.display = drop.style.display === "none" ? "flex" : "none";
       };
+      document.getElementById("calFilterDrop").addEventListener("click", function (e) { e.stopPropagation(); }); // keep open on click inside
       document.querySelectorAll("input[name='calFilter']").forEach(function (r) {
         r.addEventListener("change", function () {
           document.getElementById("calFilterDates").style.display = this.value === "range" ? "flex" : "none";
-          if (this.value === "all") loadCalendarEvents();
-          else renderCalendarBody();
         });
       });
-      document.getElementById("calSearchFrom").addEventListener("change", function () { renderCalendarBody(); });
-      document.getElementById("calSearchTo").addEventListener("change", function () { renderCalendarBody(); });
+      document.getElementById("calFilterApply").onclick = function () {
+        document.getElementById("calFilterDrop").style.display = "none";
+        var filterVal = document.querySelector("input[name='calFilter']:checked").value;
+        if (filterVal === "all") loadCalendarEvents();
+        else renderCalendarBody();
+      };
+      document.getElementById("calFilterCancel").onclick = function () {
+        document.getElementById("calFilterDrop").style.display = "none";
+      };
+      document.getElementById("calSearchFrom").addEventListener("change", function () {}); // no-op, Apply handles it
+      document.getElementById("calSearchTo").addEventListener("change", function () {}); // no-op, Apply handles it
       document.getElementById("calModalClose").onclick = closeCalModal;
       document.getElementById("calModalCancel").onclick = closeCalModal;
       document.getElementById("calModalSave").onclick = saveCalEvent;
@@ -3375,22 +3439,56 @@
       var acctFilter = document.getElementById("calAgendaAcctFilter").value;
       var agendaEvs = filteredEvents;
       if (acctFilter !== "all") {
-        var parts = acctFilter.split("|");
-        agendaEvs = agendaEvs.filter(function (e) { return e.accountId === parts[0] && e.calendarId === parts.slice(1).join("|"); });
+        var selectedAccts = Array.from(document.getElementById("calAgendaAcctFilter").selectedOptions).map(function (o) { return o.value; }).filter(function (v) { return v !== "all"; });
+        if (selectedAccts.length) {
+          agendaEvs = agendaEvs.filter(function (e) {
+            return selectedAccts.some(function (s) { var p = s.split("|"); return e.accountId === p[0] && e.calendarId === p.slice(1).join("|"); });
+          });
+        }
+      }
+      // Agenda date range filter
+      var agendaFrom = document.getElementById("calAgendaFrom").value;
+      var agendaTo = document.getElementById("calAgendaTo").value;
+      if (agendaFrom || agendaTo) {
+        agendaEvs = agendaEvs.filter(function (e) {
+          var d = String(e.start).slice(0, 10);
+          if (agendaFrom && d < agendaFrom) return false;
+          if (agendaTo && d > agendaTo) return false;
+          return true;
+        });
       }
       var evs = agendaEvs.slice().sort(function (a, b) { return new Date(a.start) - new Date(b.start); });
       if (!evs.length) {
         grid.appendChild(el("div", "cal-agenda-empty", { text: "No events found." }));
+        document.getElementById("calAgendaBulkDel").style.display = "none";
         return;
       }
+      var checkedIds = [];
       evs.forEach(function (ev) {
         var row = el("button", "cal-agenda-row", { type: "button" });
+        if (ev.canEdit) {
+          var chk = el("input", "cal-agenda-check", { type: "checkbox" });
+          chk.addEventListener("click", function (e) { e.stopPropagation(); });
+          chk.addEventListener("change", function () {
+            var delBtn = document.getElementById("calAgendaBulkDel");
+            var checked = grid.querySelectorAll(".cal-agenda-check:checked");
+            delBtn.style.display = checked.length ? "" : "none";
+          });
+          chk.dataset.accountId = ev.accountId;
+          chk.dataset.calendarId = ev.calendarId;
+          chk.dataset.eventId = ev.externalId || ev.id;
+          row.appendChild(chk);
+        }
         var d = new Date(calDayKey(ev) + "T12:00:00");
         var dateStr = d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", weekday: "short" });
         row.appendChild(el("span", "cal-agenda-date", { text: dateStr }));
         var time = ev.allDay ? "All day" : new Date(ev.start).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
         row.appendChild(el("span", "cal-agenda-time", { text: time }));
         row.appendChild(el("span", "cal-agenda-name", { text: ev.title }));
+        if (ev.repeat && ev.repeat !== "none") {
+          var repeatLabels = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly", "jewish-monthly": "Monthly (Jewish)", "jewish-yearly": "Yearly (Jewish)" };
+          row.appendChild(el("span", "cal-agenda-repeat", { text: "\u21BB " + (repeatLabels[ev.repeat] || ev.repeat) }));
+        }
         row.onclick = function () { openCalModal(ev); };
         grid.appendChild(row);
       });
@@ -3440,17 +3538,20 @@
 
   function populateAgendaAccountFilter() {
     var sel = document.getElementById("calAgendaAcctFilter");
-    var curVal = sel.value;
+    var prevSelected = Array.from(sel.selectedOptions).map(function (o) { return o.value; });
     sel.innerHTML = '<option value="all">All accounts</option>';
     calendarAccounts.forEach(function (acct) {
       acct.calendars.forEach(function (c) {
+        if (c.visible === false) return; // only show calendars enabled in admin
         var label = c.name;
         if (acct.email) label += " \u2014 " + acct.email;
         var opt = el("option", "", { value: acct.id + "|" + c.id, text: label });
+        if (prevSelected.indexOf(opt.value) >= 0) opt.selected = true;
         sel.appendChild(opt);
       });
     });
-    if (curVal) sel.value = curVal;
+    // If nothing previously selected, select "all"
+    if (!sel.selectedOptions.length) sel.options[0].selected = true;
   }
 
   function calGridRange() {
@@ -3460,6 +3561,13 @@
     if (calViewMode === "agenda") {
       var agendaTime = document.getElementById("calAgendaTimeFilter").value;
       if (agendaTime === "all") return { start: new Date(1900, 0, 1), end: new Date(now.getFullYear() + 10, 0, 1) };
+      if (agendaTime === "range") {
+        var af = document.getElementById("calAgendaFrom").value;
+        var at = document.getElementById("calAgendaTo").value;
+        var rs = af ? new Date(af + "T00:00:00") : new Date(1900, 0, 1);
+        var re = at ? new Date(at + "T23:59:59") : new Date(now.getFullYear() + 10, 0, 1);
+        return { start: rs, end: re };
+      }
       if (agendaTime === "month") {
         var first = new Date(year, month, 1);
         var last = new Date(year, month + 1, 0);
@@ -4055,9 +4163,6 @@
   // aren't tied to one of the flags below.
   document.addEventListener("click", function () {
     hideMsgTooltip();
-    // Close calendar filter dropdown
-    var fd = document.getElementById("calFilterDrop");
-    if (fd) fd.style.display = "none";
     var changed = Object.keys(openAssigneePickers).length || Object.keys(openBoardAccess).length || Object.keys(openStepMenus).length || Object.keys(openBoardMenus).length || Object.keys(openStepRowMenus).length || Object.keys(openMessagePopovers).length || Object.keys(openTodoDeleteMenus).length || Object.keys(openNoteMenus).length || openNewBoardForm || document.querySelectorAll(".floating-popover").length;
     if (changed) {
       openAssigneePickers = {}; openBoardAccess = {}; openStepMenus = {}; openBoardMenus = {}; openStepRowMenus = {}; openMessagePopovers = {}; openTodoDeleteMenus = {}; openNoteMenus = {}; openNewBoardForm = false;
