@@ -3459,7 +3459,7 @@
     // Agenda time filter
     if (calViewMode === "agenda") {
       var agendaTime = document.getElementById("calAgendaTimeFilter").value;
-      if (agendaTime === "all") return { start: new Date(2000, 0, 1), end: new Date(now.getFullYear() + 10, 0, 1) };
+      if (agendaTime === "all") return { start: new Date(1900, 0, 1), end: new Date(now.getFullYear() + 10, 0, 1) };
       if (agendaTime === "month") {
         var first = new Date(year, month, 1);
         var last = new Date(year, month + 1, 0);
@@ -3471,7 +3471,7 @@
     // Search filter
     var checkedFilter = document.querySelector("input[name='calFilter']:checked");
     if (checkedFilter && checkedFilter.value === "all") {
-      return { start: new Date(2000, 0, 1), end: new Date(now.getFullYear() + 10, 0, 1) };
+      return { start: new Date(1900, 0, 1), end: new Date(now.getFullYear() + 10, 0, 1) };
     }
     var first2 = new Date(year, month, 1);
     var start = new Date(first2); start.setDate(1 - first2.getDay());
