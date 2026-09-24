@@ -63,9 +63,9 @@
   .page { display: flex; align-items: flex-start; justify-content: center; gap: 28px; max-width: 1800px; margin: 0 auto; padding: 0 28px; }
   .wrap { max-width: none; flex: 2.5 1 0; min-width: 0; margin: 0; padding: 20px 0 100px; }
 
-  .board-chat { flex: 2 1 0; min-width: 0; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: calc(var(--nav-h, 67px) + var(--tabs-h, 54px) + 12px); display: flex; flex-direction: column; max-height: calc(100vh - var(--nav-h, 67px) - var(--tabs-h, 54px) - 32px); transition: none; }
+  .board-chat { flex: 2 1 0; min-width: 0; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: calc(var(--nav-h, 67px) + var(--tabs-h, 54px) + 12px); align-self: flex-start; display: flex; flex-direction: column; max-height: calc(100vh - var(--nav-h, 67px) - var(--tabs-h, 54px) - 32px); transition: none; }
 
-  .todo-sidebar { flex: 1.2 1 0; min-width: 0; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: calc(var(--nav-h, 67px) + var(--tabs-h, 54px) + 12px); display: flex; flex-direction: column; max-height: calc(100vh - var(--nav-h, 67px) - var(--tabs-h, 54px) - 32px); }
+  .todo-sidebar { flex: 1.2 1 0; min-width: 0; margin: 20px 0 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); position: sticky; top: calc(var(--nav-h, 67px) + var(--tabs-h, 54px) + 12px); align-self: flex-start; display: flex; flex-direction: column; max-height: calc(100vh - var(--nav-h, 67px) - var(--tabs-h, 54px) - 32px); }
   .todo-sidebar-head { flex-shrink: 0; font-weight: 600; font-size: 14px; color: var(--ink); padding: 14px 16px; border-bottom: 1px solid var(--line); }
   .todo-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
   .todo-empty { color: var(--ink-faint); font-size: 12.5px; padding: 6px 4px; }
@@ -253,7 +253,8 @@
   .step-menu button { display: block; width: 100%; text-align: left; font-family: inherit; font-size: 13px; color: var(--ink); background: none; border: none; padding: 9px 11px; border-radius: 5px; cursor: pointer; }
   .step-menu button:hover:not(:disabled) { background: var(--line-soft); }
   .step-menu button:disabled { color: var(--ink-faint); cursor: default; }
-  .step-menu button.danger:hover { background: var(--brick-soft); color: var(--brick); }
+  .step-menu button.danger { color: #c0392b; font-weight: 600; }
+  .step-menu button.danger:hover { background: var(--brick-soft); color: #c0392b; }
 
   .step-add-row { display: flex; gap: 6px; padding: 2px 0; }
   .step-add-row input { flex: 1; font-family: inherit; font-size: 14px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; }
@@ -2062,7 +2063,7 @@
     });
 
     row.addEventListener("contextmenu", function (e) {
-      if (e.target.closest("input, textarea")) return; // don't hijack text field right-click
+      if (e.target.closest("textarea")) return; // don't hijack multiline text field right-click
       e.preventDefault();
       document.querySelectorAll(".floating-popover").forEach(function (n) { n.remove(); });
       var pop = el("div", "read-receipt-popover");
@@ -2140,9 +2141,11 @@
         }
         var deleteStepBtn = el("button", "danger", { type: "button", text: "Delete Step" });
         deleteStepBtn.addEventListener("click", function () {
-          delete openStepRowMenus[s.id];
-          socket.emit("deleteTaskStep", { itemId: item.id, stepId: s.id });
-          render();
+          if (window.confirm("Delete this step?")) {
+            delete openStepRowMenus[s.id];
+            socket.emit("deleteTaskStep", { itemId: item.id, stepId: s.id });
+            render();
+          }
         });
         rowMenu.appendChild(deleteStepBtn);
         if (item.archived) {
@@ -2173,12 +2176,14 @@
         } else {
           var completeTaskBtn2 = el("button", "danger", { type: "button", text: "Task Complete" });
           completeTaskBtn2.addEventListener("click", function () {
-            delete openStepRowMenus[s.id];
-            socket.emit("completeTask", { itemId: item.id });
-            if (window.confirm("\"" + item.title + "\" marked complete. Archive it now?")) {
-              socket.emit("archiveTask", { itemId: item.id });
+            if (window.confirm("Mark \"" + item.title + "\" as complete?")) {
+              delete openStepRowMenus[s.id];
+              socket.emit("completeTask", { itemId: item.id });
+              if (window.confirm("Archive it now?")) {
+                socket.emit("archiveTask", { itemId: item.id });
+              }
+              render();
             }
-            render();
           });
           rowMenu.appendChild(completeTaskBtn2);
         }
@@ -4000,9 +4005,9 @@
   // aren't tied to one of the flags below.
   document.addEventListener("click", function () {
     hideMsgTooltip();
-    var changed = Object.keys(openAssigneePickers).length || Object.keys(openBoardAccess).length || Object.keys(openStepMenus).length || Object.keys(openBoardMenus).length || Object.keys(openStepRowMenus).length || Object.keys(openMessagePopovers).length || openNewBoardForm || document.querySelectorAll(".floating-popover").length;
+    var changed = Object.keys(openAssigneePickers).length || Object.keys(openBoardAccess).length || Object.keys(openStepMenus).length || Object.keys(openBoardMenus).length || Object.keys(openStepRowMenus).length || Object.keys(openMessagePopovers).length || Object.keys(openTodoDeleteMenus).length || Object.keys(openNoteMenus).length || openNewBoardForm || document.querySelectorAll(".floating-popover").length;
     if (changed) {
-      openAssigneePickers = {}; openBoardAccess = {}; openStepMenus = {}; openBoardMenus = {}; openStepRowMenus = {}; openMessagePopovers = {}; openNewBoardForm = false;
+      openAssigneePickers = {}; openBoardAccess = {}; openStepMenus = {}; openBoardMenus = {}; openStepRowMenus = {}; openMessagePopovers = {}; openTodoDeleteMenus = {}; openNoteMenus = {}; openNewBoardForm = false;
       render();
     }
   });
