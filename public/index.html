@@ -545,7 +545,7 @@
   .cal-nav-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
   .cal-search-wrap { position: relative; }
   .cal-search-input { font-family: inherit; font-size: 12px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; width: 170px; }
-  .cal-search-drop { position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 20px rgba(34,38,31,0.14); min-width: 340px; max-width: 420px; z-index: 650; overflow: hidden; display: none; }
+  .cal-search-drop { position: fixed; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 20px rgba(34,38,31,0.14); min-width: 340px; max-width: 420px; z-index: 700; overflow: hidden; display: none; }
   .cal-search-drop-item { display: flex; align-items: baseline; gap: 0; width: 100%; text-align: left; font-family: inherit; background: none; border: none; border-bottom: 1px solid var(--line-soft); padding: 8px 12px; cursor: pointer; }
   .cal-search-drop-item:last-child { border-bottom: none; }
   .cal-search-drop-item:hover { background: var(--bg); }
@@ -3514,6 +3514,11 @@
     drop.innerHTML = "";
     if (!q) { drop.style.display = "none"; return; }
     var matches = calSearchMatchEvents(q);
+    // Position dropdown below the search input using fixed positioning
+    var input = document.getElementById("calSearchInput");
+    var rect = input.getBoundingClientRect();
+    drop.style.top = (rect.bottom + 4) + "px";
+    drop.style.right = (window.innerWidth - rect.right) + "px";
     drop.style.display = "block";
     if (!matches.length) {
       drop.appendChild(el("div", "cal-search-drop-empty", { text: "No events found." }));
