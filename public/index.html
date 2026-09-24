@@ -3435,9 +3435,9 @@
       grid.classList.add("cal-agenda");
       grid.style.cssText = "";
       grid.innerHTML = "";
-      // Apply agenda account filter
+      // Apply agenda account filter — exclude built-in calendars (holidays, parsha)
       var acctFilter = document.getElementById("calAgendaAcctFilter").value;
-      var agendaEvs = filteredEvents;
+      var agendaEvs = filteredEvents.filter(function (e) { return e.provider !== "builtin"; });
       if (acctFilter !== "all") {
         var selectedAccts = Array.from(document.getElementById("calAgendaAcctFilter").selectedOptions).map(function (o) { return o.value; }).filter(function (v) { return v !== "all"; });
         if (selectedAccts.length) {
@@ -3541,6 +3541,7 @@
     var prevSelected = Array.from(sel.selectedOptions).map(function (o) { return o.value; });
     sel.innerHTML = '<option value="all">All accounts</option>';
     calendarAccounts.forEach(function (acct) {
+      if (acct.provider === "builtin") return; // exclude holidays/parsha from agenda filter
       acct.calendars.forEach(function (c) {
         if (c.visible === false) return; // only show calendars enabled in admin
         var label = c.name;
