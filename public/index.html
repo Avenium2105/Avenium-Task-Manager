@@ -3448,8 +3448,20 @@
             });
           }
         }
-        var agendaFrom = document.getElementById("calAgendaFrom").value;
-        var agendaTo = document.getElementById("calAgendaTo").value;
+        // Client-side date filtering for all time modes
+        var agendaTimeVal = document.getElementById("calAgendaTimeFilter").value;
+        var agendaFrom = "", agendaTo = "";
+        if (agendaTimeVal === "month") {
+          agendaFrom = calViewDate.getFullYear() + "-" + String(calViewDate.getMonth() + 1).padStart(2, "0") + "-01";
+          var lastDay = new Date(calViewDate.getFullYear(), calViewDate.getMonth() + 1, 0).getDate();
+          agendaTo = calViewDate.getFullYear() + "-" + String(calViewDate.getMonth() + 1).padStart(2, "0") + "-" + String(lastDay).padStart(2, "0");
+        } else if (agendaTimeVal === "year") {
+          agendaFrom = calViewDate.getFullYear() + "-01-01";
+          agendaTo = calViewDate.getFullYear() + "-12-31";
+        } else if (agendaTimeVal === "range") {
+          agendaFrom = document.getElementById("calAgendaFrom").value;
+          agendaTo = document.getElementById("calAgendaTo").value;
+        }
         if (agendaFrom || agendaTo) {
           agendaEvs = agendaEvs.filter(function (e) {
             var d = String(e.start).slice(0, 10);
