@@ -57,8 +57,32 @@ if (calendarTokens.some((t) => !t.id)) {
   calendarTokens.forEach((t) => { if (!t.id) t.id = "cal" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); });
   fs.writeFileSync(TOKENS_FILE, JSON.stringify(calendarTokens, null, 2));
 }
+// ---- Safe JSON saving ----
+// Overlapping fs.writeFile calls on the same file interleave and leave
+// garbage at the end of it; on the next restart the file can't be parsed and
+// loads as EMPTY (every Avenium event / calendar connection gone). Saves to
+// a file are now queued one at a time, written to a temp file, then renamed
+// over the real one in a single step — the file is always old-or-new, never torn.
+const _saveQueue = {};
+function saveJsonSafely(file, getData) {
+  const q = _saveQueue[file] || (_saveQueue[file] = { busy: false, again: false });
+  if (q.busy) { q.again = true; return; }   // the running save will be followed by one with the latest data
+  q.busy = true;
+  const tmp = file + ".tmp";
+  const finish = () => { q.busy = false; if (q.again) { q.again = false; saveJsonSafely(file, getData); } };
+  let text;
+  try { text = JSON.stringify(getData(), null, 2); } catch (e) { console.error("Couldn't serialize " + file + ":", e.message); return finish(); }
+  fs.writeFile(tmp, text, (err) => {
+    if (err) { console.error("Failed to save " + path.basename(file) + ":", err.message); return finish(); }
+    fs.rename(tmp, file, (err2) => {
+      if (err2) console.error("Failed to save " + path.basename(file) + ":", err2.message);
+      finish();
+    });
+  });
+}
+
 function persistTokens() {
-  fs.writeFile(TOKENS_FILE, JSON.stringify(calendarTokens, null, 2), () => {});
+  saveJsonSafely(TOKENS_FILE, () => calendarTokens);
 }
 function listAccounts(userId) {
   return calendarTokens.filter((t) => t.userId === userId);
@@ -93,7 +117,7 @@ const CAL_PREFS_FILE = path.join(DATA_DIR, "calendar-prefs.json");
 let calendarPrefs = {};
 try { calendarPrefs = JSON.parse(fs.readFileSync(CAL_PREFS_FILE, "utf8")); } catch (e) { calendarPrefs = {}; }
 function persistCalPrefs() {
-  fs.writeFile(CAL_PREFS_FILE, JSON.stringify(calendarPrefs, null, 2), () => {});
+  saveJsonSafely(CAL_PREFS_FILE, () => calendarPrefs);
 }
 function hiddenSet(userId) {
   return new Set((calendarPrefs[userId] && calendarPrefs[userId].hidden) || []);
@@ -129,7 +153,7 @@ const LOCAL_EVENTS_FILE = path.join(DATA_DIR, "local-events.json");
 let localEvents = [];
 try { localEvents = JSON.parse(fs.readFileSync(LOCAL_EVENTS_FILE, "utf8")); } catch (e) { localEvents = []; }
 function persistLocalEvents() {
-  fs.writeFile(LOCAL_EVENTS_FILE, JSON.stringify(localEvents, null, 2), () => {});
+  saveJsonSafely(LOCAL_EVENTS_FILE, () => localEvents);
 }
 
 // ---- Hebrew date conversion ----
@@ -932,11 +956,7 @@ let state = loadState();
 let saveTimer = null;
 function persist() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    fs.writeFile(DATA_FILE, JSON.stringify(state, null, 2), (err) => {
-      if (err) console.error("Failed to save data.json:", err.message);
-    });
-  }, 150);
+  saveTimer = setTimeout(() => saveJsonSafely(DATA_FILE, () => state), 150);
 }
 
 function logActivity(text) {
@@ -2579,9 +2599,15 @@ app.delete("/api/calendar/events", requireAuth, async (req, res) => {
   if (!acct || !eventId) return res.status(400).json({ error: "invalid_request" });
   try {
     const a = await freshToken(acct);
-    if (a.provider === "google") await googleApiRequest(a.accessToken, "DELETE", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`);
-    else await graphRequest(a.accessToken, "DELETE", `/me/events/${encodeURIComponent(eventId)}`);
+    const r = a.provider === "google"
+      ? await googleApiRequest(a.accessToken, "DELETE", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`)
+      : await graphRequest(a.accessToken, "DELETE", `/me/events/${encodeURIComponent(eventId)}`);
     invalidateCalendarCache(`ev:${a.id}:`);
+    // 404/410 = already gone, which is what was wanted. Anything else that
+    // failed used to be reported as success.
+    if (r.status >= 300 && r.status !== 404 && r.status !== 410) {
+      return res.status(502).json({ error: "provider_rejected", message: providerError(a.provider === "google" ? "Google" : "Outlook", r).message });
+    }
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });

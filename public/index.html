@@ -583,6 +583,9 @@
   .cal-agenda-date-input { font-family: inherit; font-size: 11px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--bg); color: var(--ink); outline: none; width: 110px; }
   .cal-bulk-del-btn { font-family: inherit; font-size: 11px; padding: 4px 10px; border: none; border-radius: 6px; background: var(--brick-soft); color: var(--brick); cursor: pointer; font-weight: 600; }
   .cal-bulk-del-btn:hover { opacity: 0.8; }
+  .cal-select-all { display: none; align-items: center; gap: 5px; font-size: 12px; color: var(--ink-soft); cursor: pointer; white-space: nowrap; }
+  .cal-select-all input { width: auto !important; margin: 0; accent-color: var(--pine); cursor: pointer; }
+  .cal-bulk-del-btn:disabled { opacity: 0.6; cursor: wait; }
   .cal-agenda-check { width: auto !important; margin: 0 6px 0 0; cursor: pointer; accent-color: var(--pine); flex-shrink: 0; }
   .cal-side-title { font-weight: 600; font-size: 13px; color: var(--ink); margin-bottom: 10px; flex-shrink: 0; }
   .cal-grid-head { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; margin-bottom: 2px; flex-shrink: 0; }
@@ -997,6 +1000,7 @@
     <select id="calAgendaTimeFilter" class="cal-agenda-select"><option value="year">This year</option><option value="month">This month</option><option value="range">Date range</option><option value="all">All time</option></select>
     <input id="calAgendaFrom" type="date" class="cal-agenda-date-input" style="display:none;">
     <input id="calAgendaTo" type="date" class="cal-agenda-date-input" style="display:none;">
+    <label class="cal-select-all" id="calAgendaSelectAllWrap"><input id="calAgendaSelectAll" type="checkbox"> Select all</label>
     <button id="calAgendaBulkDel" type="button" class="cal-bulk-del-btn" style="display:none;">Delete selected</button>
   </div>
   <div class="cal-grid-head">
@@ -1008,6 +1012,8 @@
     <div class="cal-search-results-head">
       <span class="cal-search-results-title" id="calSearchResultsTitle">Search results</span>
       <span class="cal-search-results-scope" id="calSearchResultsScope"></span>
+      <label class="cal-select-all" id="calSearchSelectAllWrap"><input id="calSearchSelectAll" type="checkbox"> Select all</label>
+      <button id="calSearchBulkDel" type="button" class="cal-bulk-del-btn" style="display:none;">Delete selected</button>
       <button id="calSearchResultsClose" type="button" class="cal-search-results-close">Back to calendar</button>
     </div>
     <div class="cal-search-results-list" id="calSearchResultsList"></div>
@@ -3434,19 +3440,16 @@
       document.getElementById("calAgendaFrom").addEventListener("change", function () { loadCalendarEvents(); });
       document.getElementById("calAgendaTo").addEventListener("change", function () { loadCalendarEvents(); });
       document.getElementById("calAgendaBulkDel").addEventListener("click", function () {
-        var checked = document.querySelectorAll(".cal-agenda-check:checked");
-        if (!checked.length) return;
-        if (!window.confirm("Delete " + checked.length + " selected event(s)?")) return;
-        var promises = [];
-        checked.forEach(function (chk) {
-          promises.push(
-            fetch("/api/calendar/events?accountId=" + encodeURIComponent(chk.dataset.accountId) + "&calendarId=" + encodeURIComponent(chk.dataset.calendarId) + "&eventId=" + encodeURIComponent(chk.dataset.eventId), { method: "DELETE" })
-          );
-        });
-        Promise.all(promises).then(function () {
-          calMonthCache = {};
-          loadCalendarEvents();
-        });
+        calBulkDelete(document.getElementById("calGrid"), "calAgendaSelectAll", "calAgendaBulkDel");
+      });
+      document.getElementById("calAgendaSelectAll").addEventListener("change", function () {
+        calBulkSelectAll(document.getElementById("calGrid"), "calAgendaSelectAll", "calAgendaBulkDel");
+      });
+      document.getElementById("calSearchBulkDel").addEventListener("click", function () {
+        calBulkDelete(document.getElementById("calSearchResultsList"), "calSearchSelectAll", "calSearchBulkDel");
+      });
+      document.getElementById("calSearchSelectAll").addEventListener("change", function () {
+        calBulkSelectAll(document.getElementById("calSearchResultsList"), "calSearchSelectAll", "calSearchBulkDel");
       });
       // ----- Search -----
       var searchInput = document.getElementById("calSearchInput");
@@ -3729,6 +3732,10 @@
   }
 
   function renderCalSearchOverlay() {
+    renderCalSearchOverlayInner();
+    calBulkSync(document.getElementById("calSearchResultsList"), "calSearchSelectAll", "calSearchBulkDel");
+  }
+  function renderCalSearchOverlayInner() {
     var list = document.getElementById("calSearchResultsList");
     var titleEl = document.getElementById("calSearchResultsTitle");
     document.getElementById("calSearchResultsScope").textContent = calSearchScopeLabel();
@@ -3759,6 +3766,7 @@
       list.appendChild(el("div", "cal-search-results-section", { text: sec[0] + " (" + sec[1].length + ")" }));
       sec[1].forEach(function (ev) {   // every result — no limit
         var r = calSearchRow(ev, "cal-agenda-row");
+        if (ev.canEdit) r.row.insertBefore(calBulkCheckbox(ev, function () { calBulkSync(list, "calSearchSelectAll", "calSearchBulkDel"); }), r.row.firstChild);
         r.row.appendChild(el("span", "cal-agenda-date", { text: r.date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", weekday: "short" }) }));
         r.row.appendChild(el("span", "cal-agenda-time", { text: r.time }));
         r.row.appendChild(el("span", "cal-agenda-name", { text: ev.title }));
@@ -3839,25 +3847,13 @@
       var evs = agendaEvs.slice().sort(function (a, b) { return new Date(a.start) - new Date(b.start); });
       if (!evs.length) {
         grid.appendChild(el("div", "cal-agenda-empty", { text: "No events found." }));
-        document.getElementById("calAgendaBulkDel").style.display = "none";
+        calBulkSync(grid, "calAgendaSelectAll", "calAgendaBulkDel");
         return;
       }
       var checkedIds = [];
       evs.forEach(function (ev) {
         var row = el("button", "cal-agenda-row", { type: "button" });
-        if (ev.canEdit) {
-          var chk = el("input", "cal-agenda-check", { type: "checkbox" });
-          chk.addEventListener("click", function (e) { e.stopPropagation(); });
-          chk.addEventListener("change", function () {
-            var delBtn = document.getElementById("calAgendaBulkDel");
-            var checked = grid.querySelectorAll(".cal-agenda-check:checked");
-            delBtn.style.display = checked.length ? "" : "none";
-          });
-          chk.dataset.accountId = ev.accountId;
-          chk.dataset.calendarId = ev.calendarId;
-          chk.dataset.eventId = ev.externalId || ev.id;
-          row.appendChild(chk);
-        }
+        if (ev.canEdit) row.appendChild(calBulkCheckbox(ev, function () { calBulkSync(grid, "calAgendaSelectAll", "calAgendaBulkDel"); }));
         var d = new Date(calDayKey(ev) + "T12:00:00");
         var dateStr = d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", weekday: "short" });
         row.appendChild(el("span", "cal-agenda-date", { text: dateStr }));
@@ -3873,6 +3869,7 @@
         if (row.dataset.day === calJumpDay) row.classList.add("jumped");
         grid.appendChild(row);
       });
+      calBulkSync(grid, "calAgendaSelectAll", "calAgendaBulkDel");
       if (calJumpScroll && calJumpDay) {
         // first event on or after the picked day (or the last one if all are earlier)
         var rowsEls = grid.querySelectorAll(".cal-agenda-row");
@@ -3993,6 +3990,72 @@
     calJumpScroll = true;
     document.getElementById("calJumpDrop").style.display = "none";
     loadCalendarEvents();
+  }
+
+  // ===== Bulk delete (Agenda list and Search results) =====
+  // Rows you can edit get a checkbox holding their event. "Select all" works
+  // on whatever the list is currently showing (i.e. after filters/search).
+  function calBulkCheckbox(ev, onChange) {
+    var chk = el("input", "cal-agenda-check", { type: "checkbox" });
+    chk._ev = ev;
+    chk.addEventListener("click", function (e) { e.stopPropagation(); });
+    chk.addEventListener("change", onChange);
+    return chk;
+  }
+  function calBulkSync(listEl, selectAllId, btnId) {
+    var all = listEl.querySelectorAll(".cal-agenda-check");
+    var checked = listEl.querySelectorAll(".cal-agenda-check:checked");
+    var sa = document.getElementById(selectAllId), btn = document.getElementById(btnId);
+    document.getElementById(selectAllId + "Wrap").style.display = all.length ? "inline-flex" : "none";
+    sa.checked = all.length > 0 && checked.length === all.length;
+    sa.indeterminate = checked.length > 0 && checked.length < all.length;
+    btn.style.display = checked.length ? "" : "none";
+    if (!btn.disabled) btn.textContent = "Delete selected (" + checked.length + ")";
+  }
+  function calBulkSelectAll(listEl, selectAllId, btnId) {
+    var on = document.getElementById(selectAllId).checked;
+    listEl.querySelectorAll(".cal-agenda-check").forEach(function (c) { c.checked = on; });
+    calBulkSync(listEl, selectAllId, btnId);
+  }
+  function calBulkDelete(listEl, selectAllId, btnId) {
+    var checked = [].slice.call(listEl.querySelectorAll(".cal-agenda-check:checked"));
+    if (!checked.length) return;
+    // one request per real event: several ticked occurrences of the same
+    // Avenium series are the same event
+    var seen = {}, targets = [], seriesNames = [];
+    checked.forEach(function (c) {
+      var ev = c._ev, id = ev.externalId || ev.id;
+      var key = ev.accountId + "|" + ev.calendarId + "|" + id;
+      if (seen[key]) return;
+      seen[key] = true;
+      targets.push(ev);
+      if (ev.provider === "local" && ev.repeat && ev.repeat !== "none") seriesNames.push(ev.title);
+    });
+    var msg = "Delete " + checked.length + " selected event" + (checked.length === 1 ? "" : "s") + "?";
+    if (seriesNames.length) {
+      msg += "\n\nThis includes " + (seriesNames.length === 1 ? "a repeating Avenium event" : seriesNames.length + " repeating Avenium events") +
+        " \u2014 the WHOLE series will be deleted (every occurrence, not just the ones shown):\n\u2022 " + seriesNames.slice(0, 8).join("\n\u2022 ") +
+        (seriesNames.length > 8 ? "\n\u2022 \u2026and " + (seriesNames.length - 8) + " more" : "");
+    }
+    if (!window.confirm(msg)) return;
+    var btn = document.getElementById(btnId);
+    btn.disabled = true; btn.textContent = "Deleting\u2026";
+    var failed = [], i = 0;
+    function worker() {
+      if (i >= targets.length) return Promise.resolve();
+      var ev = targets[i++];
+      return fetch("/api/calendar/events?accountId=" + encodeURIComponent(ev.accountId) + "&calendarId=" + encodeURIComponent(ev.calendarId) + "&eventId=" + encodeURIComponent(ev.externalId || ev.id), { method: "DELETE" })
+        .then(function (r) { if (!r.ok) return r.json().catch(function () { return {}; }).then(function (d) { failed.push(ev.title + (d.message ? " (" + d.message + ")" : "")); }); })
+        .catch(function () { failed.push(ev.title); })
+        .then(worker);
+    }
+    Promise.all([worker(), worker(), worker()]).then(function () {   // 3 at a time
+      btn.disabled = false;
+      calMonthCache = {};
+      loadCalendarEvents();
+      if (calSearchQuery) { calSearchResults = null; runCalSearch(); }
+      if (failed.length) alert("Deleted " + (targets.length - failed.length) + " of " + targets.length + ". Couldn\u2019t delete:\n\u2022 " + failed.slice(0, 10).join("\n\u2022 ") + (failed.length > 10 ? "\n\u2026" : ""));
+    });
   }
 
   // Only one calendar popover open at a time
