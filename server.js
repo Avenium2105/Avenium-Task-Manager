@@ -183,6 +183,31 @@ function hebrewToGregorian(hYear, hMonthName, hDay) {
   return null;
 }
 
+// Like hebrewToGregorian, but handles Adar across leap/non-leap years:
+// "Adar" in a leap year falls on Adar II (the customary choice for
+// birthdays and anniversaries); "Adar I"/"Adar II" in a normal year falls on
+// Adar. Returns { year, month, day, monthUsed } or null.
+function hebrewToGregorianFlex(hYear, hMonthName, hDay) {
+  var tries = [hMonthName];
+  if (hMonthName === "Adar") tries.push("Adar II");
+  if (hMonthName === "Adar I" || hMonthName === "Adar II") tries.push("Adar");
+  for (var i = 0; i < tries.length; i++) {
+    var g = hebrewToGregorian(hYear, tries[i], hDay);
+    if (g) return { year: g.year, month: g.month, day: g.day, monthUsed: tries[i] };
+  }
+  return null;
+}
+function gregKey(g) { return g.year + "-" + String(g.month).padStart(2, "0") + "-" + String(g.day).padStart(2, "0"); }
+// First date of a Jewish series ("YYYY-MM-DD"), from its Hebrew start date.
+// Older events saved without a Hebrew year fall back to their start date.
+function jewishSeriesFirstDate(ev) {
+  if (ev.hebrewYear && ev.hebrewDay) {
+    var g = hebrewToGregorianFlex(Number(ev.hebrewYear), ev.hebrewMonth || "Tishri", Number(ev.hebrewDay));
+    if (g) return gregKey(g);
+  }
+  return String(ev.start || "").slice(0, 10);
+}
+
 // Expand a single local event into all its occurrences within a date range
 function expandLocalEvent(ev, startDate, endDate) {
   if (!ev.repeat || ev.repeat === "none") {
@@ -206,6 +231,11 @@ function expandLocalEvent(ev, startDate, endDate) {
       hebDay = heb.day;
       hebMonthName = heb.monthName;
     }
+    // Never produce anything before the series' first date (used to run back
+    // to the start of whatever range was asked for — e.g. 1900 for search).
+    var firstDate = jewishSeriesFirstDate(ev);
+    if (firstDate > startDate) startDate = firstDate;
+    if (startDate > endDate || startDate > until) return [];
     var startY = parseInt(startDate.slice(0, 4));
     var endY = parseInt(endDate.slice(0, 4));
     // Estimate starting Hebrew year from the Gregorian range
@@ -214,11 +244,11 @@ function expandLocalEvent(ev, startDate, endDate) {
     if (ev.repeat === "jewish-yearly") {
       var searchMonth = hebMonthName || "Tishri";
       for (var hy = approxHebStart - 1; hy <= approxHebStart + (endY - startY) + 2; hy++) {
-        var greg = hebrewToGregorian(hy, searchMonth, hebDay);
+        var greg = hebrewToGregorianFlex(hy, searchMonth, hebDay);
         if (!greg) continue;
         var d = greg.year + "-" + String(greg.month).padStart(2, "0") + "-" + String(greg.day).padStart(2, "0");
-        if (d >= startDate && d <= endDate && d <= until) {
-          results.push({ ...ev, start: d, end: d, _instanceDate: d });
+        if (d >= startDate && d >= firstDate && d <= endDate && d <= until) {
+          results.push({ ...ev, start: d, end: d, _instanceDate: d, seriesStart: firstDate });
         }
       }
     } else {
@@ -229,8 +259,8 @@ function expandLocalEvent(ev, startDate, endDate) {
           var greg2 = hebrewToGregorian(hy2, MONTH_NAMES[mi], hebDay);
           if (!greg2) continue;
           var d2 = greg2.year + "-" + String(greg2.month).padStart(2, "0") + "-" + String(greg2.day).padStart(2, "0");
-          if (d2 >= startDate && d2 <= endDate && d2 <= until && d2 >= ev.start.slice(0, 10)) {
-            results.push({ ...ev, start: d2, end: d2, _instanceDate: d2 });
+          if (d2 >= startDate && d2 <= endDate && d2 <= until && d2 >= firstDate) {
+            results.push({ ...ev, start: d2, end: d2, _instanceDate: d2, seriesStart: firstDate });
           }
         }
       }
@@ -2305,8 +2335,12 @@ app.get("/api/calendar/search", requireAuth, async (req, res) => {
 });
 
 app.post("/api/calendar/events", requireAuth, async (req, res) => {
-  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth } = req.body || {};
+  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear } = req.body || {};
   if (!title || !start) return res.status(400).json({ error: "invalid_request" });
+  const isJewishRepeat = repeat === "jewish-monthly" || repeat === "jewish-yearly";
+  if (isJewishRepeat && hebrewYear && !hebrewToGregorianFlex(Number(hebrewYear), hebrewMonth || "Tishri", Number(hebrewDay))) {
+    return res.status(400).json({ error: "invalid_hebrew_date" });
+  }
 
   // Local (app-native) event — no provider call needed
   if (accountId === "local") {
@@ -2319,6 +2353,7 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
     };
     if (hebrewDay) ev.hebrewDay = hebrewDay;
     if (hebrewMonth) ev.hebrewMonth = hebrewMonth;
+    if (isJewishRepeat && hebrewYear) ev.hebrewYear = Number(hebrewYear);
     localEvents.push(ev);
     persistLocalEvents();
     return res.json({ ok: true });
@@ -2339,7 +2374,10 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
 });
 
 app.put("/api/calendar/events", requireAuth, async (req, res) => {
-  const { accountId, calendarId, eventId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, newAccountId, newCalendarId } = req.body || {};
+  const { accountId, calendarId, eventId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, newAccountId, newCalendarId } = req.body || {};
+  if ((repeat === "jewish-monthly" || repeat === "jewish-yearly") && hebrewYear && !hebrewToGregorianFlex(Number(hebrewYear), hebrewMonth || "Tishri", Number(hebrewDay))) {
+    return res.status(400).json({ error: "invalid_hebrew_date" });
+  }
 
   // Moving to a different calendar?
   var moveTarget = (newAccountId && newCalendarId && (newAccountId !== accountId || newCalendarId !== calendarId))
@@ -2360,6 +2398,7 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
     if (repeatUntil !== undefined) ev.repeatUntil = repeatUntil || "";
     if (hebrewDay !== undefined) ev.hebrewDay = hebrewDay || null;
     if (hebrewMonth !== undefined) ev.hebrewMonth = hebrewMonth || null;
+    if (hebrewYear !== undefined) ev.hebrewYear = hebrewYear ? Number(hebrewYear) : null;
 
     if (moveTarget && moveTarget.accountId !== "local") {
       // Moving from local to Google/Outlook — create there and delete local
@@ -2438,6 +2477,15 @@ app.delete("/api/calendar/events", requireAuth, async (req, res) => {
 
 // Hebrew dates for a range of Gregorian dates — used by the frontend to show
 // Hebrew dates on the calendar grid without an external API call
+// Hebrew date -> Gregorian, for the event form's "Starts ..." line
+app.get("/api/calendar/hebrew-to-gregorian", requireAuth, (req, res) => {
+  const y = parseInt(req.query.year, 10), d = parseInt(req.query.day, 10), m = String(req.query.month || "");
+  if (!(y >= 3761 && y <= 7000) || !(d >= 1 && d <= 30) || !m) return res.status(400).json({ error: "invalid_request" });
+  const g = hebrewToGregorianFlex(y, m, d);
+  if (!g) return res.json({ date: null });
+  res.json({ date: gregKey(g), monthUsed: g.monthUsed });
+});
+
 app.get("/api/calendar/hebrew-dates", requireAuth, (req, res) => {
   const start = req.query.start; // "2026-09-01"
   const end = req.query.end;     // "2026-10-12"

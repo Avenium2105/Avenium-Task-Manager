@@ -639,8 +639,11 @@
   .cal-repeat-options { display: flex; align-items: center; gap: 8px; padding-left: 22px; }
   .cal-repeat-options select { flex: 1 1 0; min-width: 0; width: auto; }
   .cal-repeat-options input[type="date"] { flex: 1 1 0; min-width: 0; width: auto; }
-  .cal-hebrew-date-pick { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; margin-top: 4px; }
+  .cal-hebrew-date-pick { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; margin-top: 4px; }
   .cal-hebrew-date-pick input[type="number"] { width: 60px !important; flex: 0 0 60px; text-align: center; }
+  .cal-hebrew-date-pick #calHebrewYear { width: 76px !important; flex: 0 0 76px; }
+  .cal-heb-greg { flex: 1 0 100%; font-size: 12px; color: var(--pine); line-height: 1.4; }
+  .cal-heb-greg.warn { color: var(--brick); }
   .cal-hebrew-date-pick select { flex: 1 1 0; min-width: 0; width: auto; }
   .cal-details-group { display: flex; flex-direction: column; gap: 8px; }
   .cal-details-group input { width: 100%; }
@@ -1062,7 +1065,7 @@
             <input id="calModalRepeatUntil" type="date" title="Until (optional)" style="display:none;">
           </div>
           <div id="calHebrewDatePick" class="cal-hebrew-date-pick" style="display:none;">
-            <span class="cal-date-row-label">On</span>
+            <span class="cal-date-row-label">Starts</span>
             <input id="calHebrewDay" type="number" min="1" max="30" placeholder="Day">
             <select id="calHebrewMonth">
               <option value="Tishri">Tishrei</option>
@@ -1080,6 +1083,8 @@
               <option value="Av">Av</option>
               <option value="Elul">Elul</option>
             </select>
+            <input id="calHebrewYear" type="number" min="5000" max="6500" placeholder="Year" title="Hebrew year the series starts, e.g. 5787">
+            <div id="calHebrewGreg" class="cal-heb-greg"></div>
           </div>
         </div>
 
@@ -3502,6 +3507,21 @@
           document.getElementById("calHebrewDatePick").style.display = "none";
         }
       };
+      ["calHebrewDay", "calHebrewMonth", "calHebrewYear"].forEach(function (id) {
+        document.getElementById(id).addEventListener("input", updateHebrewGreg);
+        document.getElementById(id).addEventListener("change", updateHebrewGreg);
+      });
+      // Changing the regular start date while a Jewish repeat is set re-reads
+      // the Hebrew date from it (the two always describe the same day)
+      ["calModalStartDate2", "calModalStartDateOnly"].forEach(function (id) {
+        document.getElementById(id).addEventListener("change", function () {
+          if (document.getElementById("calHebrewDatePick").style.display === "none") return;
+          document.getElementById("calHebrewDay").value = "";
+          document.getElementById("calHebrewYear").value = "";
+          if (calEditingEvent) calEditingEvent.seriesStart = null;
+          updateHebrewDatePick(document.getElementById("calModalRepeat").value);
+        });
+      });
       document.getElementById("calModalRepeat").onchange = function () {
         var val = this.value;
         var isJewish = val === "jewish-monthly" || val === "jewish-yearly";
@@ -4217,6 +4237,14 @@
 
   function calIsAllDay() { return document.getElementById("calWhenAllDay").checked; }
 
+  // Jewish repeats start on a Hebrew date (day + month + YEAR). The series
+  // never appears before that date. The Gregorian start fields are kept in
+  // sync with it, and a line shows the real date it starts on.
+  var calHebGregToken = 0;
+  var calHebGregValid = false;
+  function calModalStartDateValue() {
+    return calIsAllDay() ? document.getElementById("calModalStartDateOnly").value : document.getElementById("calModalStartDate2").value;
+  }
   function updateHebrewDatePick(repeatVal) {
     var isJewish = repeatVal === "jewish-monthly" || repeatVal === "jewish-yearly";
     var pick = document.getElementById("calHebrewDatePick");
@@ -4224,26 +4252,61 @@
     // Hide the Gregorian "repeat until" date for Jewish repeat types
     document.getElementById("calModalRepeatUntil").style.display = (isJewish || repeatVal === "daily") ? "none" : "";
     if (!isJewish) return;
-    // Always update month visibility based on current type
-    var monthEl = document.getElementById("calHebrewMonth");
-    monthEl.style.display = repeatVal === "jewish-monthly" ? "none" : "";
-    // Pre-fill from the start date if the day field is empty
     var dayEl = document.getElementById("calHebrewDay");
-    if (dayEl.value) return; // already filled, just needed to toggle month visibility
-    var startDate = calIsAllDay()
-      ? document.getElementById("calModalStartDateOnly").value
-      : document.getElementById("calModalStartDate2").value;
-    if (!startDate) return;
-    fetch("/api/calendar/hebrew-dates?start=" + startDate + "&end=" + startDate)
+    var monthEl = document.getElementById("calHebrewMonth");
+    var yearEl = document.getElementById("calHebrewYear");
+    if (dayEl.value && yearEl.value) { updateHebrewGreg(); return; }
+    // Fill what's missing from the series' first date (or the form's start date)
+    var src = (calEditingEvent && calEditingEvent.seriesStart) ? String(calEditingEvent.seriesStart).slice(0, 10) : calModalStartDateValue();
+    if (!src) { updateHebrewGreg(); return; }
+    var dayWasEmpty = !dayEl.value;
+    fetch("/api/calendar/hebrew-dates?start=" + src + "&end=" + src)
       .then(function (r) { return r.json(); })
       .then(function (d) {
-        if (d.dates && d.dates[startDate]) {
-          var heb = d.dates[startDate];
-          if (!dayEl.value) dayEl.value = heb.day;
-          if (monthEl.value === "Tishri" && heb.month !== "Tishri") monthEl.value = heb.month;
+        var heb = d.dates && d.dates[src];
+        if (heb) {
+          if (dayWasEmpty) { dayEl.value = heb.day; monthEl.value = heb.month; }
+          if (!yearEl.value) yearEl.value = heb.year;
         }
+        updateHebrewGreg();
       })
-      .catch(function () {});
+      .catch(function () { updateHebrewGreg(); });
+  }
+
+  function updateHebrewGreg() {
+    var out = document.getElementById("calHebrewGreg");
+    var dayEl = document.getElementById("calHebrewDay");
+    var monthEl = document.getElementById("calHebrewMonth");
+    var day = parseInt(dayEl.value, 10), year = parseInt(document.getElementById("calHebrewYear").value, 10);
+    var month = monthEl.value, monthLabel = monthEl.options[monthEl.selectedIndex].text;
+    var rep = document.getElementById("calModalRepeat").value;
+    var token = ++calHebGregToken;
+    calHebGregValid = false;
+    out.classList.add("warn");
+    if (!(day >= 1 && day <= 30)) { out.textContent = "Enter the Hebrew day (1\u201330)."; return; }
+    if (!(year >= 5000 && year <= 6500)) { out.textContent = "Enter the Hebrew year the series starts (e.g. 5787)."; return; }
+    out.textContent = "Checking\u2026";
+    fetch("/api/calendar/hebrew-to-gregorian?year=" + year + "&month=" + encodeURIComponent(month) + "&day=" + day)
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (token !== calHebGregToken) return;
+        if (!d.date) {
+          out.textContent = day + " " + monthLabel + " " + year + " doesn\u2019t exist" + (day === 30 ? " (that month has 29 days that year)" : "") + ".";
+          return;
+        }
+        calHebGregValid = true;
+        out.classList.remove("warn");
+        // keep the regular start (and end) date on the first occurrence
+        document.getElementById("calModalStartDate2").value = d.date;
+        document.getElementById("calModalStartDateOnly").value = d.date;
+        if (document.getElementById("calModalEndDate2").value) document.getElementById("calModalEndDate2").value = d.date;
+        if (document.getElementById("calModalEndDateOnly").value) document.getElementById("calModalEndDateOnly").value = d.date;
+        var g = new Date(d.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+        var adarNote = (d.monthUsed && d.monthUsed !== month) ? " (" + d.monthUsed + " that year)" : "";
+        out.textContent = "Starts " + g + adarNote + " \u00b7 then " +
+          (rep === "jewish-yearly" ? "every year on " + day + " " + monthLabel : "on day " + day + " of every Hebrew month");
+      })
+      .catch(function () { if (token === calHebGregToken) out.textContent = "Couldn\u2019t check that date."; });
   }
 
   function applyWhenToggle() {
@@ -4323,6 +4386,8 @@
     // Hebrew date picker — pre-fill if event has stored Hebrew date, otherwise clear
     document.getElementById("calHebrewDay").value = (event && event.hebrewDay) ? event.hebrewDay : "";
     document.getElementById("calHebrewMonth").value = (event && event.hebrewMonth) ? event.hebrewMonth : "Tishri";
+    document.getElementById("calHebrewYear").value = (event && event.hebrewYear) ? event.hebrewYear : "";
+    document.getElementById("calHebrewGreg").textContent = "";
     if (hasRepeat) {
       updateHebrewDatePick(repeatVal);
     } else {
@@ -4335,7 +4400,7 @@
     fillCalendarPicker(event ? event.accountId : null, event ? event.calendarId : null, readOnly);
 
     // Disable fields for read-only
-    ["calModalName", "calModalDesc", "calModalStartDate2", "calModalStartTime", "calModalEndDate2", "calModalEndTime", "calModalLocation", "calModalAttendees", "calModalStartDateOnly", "calModalEndDateOnly", "calModalRepeat", "calModalRepeatCheck", "calWhenTimed", "calWhenAllDay", "calModalCalendar"].forEach(function (id) {
+    ["calModalName", "calModalDesc", "calModalStartDate2", "calModalStartTime", "calModalEndDate2", "calModalEndTime", "calModalLocation", "calModalAttendees", "calModalStartDateOnly", "calModalEndDateOnly", "calModalRepeat", "calModalRepeatCheck", "calWhenTimed", "calWhenAllDay", "calModalCalendar", "calHebrewDay", "calHebrewMonth", "calHebrewYear"].forEach(function (id) {
       var elem = document.getElementById(id);
       if (elem) elem.disabled = readOnly;
     });
@@ -4394,11 +4459,15 @@
       if (until) payload.repeatUntil = until;
       // Hebrew date for Jewish repeat options
       if (repeat === "jewish-monthly" || repeat === "jewish-yearly") {
-        var hebDay = parseInt(document.getElementById("calHebrewDay").value);
+        var hebDay = parseInt(document.getElementById("calHebrewDay").value, 10);
         var hebMonth = document.getElementById("calHebrewMonth").value;
+        var hebYear = parseInt(document.getElementById("calHebrewYear").value, 10);
         if (!hebDay || hebDay < 1 || hebDay > 30) { alert("Please enter a valid Hebrew day (1-30)."); return; }
+        if (!(hebYear >= 5000 && hebYear <= 6500)) { alert("Please enter the Hebrew year the series starts (e.g. 5787)."); return; }
+        if (!calHebGregValid) { alert(document.getElementById("calHebrewGreg").textContent || "Please check the Hebrew start date."); return; }
         payload.hebrewDay = hebDay;
-        if (repeat === "jewish-yearly") payload.hebrewMonth = hebMonth;
+        payload.hebrewMonth = hebMonth;   // yearly: the month it repeats in; monthly: the month it starts in
+        payload.hebrewYear = hebYear;
       }
     }
     // Calendar selection
