@@ -681,6 +681,12 @@
   .cal-occasion-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink); cursor: pointer; }
   .cal-occasion-check input { width: auto !important; margin: 0; accent-color: var(--pine); cursor: pointer; }
   .cal-occasion-hint { flex: 1 0 100%; font-size: 11.5px; color: var(--ink-soft); }
+  .cal-occasion-kind { font-family: inherit; font-size: 12.5px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg-raised); color: var(--ink); width: auto !important; }
+  .cal-occasion-radios { display: inline-flex; border: 1px solid var(--line); border-radius: 20px; overflow: hidden; background: var(--bg-raised); }
+  .cal-occasion-radios label { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; padding: 5px 12px; cursor: pointer; color: var(--ink-soft); }
+  .cal-occasion-radios label:has(input:checked) { background: var(--pine); color: var(--bg-raised); font-weight: 600; }
+  .cal-occasion-radios input { width: auto !important; margin: 0; accent-color: var(--bg-raised); }
+  .cal-occasion-sunset { flex: 1 0 100%; }
   .cal-series-note { font-size: 12px; color: var(--ink-soft); background: var(--pine-soft); border-radius: 7px; padding: 7px 10px; margin-bottom: 8px; line-height: 1.4; }
   .cal-hebrew-date-pick select { flex: 1 1 0; min-width: 0; width: auto; }
   .cal-details-group { display: flex; flex-direction: column; gap: 8px; }
@@ -1114,7 +1120,17 @@
         <div class="cal-repeat-row">
           <div id="calOccasionRow" class="cal-occasion-row" style="display:none;">
             <span class="cal-occasion-badge">&#8635; Every year</span>
-            <label class="cal-occasion-check"><input id="calOccasionJewish" type="checkbox"> Jewish (Hebrew) date</label>
+            <select id="calOccasionKind" class="cal-occasion-kind">
+              <option value="birthday">Birthday</option>
+              <option value="anniversary">Anniversary</option>
+              <option value="yahrzeit">Yahrzeit</option>
+              <option value="other">Other</option>
+            </select>
+            <div class="cal-occasion-radios">
+              <label><input id="calOccasionSecular" type="radio" name="calOccasionCal" value="secular" checked> <span id="calOccSecularLabel">Secular birthday</span></label>
+              <label><input id="calOccasionJewish" type="radio" name="calOccasionCal" value="jewish"> <span id="calOccJewishLabel">Jewish birthday</span></label>
+            </div>
+            <label class="cal-occasion-check cal-occasion-sunset" id="calOccSunsetWrap" style="display:none;"><input id="calOccasionSunset" type="checkbox"> <span id="calOccSunsetLabel">Born after sunset</span></label>
             <div id="calOccasionHint" class="cal-occasion-hint"></div>
           </div>
           <label class="cal-repeat-check-label"><input id="calModalRepeatCheck" type="checkbox"> Repeats</label>
@@ -3498,7 +3514,13 @@
       [].forEach.call(document.querySelectorAll("#calTypeRow .cal-type-btn"), function (b) {
         b.onclick = function () { applyCalType(b.dataset.type); };
       });
-      document.getElementById("calOccasionJewish").onchange = function () { applyOccasionMode(true, this.checked); };
+      document.getElementById("calOccasionJewish").onchange = function () { applyOccasionMode(true, true); };
+      document.getElementById("calOccasionSecular").onchange = function () { applyOccasionMode(true, false); };
+      document.getElementById("calOccasionKind").onchange = function () {
+        // yahrzeits are kept by the Hebrew date
+        applyOccasionMode(true, this.value === "yahrzeit" ? true : document.getElementById("calOccasionJewish").checked);
+      };
+      document.getElementById("calOccasionSunset").onchange = calOccRederiveHebrew;
       document.getElementById("calWhenTimed").onchange = applyWhenToggle;
       document.getElementById("calWhenAllDay").onchange = applyWhenToggle;
       document.getElementById("calModalRepeatCheck").onchange = function () {
@@ -4340,6 +4362,30 @@
     if (hebLabel) hebLabel.textContent = on ? "Hebrew date" : "Starts";
     if (!on) document.getElementById("calAllDayDateLabel").textContent = "Date";
   }
+  var CAL_OCC_KINDS = {
+    birthday:    { date: "Date of birth",   sec: "Secular birthday", jew: "Jewish birthday", heb: "Hebrew birthday", sunset: "Born after sunset",       name: "e.g. Dassi\u2019s birthday" },
+    anniversary: { date: "Wedding date",    sec: "Secular date",     jew: "Jewish date",     heb: "Hebrew date",     sunset: "Married after sunset",    name: "e.g. Mom & Dad\u2019s anniversary" },
+    yahrzeit:    { date: "Date of passing", sec: "Secular date",     jew: "Jewish date",     heb: "Hebrew date",     sunset: "Passed away after sunset", name: "e.g. Zeidy\u2019s yahrzeit" },
+    other:       { date: "Date",            sec: "Secular date",     jew: "Jewish date",     heb: "Hebrew date",     sunset: "After sunset",            name: "Occasion name" }
+  };
+  function calOccKind() { return document.getElementById("calOccasionKind").value || "birthday"; }
+  function calOccAfterSunset() { return calOccasionMode && document.getElementById("calOccasionJewish").checked && document.getElementById("calOccasionSunset").checked; }
+  function calAddDays(key, n) {
+    var d = new Date(key + "T12:00:00"); d.setDate(d.getDate() + n);
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  // After sunset the Hebrew day has already turned, so the Hebrew date comes
+  // from the NEXT civil day; the civil date of birth stays as entered.
+  function calHebrewSourceDate(civil) { return civil && calOccAfterSunset() ? calAddDays(civil, 1) : civil; }
+  // Re-read the Hebrew date from the date of birth (after DOB / sunset changes)
+  function calOccRederiveHebrew() {
+    if (!calOccasionMode || !document.getElementById("calOccasionJewish").checked) return;
+    document.getElementById("calHebrewDay").value = "";
+    document.getElementById("calHebrewYear").value = "";
+    if (calEditingEvent) calEditingEvent.seriesFirstDate = null;
+    updateHebrewDatePick("jewish-yearly");
+  }
+
   function applyOccasionMode(on, jewish) {
     calOccasionMode = on;
     setOccasionUi(on);
@@ -4364,18 +4410,27 @@
     }
     $("calModalEndDateOnly").value = "";
     $("calOccasionJewish").checked = !!jewish;
+    $("calOccasionSecular").checked = !jewish;
+    var K = CAL_OCC_KINDS[calOccKind()];
+    $("calOccSecularLabel").textContent = K.sec;
+    $("calOccJewishLabel").textContent = K.jew;
+    $("calOccSunsetLabel").textContent = K.sunset;
+    $("calOccSunsetWrap").style.display = jewish ? "" : "none";
+    if (!jewish) $("calOccasionSunset").checked = false;
     $("calModalRepeatCheck").checked = true;
     $("calModalRepeat").value = jewish ? "jewish-yearly" : "yearly";
     $("calModalRepeatUntil").value = "";
     updateHebrewDatePick($("calModalRepeat").value); // shows the Hebrew date for Jewish, and moves it to Avenium
     $("calRepeatOptions").style.display = "none";
     $("calModalRepeatUntil").style.display = "none";
-    $("calAllDayDateLabel").textContent = jewish ? "English date" : "Date";
+    $("calAllDayDateLabel").textContent = K.date;
+    var hebLbl = document.querySelector("#calHebrewDatePick .cal-date-row-label");
+    if (hebLbl) hebLbl.textContent = K.heb;
     $("calOccasionHint").textContent = jewish
-      ? "Repeats every year on the Hebrew date. Enter the English or the Hebrew date \u2014 the other fills in. Saved to the Avenium calendar."
-      : "Repeats every year on this date.";
+      ? "Starts on the " + K.date.toLowerCase() + " and repeats every year on the Hebrew date, forever. Enter either date \u2014 the other fills in. Saved to the Avenium calendar."
+      : "Starts on the " + K.date.toLowerCase() + " and repeats every year on that date, forever.";
     if (!calEditingEvent) $("calModalTitle").textContent = "New Occasion";
-    $("calModalName").placeholder = "e.g. Dassi\u2019s birthday";
+    $("calModalName").placeholder = K.name;
   }
 
   function calIsAllDay() { return document.getElementById("calWhenAllDay").checked; }
@@ -4405,7 +4460,7 @@
     var yearEl = document.getElementById("calHebrewYear");
     if (dayEl.value && yearEl.value) { updateHebrewGreg(); return; }
     // Fill what's missing from the series' first date (or the form's start date)
-    var src = (calEditingEvent && calEditingEvent.seriesFirstDate) ? calEditingEvent.seriesFirstDate : calModalStartDateValue();
+    var src = (calEditingEvent && calEditingEvent.seriesFirstDate) ? calEditingEvent.seriesFirstDate : calHebrewSourceDate(calModalStartDateValue());
     if (!src) { updateHebrewGreg(); return; }
     var dayWasEmpty = !dayEl.value;
     fetch("/api/calendar/hebrew-dates?start=" + src + "&end=" + src)
@@ -4444,13 +4499,22 @@
         }
         calHebGregValid = true;
         out.classList.remove("warn");
-        // keep the regular start (and end) date on the first occurrence
-        document.getElementById("calModalStartDate2").value = d.date;
-        document.getElementById("calModalStartDateOnly").value = d.date;
+        // keep the regular start date on the first occurrence (for an occasion
+        // born/married after sunset: the civil date is the day before)
+        var civil = calOccAfterSunset() ? calAddDays(d.date, -1) : d.date;
+        document.getElementById("calModalStartDate2").value = civil;
+        document.getElementById("calModalStartDateOnly").value = civil;
         if (document.getElementById("calModalEndDate2").value) document.getElementById("calModalEndDate2").value = d.date;
         if (document.getElementById("calModalEndDateOnly").value) document.getElementById("calModalEndDateOnly").value = d.date;
         var g = new Date(d.date + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
         var adarNote = (d.monthUsed && d.monthUsed !== month) ? " (" + d.monthUsed + " that year)" : "";
+        if (calOccasionMode) {
+          var K2 = CAL_OCC_KINDS[calOccKind()];
+          var civilTxt = new Date(civil + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+          out.textContent = K2.date + " " + civilTxt + (calOccAfterSunset() ? " (after sunset)" : "") + " = " + day + " " + monthLabel + " " + year + adarNote +
+            " \u00b7 every year on " + day + " " + monthLabel;
+          return;
+        }
         out.textContent = "Starts " + g + adarNote + " \u00b7 then " +
           (rep === "jewish-yearly" ? "every year on " + day + " " + monthLabel : "on day " + day + " of every Hebrew month");
       })
@@ -4495,6 +4559,9 @@
     calOccasionMode = false;
     setOccasionUi(false);
     document.getElementById("calOccasionJewish").checked = false;
+    document.getElementById("calOccasionSecular").checked = true;
+    document.getElementById("calOccasionKind").value = "birthday";
+    document.getElementById("calOccasionSunset").checked = false;
     var readOnly = !!(event && (event.canEdit === false || event.provider === "builtin"));
     document.getElementById("calModalTitle").textContent = event ? (readOnly ? "Event (read-only)" : "Edit Event") : "New Event";
     document.getElementById("calModalName").value = event ? event.title : "";
@@ -4569,6 +4636,8 @@
 
     applyCalType(event ? ((event.attendees && event.attendees.length) ? "meeting" : "appointment") : "meeting", true);
     if (event && event.kind === "occasion" && event.provider === "local" && !readOnly) {
+      document.getElementById("calOccasionKind").value = event.occasionKind || (/yahr|yart|yort/i.test(event.title || "") ? "yahrzeit" : /anniversar/i.test(event.title || "") ? "anniversary" : /birthday|bday|b-day/i.test(event.title || "") ? "birthday" : "other");
+      document.getElementById("calOccasionSunset").checked = !!event.afterSunset;
       applyOccasionMode(true, event.repeat === "jewish-yearly");
       document.getElementById("calModalTitle").textContent = "Edit Occasion";
     }
@@ -4631,7 +4700,12 @@
     var repeat = repeatChecked ? document.getElementById("calModalRepeat").value : "none";
     var isLocalEvent = calEditingEvent ? calEditingEvent.provider === "local" : false;
     try { payload.timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
-    if (calOccasionMode) { payload.kind = "occasion"; payload.allDay = true; payload.end = payload.start; }
+    if (calOccasionMode) {
+      payload.kind = "occasion"; payload.allDay = true; payload.end = payload.start;
+      payload.occasionKind = calOccKind();
+      payload.afterSunset = calOccAfterSunset();
+      if (!payload.start) { alert("Please enter the " + CAL_OCC_KINDS[calOccKind()].date.toLowerCase() + "."); return; }
+    }
     var canSetRepeat = !calEditingEvent || isLocalEvent || !calEditingEvent.recurring;
     if (canSetRepeat) {
       // Always sent, so un-ticking "Repeats" or clearing the end date sticks
