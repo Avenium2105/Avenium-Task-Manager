@@ -2441,6 +2441,88 @@ app.get("/api/calendar/search", requireAuth, async (req, res) => {
   res.json({ events: found, total: found.length, errors, searched });
 });
 
+// ---- Occasions: everyone's next birthday / anniversary / yahrzeit ----
+// One row per occasion (not per year), with its NEXT date within a year from
+// today, across every visible calendar. Included: Avenium Occasions, plus any
+// event on any calendar whose title says birthday / anniversary / yahrzeit
+// (that also covers Google's own "Birthdays" calendar).
+const OCCASION_WORDS = /\b(birthday|bday|b-day|anniversary|yahrzeit|yahrtzeit|yartzeit|yortzeit)\b/i;
+const BIRTHDAY_WORDS = /\b(birthday|bday|b-day)\b/i;
+app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
+  // "today" comes from the browser so the year boundary is the user's, not the server's
+  const today = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.today || "")) ? String(req.query.today) : new Date().toISOString().slice(0, 10);
+  const t0 = new Date(today + "T00:00:00Z");
+  if (isNaN(t0)) return res.status(400).json({ error: "invalid_date" });
+  const lastDay = new Date(t0.getTime() + 365 * 86400000).toISOString().slice(0, 10);
+  const timeMin = t0.toISOString();
+  const timeMax = new Date(t0.getTime() + 366 * 86400000).toISOString();
+  const rangeKey = timeMin.slice(0, 10) + ".." + timeMax.slice(0, 10);
+  const hidden = hiddenSet(req.session.userId);
+  const best = new Map();   // occasion key -> its earliest upcoming occurrence
+  const keep = (key, item) => { const cur = best.get(key); if (!cur || item.next < cur.next) best.set(key, item); };
+  const kindOf = (title) => BIRTHDAY_WORDS.test(title || "") ? "birthday" : "other";
+  const errors = [];
+
+  await Promise.all(listAccounts(req.session.userId).map(async (acct) => {
+    try {
+      const a = await freshToken(acct);
+      if (!a || !a.accessToken) throw new Error("sign-in expired — reconnect on the Admin page");
+      const calendars = (await listCalendarsFor(a)).filter((c) => !hidden.has(acct.id + "|" + c.id));
+      await Promise.all(calendars.map(async (cal) => {
+        try {
+          const events = await cachedFetch(`ev:${a.id}:${cal.id}:${rangeKey}`, 5 * 60 * 1000, () =>
+            a.provider === "google"
+              ? fetchGoogleCalendarEvents(a, cal, timeMin, timeMax)
+              : fetchMicrosoftCalendarEvents(a, cal, timeMin, timeMax));
+          events.forEach((ev) => {
+            if (!OCCASION_WORDS.test(ev.title || "")) return;
+            const day = String(ev.start || "").slice(0, 10);
+            if (day < today || day > lastDay) return;
+            // the same title on the same calendar is the same occasion
+            keep(a.id + "|" + cal.id + "|" + (ev.title || "").trim().toLowerCase(), {
+              event: { ...ev, provider: a.provider, accountId: a.id, accountEmail: a.email,
+                calendarId: cal.id, calendarName: cal.name, color: cal.color, canEdit: cal.canEdit },
+              next: day, kind: kindOf(ev.title), calendar: cal.name, account: a.email, jewish: false, turning: null
+            });
+          });
+        } catch (e) { errors.push(acct.email + " / " + cal.name + " (" + e.message + ")"); }
+      }));
+    } catch (e) { errors.push(acct.email + " (" + e.message + ")"); }
+  }));
+
+  if (!hidden.has("local|avenium")) {
+    localEvents.filter((e) => e.userId === req.session.userId).forEach((ev) => {
+      const isOccasion = ev.kind === "occasion" || OCCASION_WORDS.test(ev.title || "");
+      if (!isOccasion) return;
+      const inst = expandLocalEvent(ev, today, lastDay).filter((x) => String(x.start).slice(0, 10) >= today)[0];
+      if (!inst) return;
+      const next = String(inst.start).slice(0, 10);
+      const jewish = ev.repeat === "jewish-yearly";
+      // how many years (age / anniversary number), when the first year is known
+      let turning = null;
+      if (jewish && ev.hebrewYear) {
+        const h = gregorianToHebrew(+next.slice(0, 4), +next.slice(5, 7), +next.slice(8, 10));
+        turning = h.year - Number(ev.hebrewYear);
+      } else if (ev.repeat === "yearly") {
+        turning = +next.slice(0, 4) - +jewishSeriesFirstDate(ev).slice(0, 4);
+      }
+      if (!(turning > 0)) turning = null;
+      let hebrew = null;
+      if (jewish) {
+        const h = gregorianToHebrew(+next.slice(0, 4), +next.slice(5, 7), +next.slice(8, 10));
+        hebrew = h.day + " " + h.monthName;
+      }
+      keep("local|" + ev.id, {
+        event: { ...inst, provider: "local", accountId: "local", accountEmail: "",
+          calendarId: "avenium", calendarName: "Avenium", color: "#3C5A46", canEdit: true, externalId: ev.id },
+        next, kind: kindOf(ev.title), calendar: "Avenium", account: "", jewish, hebrew, turning
+      });
+    });
+  }
+  const occasions = [...best.values()].sort((x, y) => x.next < y.next ? -1 : x.next > y.next ? 1 : (x.event.title || "").localeCompare(y.event.title || ""));
+  res.json({ today, occasions, errors });
+});
+
 app.post("/api/calendar/events", requireAuth, async (req, res) => {
   const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, timeZone, kind } = req.body || {};
   if (!title || !start) return res.status(400).json({ error: "invalid_request" });
