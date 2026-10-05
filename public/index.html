@@ -1253,6 +1253,7 @@
     localStorage.setItem("daily-board-selected-board", "__all__");
     selectedItemId = null;
     boardSearchQuery = "";
+    boardSearchText = "";
     allBoardsChatBoardId = null;
     // Reset calendar search
     resetCalSearch();
@@ -1531,6 +1532,14 @@
 
   function renderTabs() {
     var mount = document.getElementById("boardTabs");
+    // The strip (search box included) is rebuilt on every render — typing,
+    // or any live update from someone else. Remember whether the search box
+    // had focus and where the cursor was, so the new box picks up right there.
+    var oldSearch = document.getElementById("boardSearchInput");
+    var searchFocus = null;
+    if (oldSearch && document.activeElement === oldSearch) {
+      searchFocus = { start: oldSearch.selectionStart, end: oldSearch.selectionEnd };
+    }
     mount.innerHTML = "";
     var allTab = el("button", "board-tab" + (selectedBoardId === "__all__" ? " active" : ""), { type: "button", text: "All boards" });
     allTab.addEventListener("click", function () { selectedBoardId = "__all__"; selectedItemId = null; localStorage.setItem("daily-board-selected-board", selectedBoardId); render(); });
@@ -1701,12 +1710,18 @@
     var searchSpacer = el("span", "board-search-spacer");
     mount.appendChild(searchSpacer);
     var searchInput = el("input", "board-search-input", { type: "text", placeholder: "Search tasks\u2026", autocomplete: "off", id: "boardSearchInput" });
-    searchInput.value = boardSearchQuery;
+    // show exactly what was typed (spaces, capitals); filter on a normalized copy
+    searchInput.value = boardSearchText;
     searchInput.addEventListener("input", function () {
+      boardSearchText = this.value;
       boardSearchQuery = this.value.trim().toLowerCase();
       render();
     });
     mount.appendChild(searchInput);
+    if (searchFocus) {
+      searchInput.focus();
+      try { searchInput.setSelectionRange(searchFocus.start, searchFocus.end); } catch (e) {}
+    }
 
     // Same idea as nav.js's --nav-h: record this bar's real height so the
     // chat sidebar (sticky, positioned below both bars) always clears it
@@ -2124,48 +2139,8 @@
     });
     main.appendChild(detailsBtn);
 
-    // ---- multi-assignee picker ----
-    var assigneeIds = item.assigneeIds || [];
-    var pickerWrap = el("span", "assignee-popover");
-    var assigneeTrigger;
-    if (assigneeIds.length) {
-      var chips = el("span", "assignee-chips");
-      assigneeIds.forEach(function (aid) {
-        var t = team.find(function (x) { return x.id === aid; });
-        var name = t ? t.displayName : "?";
-        var avatar = el("span", "assignee-avatar", { title: name, text: initialsFor(name) });
-        avatar.style.background = colorForUser(aid);
-        chips.appendChild(avatar);
-      });
-      chips.addEventListener("click", function (e) { e.stopPropagation(); openAssigneePickers[item.id] = !openAssigneePickers[item.id]; render(); });
-      chips.style.cursor = "pointer";
-      pickerWrap.appendChild(chips);
-      assigneeTrigger = chips;
-    } else {
-      var pickBtn = el("button", "assignee-picker-btn", { type: "button", text: "Unassigned" });
-      pickBtn.addEventListener("click", function (e) { e.stopPropagation(); openAssigneePickers[item.id] = !openAssigneePickers[item.id]; render(); });
-      pickerWrap.appendChild(pickBtn);
-      assigneeTrigger = pickBtn;
-    }
-    if (openAssigneePickers[item.id]) {
-      var list = el("div", "assignee-popover-list");
-      list.addEventListener("click", function (e) { e.stopPropagation(); });
-      team.forEach(function (t) {
-        var lbl = el("label");
-        var chk = el("input", "", { type: "checkbox" });
-        chk.checked = assigneeIds.includes(t.id);
-        chk.addEventListener("change", function () {
-          var next = chk.checked ? assigneeIds.concat([t.id]) : assigneeIds.filter(function (x) { return x !== t.id; });
-          updateItem(item.id, { assigneeIds: next });
-        });
-        lbl.appendChild(chk);
-        lbl.appendChild(document.createTextNode(t.displayName));
-        list.appendChild(lbl);
-      });
-      anchorPopover(assigneeTrigger, list, "left");
-    }
-    main.appendChild(pickerWrap);
-
+    // Assignees were removed from task rows (no "Unassigned" pill, no avatar
+    // chips, no picker). Existing assignee data is left untouched on the server.
     var priorityLabels = { low: "Low", medium: "Medium", high: "High" };
     var priBtn = el("button", "priority-tag " + (item.priority || ""), { type: "button", text: priorityLabels[item.priority] || "Priority" });
     priBtn.addEventListener("click", function () {
@@ -2195,17 +2170,6 @@
       });
       main.appendChild(archiveBtn);
     }
-
-    var notifyBtn = el("button", "notify-btn" + (notifiedRecently[item.id] ? " sent" : ""), { type: "button", "aria-label": "Notify assignees", title: assigneeIds.length ? "Notify it's their turn" : "Assign someone first" });
-    notifyBtn.innerHTML = bellSvg();
-    if (!assigneeIds.length) notifyBtn.disabled = true;
-    notifyBtn.addEventListener("click", function () {
-      socket.emit("notifyTurn", { itemId: item.id });
-      notifiedRecently[item.id] = true;
-      notifyBtn.classList.add("sent");
-      setTimeout(function () { notifiedRecently[item.id] = false; }, 4000);
-    });
-    main.appendChild(notifyBtn);
 
     var canDeleteItem = currentUser && (currentUser.role === "admin" || !item.createdById || item.createdById === currentUser.id);
     if (canDeleteItem) {
@@ -3207,7 +3171,8 @@
   var calEditingEvent = null;  // null = creating new, otherwise the event being edited
   var calHandlersWired = false;
   var showHebrewDates = false; // toggled from Admin, persisted on server
-  var boardSearchQuery = "";   // boards search filter
+  var boardSearchQuery = "";   // boards search filter (trimmed, lowercase)
+  var boardSearchText = "";    // what's actually in the box
   var calSearchQuery = "";     // calendar search filter
   var calJumpDay = "";         // "2026-09-30" — day picked in Search Date, highlighted until you leave the calendar
 
