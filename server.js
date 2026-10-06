@@ -694,7 +694,7 @@ async function fetchGoogleCalendarEvents(account, cal, timeMin, timeMax) {
       `/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime&maxResults=2500` +
       (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "") +
       // only the fields actually used — smaller payloads come back faster
-      `&fields=${encodeURIComponent("nextPageToken,items(id,recurringEventId,summary,start,end,description,location,htmlLink,attendees/email)")}`);
+      `&fields=${encodeURIComponent("nextPageToken,items(id,recurringEventId,eventType,summary,start,end,description,location,htmlLink,attendees/email)")}`);
     if (r.status >= 400) throw providerError("Google", r);
     if (!r.body || !r.body.items) break;
     r.body.items.forEach((e) => out.push({
@@ -705,7 +705,9 @@ async function fetchGoogleCalendarEvents(account, cal, timeMin, timeMax) {
       description: tidyText(htmlToText(e.description || "")), htmlLink: e.htmlLink || "",
       location: e.location || "",
       attendees: (e.attendees || []).map((a) => a.email).filter(Boolean),
-      recurring: !!e.recurringEventId   // part of a repeating series in Google
+      recurring: !!e.recurringEventId,   // part of a repeating series in Google
+      seriesId: e.recurringEventId || "",
+      birthday: e.eventType === "birthday"   // Google's own birthday events (from contacts)
     }));
     pageToken = r.body.nextPageToken;
     if (!pageToken) break;
@@ -793,7 +795,8 @@ async function fetchMicrosoftWindow(account, cal, timeMin, timeMax) {
       description: (e.bodyPreview) || "", htmlLink: e.webLink || "",
       location: (e.location && e.location.displayName) || "",
       attendees: (e.attendees || []).map((a) => a.emailAddress && a.emailAddress.address).filter(Boolean),
-      recurring: !!e.seriesMasterId || e.type === "occurrence" || e.type === "exception" || e.type === "seriesMaster"
+      recurring: !!e.seriesMasterId || e.type === "occurrence" || e.type === "exception" || e.type === "seriesMaster",
+      seriesId: e.seriesMasterId || ""
     }));
     const next = r.body["@odata.nextLink"];
     path2 = next ? next.replace(/^https:\/\/graph\.microsoft\.com\/v1\.0/, "") : "";
@@ -2549,30 +2552,84 @@ app.post("/api/calendar/refresh", requireAuth, (req, res) => {
   res.json({ ok: true, accounts: accounts.length });
 });
 
-// ---- Occasions: everyone's next birthday / anniversary / yahrzeit ----
-// One row per occasion (not per year), with its NEXT date within a year from
-// today, across every visible calendar. Included: Avenium Occasions, plus any
-// event on any calendar whose title says birthday / anniversary / yahrzeit
-// (that also covers Google's own "Birthdays" calendar).
+// ---- Occasions: every birthday / anniversary / yahrzeit in the next 365 days ----
+// One row per OCCURRENCE that falls in the next 365 days, across every visible
+// calendar. An occasion with nothing in that window (a Hebrew date in a long
+// Jewish year, Feb 29) still gets one row, for its next date, so nobody drops off.
+//
+// What counts as an occasion:
+//   - an Avenium event made with the Occasion type,
+//   - ANY event that repeats once a year, on any calendar, whatever it's called,
+//   - any event whose title says birthday / anniversary / yahrzeit,
+//   - Google's own birthday events.
 const OCCASION_KINDS = ["birthday", "anniversary", "yahrzeit", "other"];
 // Loose on purpose: "Birthdays", "birth day", "B-Day", "anniversaries", and the
 // many spellings of yahrzeit (yahrtzeit, yartzeit, yortzeit, yarzeit, yartzheit...)
 const BIRTHDAY_WORDS = /birth\s?day|\bb-?day/i;
 const OCCASION_WORDS = /birth\s?day|\bb-?day|anniversar|\by[ao]h?rt?zh?e?it/i;
+
+// Which repeating series on a calendar repeat yearly. One request per calendar
+// (the series themselves, not their occurrences), kept for an hour.
+function isYearlyRule(lines) {
+  return (lines || []).some((l) => /^RRULE:/i.test(l) && (/FREQ=YEARLY/i.test(l) || (/FREQ=MONTHLY/i.test(l) && /INTERVAL=12(;|$)/i.test(l))));
+}
+async function googleYearlySeriesIds(a, cal, timeMin, timeMax) {
+  const ids = [];
+  let pageToken = "";
+  for (let page = 0; page < 50; page++) {
+    const r = await googleApiRequest(a.accessToken, "GET",
+      `/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?singleEvents=false&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&maxResults=2500` +
+      (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "") + `&fields=${encodeURIComponent("nextPageToken,items(id,recurrence)")}`);
+    if (r.status >= 400) throw providerError("Google", r);
+    if (!r.body || !r.body.items) break;
+    r.body.items.forEach((e) => { if (isYearlyRule(e.recurrence)) ids.push(e.id); });
+    pageToken = r.body.nextPageToken;
+    if (!pageToken) break;
+  }
+  return ids;
+}
+async function microsoftYearlySeriesIds(a, cal) {
+  const ids = [];
+  let path2 = `/me/calendars/${encodeURIComponent(cal.id)}/events?$filter=${encodeURIComponent("type eq 'seriesMaster'")}&$select=id,recurrence&$top=250`;
+  for (let page = 0; page < 50 && path2; page++) {
+    const r = await graphRequest(a.accessToken, "GET", path2);
+    if (r.status >= 400) throw providerError("Outlook", r);
+    if (!r.body || !r.body.value) break;
+    r.body.value.forEach((e) => {
+      const pat = e.recurrence && e.recurrence.pattern;
+      if (pat && (/yearly/i.test(pat.type || "") || (/monthly/i.test(pat.type || "") && pat.interval === 12))) ids.push(e.id);
+    });
+    const next = r.body["@odata.nextLink"];
+    path2 = next ? next.replace(/^https:\/\/graph\.microsoft\.com\/v1\.0/, "") : "";
+  }
+  return ids;
+}
+
 app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
-  // "today" comes from the browser so the year boundary is the user's, not the server's
+  // "today" comes from the browser so the day boundary is the user's, not the server's
   const today = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.today || "")) ? String(req.query.today) : new Date().toISOString().slice(0, 10);
   const t0 = new Date(today + "T00:00:00Z");
   if (isNaN(t0)) return res.status(400).json({ error: "invalid_date" });
-  const lastDay = new Date(t0.getTime() + 365 * 86400000).toISOString().slice(0, 10);
+  const ahead = (days) => new Date(t0.getTime() + days * 86400000).toISOString().slice(0, 10);
+  // 365 days counting today: a full year, so a yearly date lands in it exactly once
+  const windowEnd = ahead(364);
+  // Google/Outlook are read a little further, to catch a date that falls just past the window
+  const tailEnd = ahead(400);
   const timeMin = t0.toISOString();
-  const timeMax = new Date(t0.getTime() + 366 * 86400000).toISOString();
+  const timeMax = new Date(t0.getTime() + 401 * 86400000).toISOString();
   const rangeKey = timeMin.slice(0, 10) + ".." + timeMax.slice(0, 10);
   const hidden = hiddenSet(req.session.userId);
-  const best = new Map();   // occasion key -> its earliest upcoming occurrence
-  const keep = (key, item) => { const cur = best.get(key); if (!cur || item.next < cur.next) best.set(key, item); };
-  const kindOf = (title) => BIRTHDAY_WORDS.test(title || "") ? "birthday" : "other";
+  const rows = [];
   const errors = [];
+  const kindOf = (title) => BIRTHDAY_WORDS.test(title || "") ? "birthday" : "other";
+  // the day an event falls on (timed events: in the app's time zone, not UTC)
+  const dayOfProv = (ev) => {
+    if (ev.allDay || !/T/.test(String(ev.start))) return String(ev.start || "").slice(0, 10);
+    const p = tzParts(new Date(ev.start), DEFAULT_TZ);
+    return dayKeyOf(p.y, p.m, p.d);
+  };
+  // "Dassi's 7th Hebrew Birthday" and "...8th..." are the same occasion a year apart
+  const normTitle = (t) => String(t || "").toLowerCase().replace(/\d+(st|nd|rd|th)?/g, "").replace(/\s+/g, " ").trim();
 
   await Promise.all(listAccounts(req.session.userId).map(async (acct) => {
     try {
@@ -2585,16 +2642,35 @@ app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
             a.provider === "google"
               ? fetchGoogleCalendarEvents(a, cal, timeMin, timeMax)
               : fetchMicrosoftCalendarEvents(a, cal, timeMin, timeMax));
-          events.forEach((ev) => {
-            if (!OCCASION_WORDS.test(ev.title || "")) return;
-            const day = String(ev.start || "").slice(0, 10);
-            if (day < today || day > lastDay) return;
-            // the same title on the same calendar is the same occasion
-            keep(a.id + "|" + cal.id + "|" + (ev.title || "").trim().toLowerCase(), {
-              event: { ...ev, provider: a.provider, accountId: a.id, accountEmail: a.email,
-                calendarId: cal.id, calendarName: cal.name, color: cal.color, canEdit: cal.canEdit },
-              next: day, kind: kindOf(ev.title), calendar: cal.name, account: a.email, jewish: false, turning: null
-            });
+          // yearly series count whatever they're titled; if this lookup fails, titles still work
+          let yearly = new Set();
+          if (events.some((ev) => ev.seriesId)) {
+            try {
+              yearly = new Set(await cachedFetch(`ev:${a.id}:yearly:${cal.id}:${today}`, 60 * 60 * 1000, () =>
+                a.provider === "google" ? googleYearlySeriesIds(a, cal, timeMin, timeMax) : microsoftYearlySeriesIds(a, cal)));
+            } catch (e) {}
+          }
+          const isOccasion = (ev) => ev.birthday || OCCASION_WORDS.test(ev.title || "") || (ev.seriesId && yearly.has(ev.seriesId));
+          const push = (ev, day) => rows.push({
+            event: { ...ev, provider: a.provider, accountId: a.id, accountEmail: a.email,
+              calendarId: cal.id, calendarName: cal.name, color: cal.color, canEdit: cal.canEdit },
+            next: day, later: day > windowEnd,
+            kind: ev.birthday ? "birthday" : kindOf(ev.title), calendar: cal.name, account: a.email, jewish: false, turning: null
+          });
+          const found = events.filter(isOccasion).map((ev) => ({ ev, day: dayOfProv(ev) })).filter((x) => x.day >= today && x.day <= tailEnd)
+            .sort((x, y) => (x.day < y.day ? -1 : x.day > y.day ? 1 : 0));
+          // Every occurrence inside the window is its own row — events that
+          // merely share a title ("Birthday", "Anniversary") are NOT merged.
+          const seen = new Set();
+          found.forEach(({ ev, day }) => {
+            const keys = [ev.seriesId ? "s:" + ev.seriesId : "", "t:" + normTitle(ev.title)].filter(Boolean);
+            // one row per repeating series: a yearly one lands in the window once
+            // anyway, and a weekly "Birthday committee" must not fill the list
+            if (ev.seriesId && seen.has("s:" + ev.seriesId)) return;
+            if (day <= windowEnd) { push(ev, day); keys.forEach((k) => seen.add(k)); return; }
+            // past the window: only if this occasion has nothing inside it
+            if (keys.some((k) => seen.has(k))) return;
+            push(ev, day); keys.forEach((k) => seen.add(k));
           });
         } catch (e) { errors.push(acct.email + " / " + cal.name + " (" + e.message + ")"); }
       }));
@@ -2602,48 +2678,48 @@ app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
   }));
 
   if (!hidden.has("local|avenium")) {
+    const dayOf = (x) => x._instanceDate || String(x.start).slice(0, 10);
     localEvents.filter((e) => e.userId === req.session.userId).forEach((ev) => {
-      const isOccasion = ev.kind === "occasion" || OCCASION_WORDS.test(ev.title || "");
-      if (!isOccasion) return;
-      // Look far enough ahead to reach the NEXT one. A Jewish leap year is up
-      // to 385 days long, so a Hebrew date that just passed is more than 365
-      // days away (the list used to stop at 365 and drop it). Dates that skip
-      // years — Feb 29, 30 Cheshvan, 30 Kislev — need longer still.
-      const dayOf = (x) => x._instanceDate || String(x.start).slice(0, 10);
-      const ahead = (days) => new Date(t0.getTime() + days * 86400000).toISOString().slice(0, 10);
-      const isJewishRepeat = ev.repeat === "jewish-yearly" || ev.repeat === "jewish-monthly";
-      let inst = null;
-      for (const days of (isJewishRepeat ? [400, 1500] : [366, 3000])) {
-        inst = expandLocalEvent(ev, today, ahead(days)).filter((x) => dayOf(x) >= today).sort((x, y) => (dayOf(x) < dayOf(y) ? -1 : 1))[0];
-        if (inst) break;
+      const named = ev.kind === "occasion" || OCCASION_WORDS.test(ev.title || "");
+      const yearlyRepeat = ev.repeat === "yearly" || ev.repeat === "jewish-yearly";
+      if (!named && !yearlyRepeat) return;
+      const byDay = (x, y) => (dayOf(x) < dayOf(y) ? -1 : dayOf(x) > dayOf(y) ? 1 : 0);
+      // every occurrence in the window (a Hebrew date can land in it twice)...
+      let list = expandLocalEvent(ev, today, windowEnd).filter((x) => dayOf(x) >= today && dayOf(x) <= windowEnd).sort(byDay);
+      // ...or, when there is none, the next one after it. A Jewish leap year
+      // runs up to 385 days; Feb 29, 30 Cheshvan and 30 Kislev skip years.
+      if (!list.length) {
+        const isJewishRepeat = ev.repeat === "jewish-yearly" || ev.repeat === "jewish-monthly";
+        for (const days of (isJewishRepeat ? [400, 1500] : [400, 3000])) {
+          const nextOne = expandLocalEvent(ev, today, ahead(days)).filter((x) => dayOf(x) >= today).sort(byDay)[0];
+          if (nextOne) { list = [nextOne]; break; }
+        }
       }
-      if (!inst) return;
-      const next = dayOf(inst);
+      // named like an occasion but repeating weekly/monthly: just its next date
+      if (!yearlyRepeat && ev.repeat && ev.repeat !== "none") list = list.slice(0, 1);
       const jewish = ev.repeat === "jewish-yearly";
-      // how many years (age / anniversary number), when the first year is known
-      let turning = null;
-      if (jewish && ev.hebrewYear) {
-        const h = gregorianToHebrew(+next.slice(0, 4), +next.slice(5, 7), +next.slice(8, 10));
-        turning = h.year - Number(ev.hebrewYear);
-      } else if (ev.repeat === "yearly") {
-        turning = +next.slice(0, 4) - +jewishSeriesFirstDate(ev).slice(0, 4);
-      }
-      if (!(turning > 0)) turning = null;
-      let hebrew = null;
-      if (jewish) {
-        const h = gregorianToHebrew(+next.slice(0, 4), +next.slice(5, 7), +next.slice(8, 10));
-        hebrew = h.day + " " + h.monthName;
-      }
-      keep("local|" + ev.id, {
-        event: { ...inst, provider: "local", accountId: "local", accountEmail: "",
-          calendarId: "avenium", calendarName: "Avenium", color: "#3C5A46", canEdit: true, externalId: ev.id },
-        next, kind: ev.occasionKind ? (ev.occasionKind === "birthday" ? "birthday" : "other") : kindOf(ev.title),
-        calendar: "Avenium", account: "", jewish, hebrew, turning
+      list.forEach((inst) => {
+        const next = dayOf(inst);
+        const h = jewish ? gregorianToHebrew(+next.slice(0, 4), +next.slice(5, 7), +next.slice(8, 10)) : null;
+        // how many years (age / anniversary number) — only where the first year means something
+        let turning = null;
+        if (named) {
+          if (jewish && ev.hebrewYear) turning = h.year - Number(ev.hebrewYear);
+          else if (ev.repeat === "yearly") turning = +next.slice(0, 4) - +jewishSeriesFirstDate(ev).slice(0, 4);
+        }
+        if (!(turning > 0)) turning = null;
+        rows.push({
+          event: { ...inst, provider: "local", accountId: "local", accountEmail: "",
+            calendarId: "avenium", calendarName: "Avenium", color: "#3C5A46", canEdit: true, externalId: ev.id },
+          next, later: next > windowEnd,
+          kind: ev.occasionKind ? (ev.occasionKind === "birthday" ? "birthday" : "other") : kindOf(ev.title),
+          calendar: "Avenium", account: "", jewish, hebrew: h ? h.day + " " + h.monthName : null, turning
+        });
       });
     });
   }
-  const occasions = [...best.values()].sort((x, y) => x.next < y.next ? -1 : x.next > y.next ? 1 : (x.event.title || "").localeCompare(y.event.title || ""));
-  res.json({ today, occasions, errors });
+  rows.sort((x, y) => x.next < y.next ? -1 : x.next > y.next ? 1 : (x.event.title || "").localeCompare(y.event.title || ""));
+  res.json({ today, windowEnd, occasions: rows, errors });
 });
 
 app.post("/api/calendar/events", requireAuth, async (req, res) => {

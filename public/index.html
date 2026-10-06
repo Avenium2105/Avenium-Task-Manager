@@ -537,7 +537,58 @@
   .cal-arrow-btn { font-family: inherit; font-size: 16px; background: none; border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; cursor: pointer; color: var(--ink-soft); }
   .cal-arrow-btn:hover { border-color: var(--pine); color: var(--pine); }
   .cal-arrow-sm { font-size: 14px; padding: 4px 7px; }
-  #calMonthLabel { font-size: 18px; font-weight: 600; color: var(--ink); min-width: 170px; text-align: center; }
+  #calMonthLabel { font-size: 18px; font-weight: 600; color: var(--ink); min-width: 190px; text-align: center; white-space: nowrap; }
+  /* ---- Day / Week / Month / Year switch ---- */
+  .cal-view-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg-raised); }
+  .cal-view-seg button { font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 7px 15px; border: none; background: none; color: var(--ink-soft); cursor: pointer; }
+  .cal-view-seg button + button { border-left: 1px solid var(--line); }
+  .cal-view-seg button:hover { color: var(--pine); }
+  .cal-view-seg button.active { background: var(--pine); color: var(--bg-raised); font-weight: 600; }
+  #calAltView { flex: 1 1 auto; min-height: 0; display: none; }
+  .cal-day-link { cursor: pointer; border-radius: 4px; padding: 0 3px; margin-left: -3px; }
+  .cal-day-link:hover { background: var(--pine-soft); color: var(--pine); }
+  /* ---- Day & Week: hour-by-hour grid ---- */
+  .cal-tg-scroll { height: 100%; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-raised); position: relative; box-sizing: border-box; }
+  .cal-tg-top { position: sticky; top: 0; z-index: 5; background: var(--bg-raised); border-bottom: 1px solid var(--line); }
+  .cal-tg-row { display: grid; }
+  .cal-tg-dayhead { font-family: inherit; text-align: center; padding: 6px 4px 5px; background: none; border: none; border-left: 1px solid var(--line-soft); color: var(--ink); }
+  button.cal-tg-dayhead { cursor: pointer; }
+  button.cal-tg-dayhead:hover { background: var(--bg); }
+  .cal-tg-dayhead .dow { display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-faint); }
+  .cal-tg-dayhead .num { display: inline-block; font-size: 17px; font-weight: 600; min-width: 30px; height: 30px; line-height: 30px; border-radius: 15px; }
+  .cal-tg-dayhead.today .num { background: var(--pine); color: var(--bg-raised); }
+  .cal-tg-dayhead.jumped { background: var(--ochre-soft); }
+  .cal-tg-dayhead .heb { display: block; font-size: 10px; color: var(--ink-faint); }
+  .cal-tg-gutter { font-size: 10.5px; color: var(--ink-faint); text-align: right; padding: 5px 6px 0 0; }
+  .cal-tg-allday-col { border-left: 1px solid var(--line-soft); border-top: 1px solid var(--line-soft); padding: 3px; display: flex; flex-direction: column; gap: 2px; min-height: 26px; max-height: 98px; overflow-y: auto; cursor: pointer; }
+  .cal-tg-body { position: relative; }
+  .cal-tg-hours { position: relative; }
+  .cal-tg-hour { position: absolute; right: 6px; font-size: 10.5px; color: var(--ink-faint); transform: translateY(-50%); white-space: nowrap; }
+  .cal-tg-col { position: relative; border-left: 1px solid var(--line-soft); cursor: pointer; background-image: linear-gradient(to bottom, var(--line-soft) 1px, transparent 1px); }
+  .cal-tg-col.today { background-color: rgba(60, 90, 70, 0.045); }
+  .cal-tg-ev { position: absolute; box-sizing: border-box; border-radius: 5px; padding: 2px 6px; color: #fff; font-size: 11.5px; line-height: 1.3; overflow: hidden; cursor: pointer; border: 1px solid var(--bg-raised); }
+  .cal-tg-ev:hover { filter: brightness(1.08); z-index: 2; }
+  .cal-tg-ev b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-tg-ev span { display: block; font-size: 10.5px; opacity: 0.92; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cal-tg-now { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--brick); z-index: 3; pointer-events: none; }
+  .cal-tg-now::before { content: ""; position: absolute; left: -4px; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: var(--brick); }
+  /* ---- Year: twelve small months ---- */
+  .cal-year { height: 100%; overflow-y: auto; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 18px; padding: 2px 4px 12px; align-content: start; box-sizing: border-box; }
+  @media (max-width: 1100px) { .cal-year { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 760px) { .cal-year { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .cal-ym { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px 12px; }
+  .cal-ym-title { font-family: inherit; font-size: 13.5px; font-weight: 600; color: var(--ink); background: none; border: none; cursor: pointer; padding: 0 0 6px; }
+  .cal-ym-title:hover { color: var(--pine); text-decoration: underline; }
+  .cal-ym-title.current { color: var(--pine); }
+  .cal-ym-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; }
+  .cal-ym-dow { font-size: 10px; color: var(--ink-faint); text-align: center; padding-bottom: 2px; }
+  .cal-ym-day { position: relative; font-family: inherit; font-size: 11.5px; color: var(--ink-soft); background: none; border: 2px solid transparent; border-radius: 6px; padding: 2px 0 7px; cursor: pointer; text-align: center; }
+  .cal-ym-day:hover { border-color: var(--line); }
+  .cal-ym-day.has { color: var(--ink); font-weight: 600; background: var(--pine-soft); }
+  .cal-ym-day.has.busy { background: #c5d9c8; }
+  .cal-ym-day.has::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--pine); }
+  .cal-ym-day.today { border-color: var(--pine); }
+  .cal-ym-day.jumped { border-color: var(--ochre); background: var(--ochre-soft); }
   .cal-nav-view-row { display: flex; gap: 4px; }
   .cal-pill-btn { font-family: inherit; font-size: 12px; font-weight: 500; padding: 5px 14px; border: 1px solid var(--line); border-radius: 20px; background: var(--bg-raised); color: var(--ink-soft); cursor: pointer; }
   .cal-pill-btn:hover { border-color: var(--pine); color: var(--pine); }
@@ -563,6 +614,7 @@
   .cal-occ-add:hover { background: var(--pine-soft); }
   .cal-occ-list { flex: 1; overflow-y: auto; padding-bottom: 12px; }
   .cal-occ-month { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); padding: 14px 16px 6px; position: sticky; top: 0; background: var(--bg-raised); border-bottom: 1px solid var(--line); z-index: 1; }
+  .cal-occ-later { font-size: 12px; color: var(--ink-soft); background: var(--bg); padding: 10px 16px; margin-top: 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .cal-occ-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; font-family: inherit; background: none; border: none; border-bottom: 1px solid var(--line-soft); padding: 10px 16px; cursor: pointer; }
   .cal-occ-row:hover { background: var(--bg); }
   .cal-occ-row.soon { background: var(--ochre-soft); }
@@ -1041,12 +1093,20 @@
         </div>
       </div>
     </div>
-    <div class="cal-nav-right"></div>
+    <div class="cal-nav-right">
+      <div class="cal-view-seg" id="calViewSeg" role="group" aria-label="Calendar view">
+        <button type="button" data-view="day">Day</button>
+        <button type="button" data-view="week">Week</button>
+        <button type="button" data-view="month" class="active">Month</button>
+        <button type="button" data-view="year">Year</button>
+      </div>
+    </div>
   </div>
   <div class="cal-grid-head">
     <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
   </div>
   <div class="cal-grid" id="calGrid"></div>
+  <div id="calAltView"></div>
   <!-- Occasions list: everyone's next birthday / anniversary / yahrzeit -->
   <div id="calOccOverlay" class="cal-occ-overlay">
     <div class="cal-occ-head">
@@ -1384,7 +1444,8 @@
     document.getElementById("calendarView").style.display = "";
     document.title = "Calendar \u00b7 Avenium";
     // Reset to month view with all searches and filters cleared
-    calViewDate = new Date(); calViewDate.setDate(1);
+    calViewDate = new Date(); calViewDate.setHours(0, 0, 0, 0);
+    calView = "month"; calSyncViewUi();
     calJumpDay = "";
     resetCalSearch();
     closeCalOccasions();
@@ -3274,7 +3335,8 @@
   var calendarEvents = [];
   var calendarAccounts = [];   // [{ id, provider, email, calendars: [{ id, key, name, color, canEdit, primary, visible }] }]
   var builtinCalendars = [];   // [{ id, key, name, color, visible }] — Jewish Holidays etc. (no sign-in needed)
-  var calViewDate = new Date(); calViewDate.setDate(1);
+  var calViewDate = new Date(); calViewDate.setHours(0, 0, 0, 0);   // the day in focus; each view shows the period around it
+  var calView = "month";                                              // "day" | "week" | "month" | "year"
   var calEditingEvent = null;  // null = creating new, otherwise the event being edited
   var calHandlersWired = false;
   var showHebrewDates = false; // toggled from Admin, persisted on server
@@ -3416,22 +3478,19 @@
   function initCalendar() {
     if (!calHandlersWired) {
       calHandlersWired = true;
-      document.getElementById("calPrevBtn").onclick = function () {
-        calViewDate.setMonth(calViewDate.getMonth() - 1);
-        loadCalendarEvents();
-      };
-      document.getElementById("calNextBtn").onclick = function () {
-        calViewDate.setMonth(calViewDate.getMonth() + 1);
-        loadCalendarEvents();
-      };
-      document.getElementById("calPrevYear").onclick = function () {
-        calViewDate.setFullYear(calViewDate.getFullYear() - 1);
-        loadCalendarEvents();
-      };
-      document.getElementById("calNextYear").onclick = function () {
-        calViewDate.setFullYear(calViewDate.getFullYear() + 1);
-        loadCalendarEvents();
-      };
+      // ‹ › move by the view's own unit; « » by the next size up
+      document.getElementById("calPrevBtn").onclick = function () { calNavigate(false, -1); };
+      document.getElementById("calNextBtn").onclick = function () { calNavigate(false, 1); };
+      document.getElementById("calPrevYear").onclick = function () { calNavigate(true, -1); };
+      document.getElementById("calNextYear").onclick = function () { calNavigate(true, 1); };
+      [].forEach.call(document.querySelectorAll("#calViewSeg button"), function (b) {
+        b.onclick = function () { setCalView(b.dataset.view); };
+      });
+      // keep the "now" line in Day / Week moving
+      setInterval(function () {
+        var line = document.querySelector("#calAltView .cal-tg-now");
+        if (line) { var n = new Date(); line.style.top = ((n.getHours() * 60 + n.getMinutes()) / 60 * CAL_HOUR_PX) + "px"; }
+      }, 60000);
       // ----- Search Date: jump to Today or a picked date -----
       document.getElementById("calJumpBtn").onclick = function (e) {
         e.stopPropagation();
@@ -3454,7 +3513,7 @@
         var input = document.getElementById("calJumpDate");
         pick.style.display = "flex";
         this.classList.add("active");
-        if (!input.value) input.value = calJumpDay || (calViewDate.getFullYear() + "-" + String(calViewDate.getMonth() + 1).padStart(2, "0") + "-01");
+        if (!input.value) input.value = calJumpDay || calKeyOf(calViewDate);
         input.focus();
         try { if (input.showPicker) input.showPicker(); } catch (err) {}
       };
@@ -3603,7 +3662,7 @@
       loadCalendarEvents();
       fetchCalendarAccounts().then(renderCalendarLegend).catch(function () {});
     } else {
-      renderCalGrid([]);
+      calendarEvents = []; renderCalendarBody();
       fetchCalendarAccounts().then(function () {
         renderCalendarLegend();
         loadCalendarEvents();
@@ -3816,17 +3875,23 @@
       var hay = (o.event.title + " " + (o.calendar || "") + " " + (o.account || "")).toLowerCase();
       return words.every(function (w) { return hay.indexOf(w) !== -1; });
     });
-    var total = calOccData.occasions.length;
-    document.getElementById("calOccTitle").textContent = "Occasions (" + (items.length === total ? total : items.length + " of " + total) + ")";
+    // "later" rows are occasions with nothing in the next 365 days (their next date is further off)
+    var inYear = function (o) { return !o.later; };
+    var total = calOccData.occasions.filter(inYear).length, shown = items.filter(inYear).length;
+    document.getElementById("calOccTitle").textContent = "Occasions \u00b7 next 365 days (" + (shown === total ? total : shown + " of " + total) + ")";
     if (!items.length) {
-      list.appendChild(el("div", "cal-occ-msg", { text: total ? "No matches." :
-        "No occasions yet. Add one with \u201c+ Add Occasion\u201d \u2014 any event with \u201cbirthday\u201d, \u201canniversary\u201d or \u201cyahrzeit\u201d in its title also shows up here." }));
+      list.appendChild(el("div", "cal-occ-msg", { text: calOccData.occasions.length ? "No matches." :
+        "No occasions yet. Add one with \u201c+ Add Occasion\u201d. Any event that repeats every year, or has \u201cbirthday\u201d, \u201canniversary\u201d or \u201cyahrzeit\u201d in its title, also shows up here." }));
       return;
     }
     var today = new Date(calTodayKey() + "T12:00:00");
-    var lastMonth = "";
+    var lastMonth = "", laterShown = false;
     items.forEach(function (o) {
       var d = new Date(o.next + "T12:00:00");
+      if (o.later && !laterShown) {
+        laterShown = true; lastMonth = "";
+        list.appendChild(el("div", "cal-occ-later", { text: "More than a year away \u2014 nothing in the next 365 days for these, so their next date is shown" }));
+      }
       var monthLabel = d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
       if (monthLabel !== lastMonth) { list.appendChild(el("div", "cal-occ-month", { text: monthLabel })); lastMonth = monthLabel; }
       var days = Math.round((d - today) / 86400000);
@@ -3940,8 +4005,18 @@
   function renderCalendarBody() {
     // Clear any stuck floating popovers
     document.querySelectorAll(".floating-popover").forEach(function (n) { n.remove(); });
-    document.getElementById("calMonthLabel").textContent = calViewDate.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-    renderCalGrid(calendarEvents); // search is separate (dropdown / results list) and never filters the grid
+    hideCalTooltip();
+    var grid = document.getElementById("calGrid"), head = document.querySelector(".cal-grid-head"), alt = document.getElementById("calAltView");
+    if (calView === "month") {
+      alt.style.display = "none"; alt.innerHTML = "";
+      head.style.display = ""; grid.style.display = "";
+      renderCalGrid(calendarEvents);   // search is separate and never filters the grid
+    } else {
+      head.style.display = "none"; grid.style.display = "none"; grid.innerHTML = "";
+      alt.style.display = "block";
+      if (calView === "year") renderCalYear(calendarEvents); else renderCalTimeGrid(calendarEvents, calView === "day" ? 1 : 7);
+    }
+    document.getElementById("calMonthLabel").textContent = calViewLabel();
   }
 
   function renderCalendarLegend() {
@@ -3978,11 +4053,10 @@
     }
   }
 
-  // Go to the month containing `key` ("YYYY-MM-DD") and highlight that day.
-  // The grid outlines that day.
+  // Go to `key` ("YYYY-MM-DD") in whichever view is showing, and highlight that day
   function calJumpToDate(key) {
     var parts = key.split("-");
-    calViewDate = new Date(+parts[0], +parts[1] - 1, 1);
+    calViewDate = new Date(+parts[0], +parts[1] - 1, +parts[2]);
     calJumpDay = key;
     document.getElementById("calJumpDrop").style.display = "none";
     loadCalendarEvents();
@@ -4060,13 +4134,248 @@
     ["calJumpDrop", "calRfCalDrop"].forEach(function (id) { var d = document.getElementById(id); if (d) d.style.display = "none"; });
   }
 
-  function calGridRange() {
-    var year = calViewDate.getFullYear(), month = calViewDate.getMonth();
-    // Month grid: exactly the 42 days on screen. Search is separate (runCalSearch).
-    var first2 = new Date(year, month, 1);
-    var start = new Date(first2); start.setDate(1 - first2.getDay());
-    var end = new Date(start); end.setDate(start.getDate() + 42);
-    return { start: start, end: end };
+  // ===== Views: Day / Week / Month / Year =====
+  var CAL_HOUR_PX = 44;   // height of one hour in Day / Week
+  function calKeyOf(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function calDateOfKey(k) { return new Date(+k.slice(0, 4), +k.slice(5, 7) - 1, +k.slice(8, 10)); }
+  function calStartOfWeek(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay()); }
+  // Move a date by a day / week / month / year / decade (Jan 31 + 1 month = Feb 28, not Mar 3)
+  function calShiftDate(d, unit, n) {
+    if (unit === "day") return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n);
+    if (unit === "week") return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7 * n);
+    var months = unit === "month" ? n : unit === "year" ? 12 * n : 120 * n;
+    var t = new Date(d.getFullYear(), d.getMonth() + months, 1);
+    t.setDate(Math.min(d.getDate(), new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate()));
+    return t;
+  }
+  // What has to be loaded for a view. Day uses its whole week, so stepping
+  // through the days of a week (or switching Day <-> Week) is instant.
+  function calRangeFor(view, date) {
+    var y = date.getFullYear(), m = date.getMonth();
+    if (view === "year") return { start: new Date(y, 0, 1), end: new Date(y + 1, 0, 1) };
+    if (view === "week" || view === "day") {
+      var s = calStartOfWeek(date);
+      return { start: s, end: new Date(s.getFullYear(), s.getMonth(), s.getDate() + 7) };
+    }
+    // Month grid: exactly the 42 days on screen
+    var first = new Date(y, m, 1);
+    var start = new Date(y, m, 1 - first.getDay());
+    return { start: start, end: new Date(start.getFullYear(), start.getMonth(), start.getDate() + 42) };
+  }
+  function calGridRange() { return calRangeFor(calView, calViewDate); }
+  function calNavigate(big, dir) {
+    var unit = big ? { day: "week", week: "month", month: "year", year: "decade" }[calView] : calView;
+    calViewDate = calShiftDate(calViewDate, unit, dir);
+    loadCalendarEvents();
+  }
+  function calSyncViewUi() {
+    [].forEach.call(document.querySelectorAll("#calViewSeg button"), function (b) { b.classList.toggle("active", b.dataset.view === calView); });
+    var big = { day: "week", week: "month", month: "year", year: "10 years" }[calView];
+    var set = function (id, t) { var e = document.getElementById(id); if (e) e.title = t; };
+    set("calPrevBtn", "Previous " + calView); set("calNextBtn", "Next " + calView);
+    set("calPrevYear", "Back one " + big.replace(/^10 years$/, "decade")); set("calNextYear", "Forward one " + big.replace(/^10 years$/, "decade"));
+  }
+  function setCalView(view) {
+    if (["day", "week", "month", "year"].indexOf(view) === -1) return;
+    calView = view;
+    calSyncViewUi();
+    closeCalPopovers();
+    loadCalendarEvents();
+  }
+  function calViewLabel() {
+    var d = calViewDate;
+    if (calView === "year") return String(d.getFullYear());
+    if (calView === "month") return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    if (calView === "day") return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+    var s = calStartOfWeek(d), e = new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6);
+    var md = function (x) { return x.toLocaleDateString(undefined, { month: "short", day: "numeric" }); };
+    if (s.getFullYear() !== e.getFullYear()) return md(s) + ", " + s.getFullYear() + " – " + md(e) + ", " + e.getFullYear();
+    return (s.getMonth() === e.getMonth() ? md(s) + " – " + e.getDate() : md(s) + " – " + md(e)) + ", " + e.getFullYear();
+  }
+  // First and last day an event covers. Google/Outlook give an all-day event's
+  // end as the day AFTER it ends; Avenium and the holiday feeds give the last day itself.
+  function calEventSpan(ev) {
+    if (ev.allDay) {
+      var first = String(ev.start || "").slice(0, 10), endK = String(ev.end || ev.start || "").slice(0, 10), last = first;
+      if (endK > first) {
+        last = endK;
+        if (ev.provider === "google" || ev.provider === "microsoft") last = calKeyOf(calShiftDate(calDateOfKey(endK), "day", -1));
+      }
+      return { first: first, last: last < first ? first : last, strip: true };
+    }
+    var st = new Date(ev.start), en = ev.end ? new Date(ev.end) : new Date(st);
+    if (isNaN(st)) return { first: "", last: "", strip: true };
+    if (isNaN(en) || en < st) en = new Date(st);
+    var lastMoment = en > st ? new Date(en.getTime() - 1) : en;   // ending at midnight doesn't touch the next day
+    return { first: calKeyOf(st), last: calKeyOf(lastMoment), strip: (en - st) >= 24 * 3600000, st: st, en: en };
+  }
+  function calTimeText(d) { return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); }
+  function calEventPill(ev, withTime) {
+    var pill = el("div", "cal-event-pill", { text: (withTime && !ev.allDay ? calTimeText(new Date(ev.start)) + " " : "") + ev.title });
+    pill.style.background = colorForEvent(ev);
+    pill.addEventListener("mouseenter", function () { showCalTooltip(pill, ev); });
+    pill.addEventListener("mouseleave", hideCalTooltip);
+    pill.onclick = function (e) { e.stopPropagation(); hideCalTooltip(); openCalModal(ev); };
+    return pill;
+  }
+  // Side-by-side columns for meetings that overlap
+  function calLayoutDay(segs) {
+    segs.sort(function (a, b) { return a.s - b.s || b.e - a.e; });
+    var out = [], cluster = [], clusterEnd = -1;
+    function flush() {
+      var cols = [];
+      cluster.forEach(function (g) {
+        for (var c = 0; c < cols.length; c++) { if (cols[c] <= g.s) { cols[c] = g.le; g.col = c; return; } }
+        g.col = cols.length; cols.push(g.le);
+      });
+      cluster.forEach(function (g) { g.cols = cols.length; out.push(g); });
+      cluster = []; clusterEnd = -1;
+    }
+    segs.forEach(function (g) {
+      g.le = Math.max(g.e, g.s + 30);   // short meetings still get room for their title
+      if (cluster.length && g.s >= clusterEnd) flush();
+      cluster.push(g); clusterEnd = Math.max(clusterEnd, g.le);
+    });
+    if (cluster.length) flush();
+    return out;
+  }
+  var calTgScroll = { key: "", top: 0 };
+  // Day (1 column) and Week (7 columns): all-day strip on top, hours below
+  function renderCalTimeGrid(events, nDays) {
+    var alt = document.getElementById("calAltView");
+    var start = nDays === 1 ? new Date(calViewDate.getFullYear(), calViewDate.getMonth(), calViewDate.getDate()) : calStartOfWeek(calViewDate);
+    var days = [];
+    for (var i = 0; i < nDays; i++) { var dd = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i); days.push({ date: dd, key: calKeyOf(dd), strip: [], segs: [] }); }
+    var byKey = {}; days.forEach(function (d) { byKey[d.key] = d; });
+    var todayKey = calTodayKey(), firstMin = null;
+    events.forEach(function (ev) {
+      var sp = calEventSpan(ev);
+      if (!sp.first) return;
+      days.forEach(function (d) {
+        if (d.key < sp.first || d.key > sp.last) return;
+        if (sp.strip) { d.strip.push(ev); return; }
+        var s = d.key === sp.first ? sp.st.getHours() * 60 + sp.st.getMinutes() : 0;
+        var e = d.key === calKeyOf(sp.en) ? sp.en.getHours() * 60 + sp.en.getMinutes() : 1440;
+        if (d.key === sp.last && d.key !== calKeyOf(sp.en)) e = 1440;          // ends exactly at midnight
+        if (e <= s) e = Math.min(1440, s + 30);
+        d.segs.push({ ev: ev, s: s, e: e });
+        // (the tail of an overnight event at 12 AM shouldn't drag the view up to midnight)
+        if (d.key === sp.first && (firstMin === null || s < firstMin)) firstMin = s;
+      });
+    });
+    var cols = "56px repeat(" + nDays + ", minmax(0, 1fr))";
+    var scroll = el("div", "cal-tg-scroll");
+    var top = el("div", "cal-tg-top");
+    var headRow = el("div", "cal-tg-row"); headRow.style.gridTemplateColumns = cols;
+    headRow.appendChild(el("div", ""));
+    days.forEach(function (d) {
+      var h = el(nDays > 1 ? "button" : "div", "cal-tg-dayhead" + (d.key === todayKey ? " today" : "") + (d.key === calJumpDay ? " jumped" : ""));
+      if (nDays > 1) { h.type = "button"; h.title = "Open this day"; h.onclick = function () { calViewDate = d.date; setCalView("day"); }; }
+      h.appendChild(el("span", "dow", { text: d.date.toLocaleDateString(undefined, { weekday: nDays > 1 ? "short" : "long" }) }));
+      h.appendChild(el("span", "num", { text: String(d.date.getDate()) }));
+      if (showHebrewDates && hebrewDateCache[d.key]) h.appendChild(el("span", "heb", { text: hebrewDateCache[d.key].day + " " + hebrewDateCache[d.key].month }));
+      headRow.appendChild(h);
+    });
+    top.appendChild(headRow);
+    var stripRow = el("div", "cal-tg-row"); stripRow.style.gridTemplateColumns = cols;
+    stripRow.appendChild(el("div", "cal-tg-gutter", { text: "All day" }));
+    days.forEach(function (d) {
+      var c = el("div", "cal-tg-allday-col");
+      d.strip.sort(function (a, b) { return (a.provider === "builtin" ? 0 : 1) - (b.provider === "builtin" ? 0 : 1) || String(a.title).localeCompare(String(b.title)); })
+        .forEach(function (ev) { c.appendChild(calEventPill(ev, true)); });
+      c.addEventListener("scroll", hideCalTooltip);
+      c.onclick = function () { openCalModal(null, d.key + "T09:00"); };
+      stripRow.appendChild(c);
+    });
+    top.appendChild(stripRow);
+    scroll.appendChild(top);
+    var body = el("div", "cal-tg-row cal-tg-body"); body.style.gridTemplateColumns = cols; body.style.height = (24 * CAL_HOUR_PX) + "px";
+    var hours = el("div", "cal-tg-hours");
+    for (var hr = 1; hr < 24; hr++) {
+      var lab = el("div", "cal-tg-hour", { text: new Date(2000, 0, 1, hr).toLocaleTimeString(undefined, { hour: "numeric" }) });
+      lab.style.top = (hr * CAL_HOUR_PX) + "px";
+      hours.appendChild(lab);
+    }
+    body.appendChild(hours);
+    days.forEach(function (d) {
+      var col = el("div", "cal-tg-col" + (d.key === todayKey ? " today" : ""));
+      col.style.backgroundSize = "100% " + CAL_HOUR_PX + "px";
+      // click an empty slot = new event at that time (to the half hour)
+      col.onclick = function (e) {
+        var mins = Math.max(0, Math.min(1410, Math.floor((e.clientY - col.getBoundingClientRect().top) / CAL_HOUR_PX * 2) * 30));
+        openCalModal(null, d.key + "T" + String(Math.floor(mins / 60)).padStart(2, "0") + ":" + String(mins % 60).padStart(2, "0"));
+      };
+      calLayoutDay(d.segs).forEach(function (g) {
+        var ev = g.ev, hgt = Math.max((g.e - g.s) / 60 * CAL_HOUR_PX, 20) - 1;
+        var box = el("div", "cal-tg-ev");
+        box.style.top = (g.s / 60 * CAL_HOUR_PX) + "px"; box.style.height = hgt + "px";
+        box.style.left = "calc(" + (g.col / g.cols * 100) + "% + 1px)"; box.style.width = "calc(" + (100 / g.cols) + "% - 3px)";
+        box.style.background = colorForEvent(ev);
+        box.appendChild(el("b", "", { text: ev.title }));
+        var st = new Date(ev.start), en = ev.end ? new Date(ev.end) : null;
+        var when = calTimeText(st) + (en && en > st ? " – " + calTimeText(en) : "");
+        if (hgt >= 34) box.appendChild(el("span", "", { text: when }));
+        if (hgt >= 52 && ev.location && nDays === 1) box.appendChild(el("span", "", { text: ev.location }));
+        box.addEventListener("mouseenter", function () { showCalTooltip(box, ev); });
+        box.addEventListener("mouseleave", hideCalTooltip);
+        box.onclick = function (e) { e.stopPropagation(); hideCalTooltip(); openCalModal(ev); };
+        col.appendChild(box);
+      });
+      if (d.key === todayKey) {
+        var now = new Date(), line = el("div", "cal-tg-now");
+        line.style.top = ((now.getHours() * 60 + now.getMinutes()) / 60 * CAL_HOUR_PX) + "px";
+        col.appendChild(line);
+      }
+      body.appendChild(col);
+    });
+    scroll.appendChild(body);
+    alt.innerHTML = ""; alt.appendChild(scroll);
+    // Open on the working day (7 AM, or the first meeting if earlier); stay
+    // where you scrolled to when the same days are simply redrawn.
+    var key = calView + "|" + days[0].key;
+    if (calTgScroll.key === key) scroll.scrollTop = calTgScroll.top;
+    else {
+      var from = Math.min(7 * 60, firstMin === null ? 7 * 60 : Math.max(0, firstMin - 30));
+      scroll.scrollTop = Math.max(0, from / 60 * CAL_HOUR_PX - 12);   // a little above, so the first hour label is readable
+      calTgScroll = { key: key, top: scroll.scrollTop };
+    }
+    scroll.addEventListener("scroll", function () { calTgScroll = { key: key, top: scroll.scrollTop }; hideCalTooltip(); });
+  }
+  // Year: twelve small months; a marked day has events (holiday feeds don't count)
+  function renderCalYear(events) {
+    var alt = document.getElementById("calAltView");
+    var y = calViewDate.getFullYear(), counts = {}, todayKey = calTodayKey(), now = new Date();
+    events.forEach(function (ev) {
+      if (ev.provider === "builtin") return;
+      var sp = calEventSpan(ev);
+      if (!sp.first) return;
+      var d = calDateOfKey(sp.first), guard = 0;
+      while (calKeyOf(d) <= sp.last && guard++ < 400) { var k = calKeyOf(d); counts[k] = (counts[k] || 0) + 1; d = calShiftDate(d, "day", 1); }
+    });
+    var wrap = el("div", "cal-year");
+    for (var m = 0; m < 12; m++) (function (m) {
+      var box = el("div", "cal-ym");
+      var title = el("button", "cal-ym-title" + (y === now.getFullYear() && m === now.getMonth() ? " current" : ""), { type: "button", text: new Date(y, m, 1).toLocaleDateString(undefined, { month: "long" }), title: "Open this month" });
+      title.onclick = function () {
+        calViewDate = (y === now.getFullYear() && m === now.getMonth()) ? new Date(y, m, now.getDate()) : new Date(y, m, 1);
+        setCalView("month");
+      };
+      box.appendChild(title);
+      var grid = el("div", "cal-ym-grid");
+      ["S", "M", "T", "W", "T", "F", "S"].forEach(function (c) { grid.appendChild(el("div", "cal-ym-dow", { text: c })); });
+      var lead = new Date(y, m, 1).getDay(), n = new Date(y, m + 1, 0).getDate();
+      for (var i = 0; i < lead; i++) grid.appendChild(el("div", ""));
+      for (var day = 1; day <= n; day++) (function (day) {
+        var date = new Date(y, m, day), k = calKeyOf(date), c = counts[k] || 0;
+        var b = el("button", "cal-ym-day" + (c ? " has" : "") + (c >= 4 ? " busy" : "") + (k === todayKey ? " today" : "") + (k === calJumpDay ? " jumped" : ""), { type: "button", text: String(day) });
+        b.title = date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) + " · " + (c ? c + (c === 1 ? " event" : " events") : "no events");
+        b.onclick = function () { calViewDate = date; setCalView("day"); };
+        grid.appendChild(b);
+      })(day);
+      box.appendChild(grid);
+      wrap.appendChild(box);
+    })(m);
+    alt.innerHTML = ""; alt.appendChild(wrap);
   }
 
   // Months already fetched, kept for the session. Flicking back to a month you
@@ -4075,7 +4384,8 @@
   var calLoadToken = 0;
   var hebrewDateCache = {}; // "2026-09-01" => { day: 7, month: "Tishrei", year: 5787 }
 
-  function rangeKeyFor(range) { return range.start.toISOString().slice(0, 10); }
+  // start AND end: a week and a month can begin on the same Sunday
+  function rangeKeyFor(range) { return range.start.toISOString().slice(0, 10) + ".." + range.end.toISOString().slice(0, 10); }
 
   function fetchHebrewDates(range) {
     var startKey = range.start.getFullYear() + "-" + String(range.start.getMonth() + 1).padStart(2, "0") + "-" + String(range.start.getDate()).padStart(2, "0");
@@ -4116,12 +4426,13 @@
       calendarEvents = cached;
       renderCalendarBody();
     } else {
-      renderCalGrid([]);
+      calendarEvents = [];
+      renderCalendarBody();
       setCalLoading(true);
     }
 
     // 2) fetch fresh in the background
-    if (showHebrewDates) fetchHebrewDates(range);
+    if (showHebrewDates && calView !== "year") fetchHebrewDates(range);
     return fetchRange(range).then(function (evs) {
       if (token !== calLoadToken) return true; // a newer month was opened meanwhile
       calendarEvents = evs;
@@ -4170,14 +4481,12 @@
       });
   }
 
-  // Warm the previous/next month so the arrows feel instant
+  // Warm the previous/next period so the arrows feel instant (a year is too much to preload)
   function prefetchNeighbourMonths() {
+    if (calView === "year") return;
+    var view = calView, unit = view === "day" ? "week" : view;
     [-1, 1].forEach(function (offset) {
-      var d = new Date(calViewDate.getFullYear(), calViewDate.getMonth() + offset, 1);
-      var saved = calViewDate;
-      calViewDate = d;
-      var range = calGridRange();
-      calViewDate = saved;
+      var range = calRangeFor(view, calShiftDate(calViewDate, unit, offset));
       if (calMonthCache[rangeKeyFor(range)]) return;
       fetchRange(range).catch(function () {});
     });
@@ -4261,7 +4570,9 @@
         var key = date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0");
         var cell = el("div", "cal-cell" + (isToday ? " today" : "") + (key === calJumpDay ? " jumped" : "") + (inMonth ? "" : " other-month"));
         var dayNumRow = el("div", "cal-day-num");
-        dayNumRow.appendChild(document.createTextNode(String(date.getDate())));
+        var dayLink = el("span", "cal-day-link", { text: String(date.getDate()), title: "Open this day" });
+        dayLink.onclick = function (e) { e.stopPropagation(); calViewDate = date; setCalView("day"); };
+        dayNumRow.appendChild(dayLink);
         if (showHebrewDates) {
           var heb = hebrewDateCache[key];
           if (heb) {
