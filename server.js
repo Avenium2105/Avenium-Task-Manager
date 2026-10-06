@@ -2485,7 +2485,8 @@ app.get("/api/calendar/search", requireAuth, async (req, res) => {
               : fetchMicrosoftCalendarEvents(a, cal, timeMin, timeMax));
           events.filter(matches).forEach((ev) => found.push({
             ...ev, provider: a.provider, accountId: a.id, accountEmail: a.email,
-            calendarId: cal.id, calendarName: cal.name, color: cal.color, canEdit: cal.canEdit
+            calendarId: cal.id, calendarName: cal.name, color: cal.color, canEdit: cal.canEdit,
+            type: eventTypeOf(ev, a.provider)
           }));
         } catch (e) { errors.push(acct.email + " / " + cal.name + " (" + e.message + ")"); }
       }));
@@ -2496,10 +2497,11 @@ app.get("/api/calendar/search", requireAuth, async (req, res) => {
     localEvents.filter((e) => e.userId === req.session.userId).forEach((ev) => {
       const hay = ((ev.title || "") + " " + (ev.description || "") + " " + (ev.location || "")).toLowerCase();
       if (!words.every((w) => hay.indexOf(w) !== -1)) return;
+      const type = eventTypeOf(ev, "local");
       expandLocalEvent(ev, startDate, endDate).filter(inRange).forEach((inst) => found.push({
         ...inst, provider: "local", accountId: "local", accountEmail: "",
         calendarId: "avenium", calendarName: "Avenium", color: "#3C5A46", canEdit: true,
-        externalId: ev.id
+        externalId: ev.id, type
       }));
     });
   }
@@ -2598,6 +2600,24 @@ app.post("/api/calendar/refresh", requireAuth, (req, res) => {
 // An event is NOT an occasion just because it repeats once a year — that
 // pulled in yearly business reminders ("Make Annual ... LLC").
 const OCCASION_KINDS = ["birthday", "anniversary", "yahrzeit", "other"];
+// Meeting / Appointment / Call / Occasion — the four types in the Add Event
+// window, used by the Type filter on the Search events screen.
+// Avenium events made from now on remember the type that was picked. Older
+// events, and everything from Google/Outlook (which have no such field), are
+// sorted by what they look like: an occasion word in the title, "call" or
+// "phone" in the title, invited people or a meeting link, otherwise an appointment.
+const EVENT_TYPES = ["meeting", "appointment", "call"];
+const MEETING_LINK = /zoom\.us|zoomgov\.com|teams\.microsoft\.com|teams\.live\.com|meet\.google\.com|webex\.com|gotomeet|goto\.com|ringcentral|bluejeans|whereby\.com|chime\.aws|meet\.jit\.si|join\.me/i;
+function eventTypeOf(ev, provider) {
+  const title = ev.title || "";
+  if (ev.kind === "occasion" || ev.birthday || OCCASION_WORDS.test(title)) return "occasion";
+  if (provider === "local" && ev.repeat === "jewish-yearly") return "occasion";
+  if (EVENT_TYPES.includes(ev.eventType)) return ev.eventType;
+  if (/\bcall\b|\bphone\b/i.test(title)) return "call";
+  if ((Array.isArray(ev.attendees) && ev.attendees.length) || /\bmeeting\b|\bmtg\b/i.test(title) ||
+      MEETING_LINK.test((ev.location || "") + " " + (ev.description || ""))) return "meeting";
+  return "appointment";
+}
 // Loose on purpose: "Birthdays", "birth day", "B-Day", "anniversaries", and the
 // many spellings of yahrzeit (yahrtzeit, yartzeit, yortzeit, yarzeit, yartzheit...)
 const BIRTHDAY_WORDS = /birth\s?day|\bb-?day/i;
@@ -2716,7 +2736,7 @@ app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
 });
 
 app.post("/api/calendar/events", requireAuth, async (req, res) => {
-  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, timeZone, kind, occasionKind, afterSunset } = req.body || {};
+  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, timeZone, kind, occasionKind, afterSunset, eventType } = req.body || {};
   if (!title || !start) return res.status(400).json({ error: "invalid_request" });
   if (calendarIsOff(req.session.userId, accountId, calendarId)) return res.status(400).json({ error: "calendar_off" });
   const isJewishRepeat = repeat === "jewish-monthly" || repeat === "jewish-yearly";
@@ -2740,6 +2760,7 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
     if (hebrewMonth) ev.hebrewMonth = hebrewMonth;
     if (isJewishRepeat && hebrewYear) ev.hebrewYear = Number(hebrewYear);
     if (validTimeZone(timeZone)) ev.timeZone = timeZone;
+    if (kind !== "occasion" && EVENT_TYPES.includes(eventType)) ev.eventType = eventType;   // Meeting / Appointment / Call
     if (kind === "occasion") {   // birthday / anniversary / yahrzeit — yearly, all-day, from the original date
       ev.kind = "occasion";
       if (OCCASION_KINDS.includes(occasionKind)) ev.occasionKind = occasionKind;
