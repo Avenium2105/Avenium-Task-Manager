@@ -3881,7 +3881,7 @@
     document.getElementById("calOccTitle").textContent = "Occasions \u00b7 next 365 days (" + (shown === total ? total : shown + " of " + total) + ")";
     if (!items.length) {
       list.appendChild(el("div", "cal-occ-msg", { text: calOccData.occasions.length ? "No matches." :
-        "No occasions yet. Add one with \u201c+ Add Occasion\u201d. Any event that repeats every year, or has \u201cbirthday\u201d, \u201canniversary\u201d or \u201cyahrzeit\u201d in its title, also shows up here." }));
+        "No occasions yet. Add one with \u201c+ Add Occasion\u201d. Any event with \u201cbirthday\u201d, \u201canniversary\u201d or \u201cyahrzeit\u201d in its title also shows up here." }));
       return;
     }
     var today = new Date(calTodayKey() + "T12:00:00");
@@ -3983,7 +3983,9 @@
         r.row.appendChild(el("span", "cal-agenda-time", { text: r.time }));
         r.row.appendChild(el("span", "cal-agenda-name", { text: ev.title }));
         if (ev.repeat && ev.repeat !== "none") r.row.appendChild(el("span", "cal-agenda-repeat", { text: "\u21BB " + (repeatLabels[ev.repeat] || ev.repeat) }));
-        r.row.appendChild(el("span", "cal-search-results-cal", { text: ev.calendarName || "" }));
+        var calCol = el("span", "cal-search-results-cal", { text: (ev.calendarName === "Calendar" && ev.accountEmail) ? ev.accountEmail : (ev.calendarName || "") });
+        calCol.title = (ev.calendarName || "") + (ev.accountEmail ? " \u2014 " + ev.accountEmail : "");
+        r.row.appendChild(calCol);
         r.row.onclick = function () { openCalModal(ev); };
         list.appendChild(r.row);
       });
@@ -4618,7 +4620,9 @@
     calendarAccounts.forEach(function (acct) {
       acct.calendars.forEach(function (c) {
         var isSelected = acct.id === selectedAccountId && c.id === selectedCalendarId;
-        if (!c.canEdit && !isSelected) return;
+        // Only calendars that are switched on in Admin (and that you can write
+        // to). The calendar an existing event already lives on always stays.
+        if ((!c.canEdit || c.visible === false) && !isSelected) return;
         var calLabel = c.name;
         if (acct.email) calLabel += " \u2014 " + acct.email;
         else if (acct.provider === "google") calLabel += " \u2014 Google";
@@ -5210,9 +5214,9 @@
   }
 
   function openCalModal(event, defaultStart) {
-    var hasWritable = calendarAccounts.some(function (a) { return a.calendars.some(function (c) { return c.canEdit; }); });
+    var hasWritable = calendarAccounts.some(function (a) { return a.calendars.some(function (c) { return c.canEdit && c.visible !== false; }); });
     if (!event && !hasWritable) {
-      alert("No writable calendar available.");
+      alert("None of your calendars are switched on. Tick at least one calendar in Admin \u2192 Your calendar connections, then try again.");
       return;
     }
     calEditingEvent = event || null;
@@ -5388,7 +5392,10 @@
         ? document.getElementById("calModalRepeatUntil").value : "";
     }
     if (canSetRepeat && (repeat === "jewish-monthly" || repeat === "jewish-yearly") && document.getElementById("calModalCalendar").value.indexOf("local|") !== 0) {
-      alert("Jewish repeats can only be saved to the Avenium calendar \u2014 Google and Outlook can\u2019t repeat by the Hebrew calendar.");
+      var calHasLocal = [].some.call(document.getElementById("calModalCalendar").options, function (o) { return o.value.indexOf("local|") === 0; });
+      alert(calHasLocal
+        ? "Jewish repeats can only be saved to the Avenium calendar \u2014 Google and Outlook can\u2019t repeat by the Hebrew calendar."
+        : "Jewish repeats are saved to the Avenium calendar, which is switched off. Tick \u201cAvenium\u201d in Admin \u2192 Your calendar connections, then try again.");
       return;
     }
     if (canSetRepeat && repeat && repeat !== "none") {
@@ -5454,6 +5461,7 @@
   // Say WHY a save failed (Google/Outlook's own reason) instead of a generic message
   function calSaveErrorText(d) {
     d = d || {};
+    if (d.error === "calendar_off") return "That calendar is switched off. Tick it in Admin \u2192 Your calendar connections, or pick another calendar.";
     if (d.error === "jewish_repeat_avenium_only") return "Jewish repeats can only be saved to the Avenium calendar.";
     if (d.error === "invalid_hebrew_date") return "That Hebrew date doesn\u2019t exist.";
     if (d.error === "provider_rejected") return "Couldn\u2019t save \u2014 " + String(d.message || "Google/Outlook rejected the change").replace(/\.+$/, "") + ".";

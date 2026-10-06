@@ -122,6 +122,13 @@ function persistCalPrefs() {
 function hiddenSet(userId) {
   return new Set((calendarPrefs[userId] && calendarPrefs[userId].hidden) || []);
 }
+// True when this user has switched the calendar off in Admin. New events
+// can't be put on (or moved to) a calendar that's switched off — the event
+// window only offers active calendars, and the server enforces the same rule.
+function calendarIsOff(userId, accountId, calendarId) {
+  const key = accountId === "local" ? "local|avenium" : accountId + "|" + calendarId;
+  return hiddenSet(userId).has(key);
+}
 function setCalendarVisible(userId, key, visible) {
   if (!calendarPrefs[userId]) calendarPrefs[userId] = { hidden: [] };
   const hidden = new Set(calendarPrefs[userId].hidden || []);
@@ -162,49 +169,49 @@ function persistLocalEvents() {
 const _hebFmt = new Intl.DateTimeFormat("en-u-ca-hebrew", { day: "numeric", month: "long", year: "numeric" });
 
 function gregorianToHebrew(gyear, gmonth, gday) {
-  const d = new Date(gyear, gmonth - 1, gday, 12);
+  const d = new Date(2000, 0, 1, 12);
+  d.setFullYear(gyear, gmonth - 1, gday);   // (new Date(y, ...) turns years 0-99 into 1900-1999)
   const parts = _hebFmt.formatToParts(d);
   const obj = {};
   parts.forEach((p) => { obj[p.type] = p.value; });
   return { year: Number(obj.year), month: 0, day: Number(obj.day), monthName: obj.month || "" };
 }
 
-// Convert a Hebrew date to Gregorian by searching from an estimate.
-// Used for Jewish recurrence: given a Hebrew month+day, find the
-// Gregorian date in a specific Hebrew year.
+// Hebrew date -> Gregorian, exactly.
+// This used to guess a Gregorian month and look 30 days before / 60 days
+// after it. In a Jewish LEAP year every month from Nisan on falls a month
+// later, so dates late in those months (26 Iyar, 28 Sivan, 28 Tamuz, 29 Av...)
+// landed outside the search and were reported as "no such date" — the event
+// simply vanished from the calendar and the Occasions list for that year.
+// Now each Hebrew year is walked once, day by day, from before Rosh Hashanah
+// to the end of Elul, and every date in it is remembered.
+const HEBREW_MONTH_NAMES = ["Tishri", "Heshvan", "Kislev", "Tevet", "Shevat", "Adar", "Adar I", "Adar II", "Nisan", "Iyar", "Sivan", "Tamuz", "Av", "Elul"];
+const _hebYearTables = new Map();
+function hebrewYearTable(hYear) {
+  let t = _hebYearTables.get(hYear);
+  if (t) return t;
+  t = {};
+  // Rosh Hashanah of Hebrew year N is in Aug/Sept/Oct of Gregorian year N-3761
+  const d = new Date(2000, 7, 1, 12);
+  d.setFullYear(hYear - 3761);
+  let started = false;
+  for (let i = 0; i < 480; i++) {
+    const h = gregorianToHebrew(d.getFullYear(), d.getMonth() + 1, d.getDate());
+    if (h.year === hYear) {
+      started = true;
+      t[h.monthName + "|" + h.day] = { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() };
+    } else if (started) break;
+    d.setDate(d.getDate() + 1);
+  }
+  if (_hebYearTables.size > 3000) _hebYearTables.clear();
+  _hebYearTables.set(hYear, t);
+  return t;
+}
 function hebrewToGregorian(hYear, hMonthName, hDay) {
-  // Hebrew year N starts in Sept/Oct of Gregorian year N-3761.
-  // Tishrei–Adar fall in that Sept–Mar window; Nisan–Elul fall in the following Mar–Sept.
-  var gYearEst = hYear - 3761;
-  var monthOrder = ["Tishri", "Heshvan", "Kislev", "Tevet", "Shevat", "Adar", "Adar I", "Adar II", "Nisan", "Iyar", "Sivan", "Tamuz", "Av", "Elul"];
-  var mIdx = monthOrder.indexOf(hMonthName);
-  if (mIdx < 0) return null;
-  // Rough Gregorian month: Tishri=Sept, Heshvan=Oct, ... Nisan=Mar(+1y), Iyar=Apr(+1y), etc.
-  var gMonthEst, gYearAdj = gYearEst;
-  if (mIdx <= 5) {
-    // Tishri(0)=Sep, Heshvan(1)=Oct, Kislev(2)=Nov, Tevet(3)=Dec, Shevat(4)=Jan+1, Adar(5)=Feb+1
-    gMonthEst = 8 + mIdx; // 0-indexed: 8=Sept
-    if (gMonthEst >= 12) { gMonthEst -= 12; gYearAdj++; }
-  } else if (mIdx <= 7) {
-    // Adar I(6)=Feb+1, Adar II(7)=Mar+1
-    gMonthEst = mIdx - 5; // 1=Feb, 2=Mar
-    gYearAdj++;
-  } else {
-    // Nisan(8)=Mar+1, Iyar(9)=Apr+1, ... Elul(13)=Aug+1
-    gMonthEst = mIdx - 6; // 2=Mar, 3=Apr, ... 7=Aug
-    gYearAdj++;
-  }
-  var startSearch = new Date(gYearAdj, gMonthEst, 1);
-  startSearch.setDate(startSearch.getDate() - 30); // back up generously for leap year shifts
-  for (var i = 0; i < 90; i++) {
-    var test = new Date(startSearch);
-    test.setDate(test.getDate() + i);
-    var heb = gregorianToHebrew(test.getFullYear(), test.getMonth() + 1, test.getDate());
-    if (heb.day === hDay && heb.monthName === hMonthName && heb.year === hYear) {
-      return { year: test.getFullYear(), month: test.getMonth() + 1, day: test.getDate() };
-    }
-  }
-  return null;
+  hYear = Number(hYear); hDay = Number(hDay);
+  if (!Number.isInteger(hYear) || !Number.isInteger(hDay) || HEBREW_MONTH_NAMES.indexOf(hMonthName) < 0) return null;
+  const g = hebrewYearTable(hYear)[hMonthName + "|" + hDay];
+  return g ? { year: g.year, month: g.month, day: g.day } : null;
 }
 
 // ---- Time zones for repeating events ----
@@ -264,6 +271,18 @@ function hebrewToGregorianFlex(hYear, hMonthName, hDay) {
     if (g) return { year: g.year, month: g.month, day: g.day, monthUsed: tries[i] };
   }
   return null;
+}
+// For a date that REPEATS every year: the 30th of Heshvan, Kislev or Adar I
+// doesn't exist in every year. Such a year used to be skipped altogether;
+// it is now kept on the next day (the 1st of the following month), which is
+// the usual practice for a birthday.
+function hebrewToGregorianObserved(hYear, hMonthName, hDay) {
+  var g = hebrewToGregorianFlex(hYear, hMonthName, hDay);
+  if (g || Number(hDay) !== 30) return g;
+  var prev = hebrewToGregorianFlex(hYear, hMonthName, 29);
+  if (!prev) return null;
+  var d = new Date(prev.year, prev.month - 1, prev.day + 1, 12);
+  return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate(), monthUsed: prev.monthUsed, moved: true };
 }
 function gregKey(g) { return g.year + "-" + String(g.month).padStart(2, "0") + "-" + String(g.day).padStart(2, "0"); }
 // First date of a Jewish series ("YYYY-MM-DD"), from its Hebrew start date.
@@ -325,7 +344,7 @@ function expandLocalEvent(ev, startDate, endDate) {
     if (ev.repeat === "jewish-yearly") {
       var searchMonth = hebMonthName || "Tishri";
       for (var hy = approxHebStart - 1; hy <= approxHebStart + (endY - startY) + 2; hy++) {
-        var greg = hebrewToGregorianFlex(hy, searchMonth, hebDay);
+        var greg = hebrewToGregorianObserved(hy, searchMonth, hebDay);
         if (!greg) continue;
         var d = greg.year + "-" + String(greg.month).padStart(2, "0") + "-" + String(greg.day).padStart(2, "0");
         if (d >= startDate && d >= firstDate && d <= endDate && d <= until) {
@@ -334,7 +353,7 @@ function expandLocalEvent(ev, startDate, endDate) {
       }
     } else {
       // jewish-monthly: same day of every Hebrew month
-      var MONTH_NAMES = ["Tishri", "Heshvan", "Kislev", "Tevet", "Shevat", "Adar", "Adar I", "Adar II", "Nisan", "Iyar", "Sivan", "Tamuz", "Av", "Elul"];
+      var MONTH_NAMES = HEBREW_MONTH_NAMES;
       for (var hy2 = approxHebStart - 1; hy2 <= approxHebStart + (endY - startY) + 2; hy2++) {
         for (var mi = 0; mi < MONTH_NAMES.length; mi++) {
           var greg2 = hebrewToGregorian(hy2, MONTH_NAMES[mi], hebDay);
@@ -673,12 +692,26 @@ async function googleApiRequest(accessToken, method, path2, body) {
     requestWithRetry(() => httpsRequest({ hostname: "www.googleapis.com", path: path2, method, headers }, bodyStr)));
 }
 
+// An account's own main calendar is named after its email address by Google
+// ("jane@gmail.com"), which then reads "jane@gmail.com — jane@gmail.com"
+// everywhere the account is shown next to it. Call it "Calendar" instead.
+// Only the account's OWN calendar: someone else's shared calendar keeps its
+// name, and so does a main calendar the person renamed themselves.
+function ownCalendarName(account, name, primary, id) {
+  const n = String(name || "").trim().toLowerCase();
+  const email = String((account && account.email) || "").trim().toLowerCase();
+  if (!n) return "Calendar";
+  if (email && n === email) return "Calendar";
+  if (primary && id && n === String(id).trim().toLowerCase()) return "Calendar";
+  return name;
+}
+
 async function listGoogleCalendars(account) {
   const r = await googleApiRequest(account.accessToken, "GET", "/calendar/v3/users/me/calendarList");
   if (!r.body || !r.body.items) throw new Error("google_calendar_list_failed");
   // "selected" = the calendars the person has switched on in Google Calendar itself
   return r.body.items.filter((c) => c.selected !== false || c.primary).map((c) => ({
-    id: c.id, name: c.summaryOverride || c.summary || c.id, color: c.backgroundColor || "#1a73e8",
+    id: c.id, name: ownCalendarName(account, c.summaryOverride || c.summary || c.id, c.primary, c.id), color: c.backgroundColor || "#1a73e8",
     canEdit: c.accessRole === "owner" || c.accessRole === "writer", primary: !!c.primary
   }));
 }
@@ -769,7 +802,7 @@ async function listMicrosoftCalendars(account) {
   const r = await graphRequest(account.accessToken, "GET", "/me/calendars?$top=50");
   if (!r.body || !r.body.value) throw new Error("microsoft_calendar_list_failed");
   return r.body.value.map((c) => ({
-    id: c.id, name: c.name || "Calendar",
+    id: c.id, name: ownCalendarName(account, c.name, false, c.id),
     color: c.hexColor && c.hexColor !== "" ? c.hexColor : "#0078d4",
     canEdit: c.canEdit !== false, primary: !!c.isDefaultCalendar
   }));
@@ -2559,51 +2592,18 @@ app.post("/api/calendar/refresh", requireAuth, (req, res) => {
 //
 // What counts as an occasion:
 //   - an Avenium event made with the Occasion type,
-//   - ANY event that repeats once a year, on any calendar, whatever it's called,
-//   - any event whose title says birthday / anniversary / yahrzeit,
+//   - an Avenium event that repeats every year by the Hebrew calendar,
+//   - any event, on any calendar, whose title says birthday / anniversary / yahrzeit,
 //   - Google's own birthday events.
+// An event is NOT an occasion just because it repeats once a year — that
+// pulled in yearly business reminders ("Make Annual ... LLC").
 const OCCASION_KINDS = ["birthday", "anniversary", "yahrzeit", "other"];
 // Loose on purpose: "Birthdays", "birth day", "B-Day", "anniversaries", and the
 // many spellings of yahrzeit (yahrtzeit, yartzeit, yortzeit, yarzeit, yartzheit...)
 const BIRTHDAY_WORDS = /birth\s?day|\bb-?day/i;
-const OCCASION_WORDS = /birth\s?day|\bb-?day|anniversar|\by[ao]h?rt?zh?e?it/i;
-
-// Which repeating series on a calendar repeat yearly. One request per calendar
-// (the series themselves, not their occurrences), kept for an hour.
-function isYearlyRule(lines) {
-  return (lines || []).some((l) => /^RRULE:/i.test(l) && (/FREQ=YEARLY/i.test(l) || (/FREQ=MONTHLY/i.test(l) && /INTERVAL=12(;|$)/i.test(l))));
-}
-async function googleYearlySeriesIds(a, cal, timeMin, timeMax) {
-  const ids = [];
-  let pageToken = "";
-  for (let page = 0; page < 50; page++) {
-    const r = await googleApiRequest(a.accessToken, "GET",
-      `/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events?singleEvents=false&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}&maxResults=2500` +
-      (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : "") + `&fields=${encodeURIComponent("nextPageToken,items(id,recurrence)")}`);
-    if (r.status >= 400) throw providerError("Google", r);
-    if (!r.body || !r.body.items) break;
-    r.body.items.forEach((e) => { if (isYearlyRule(e.recurrence)) ids.push(e.id); });
-    pageToken = r.body.nextPageToken;
-    if (!pageToken) break;
-  }
-  return ids;
-}
-async function microsoftYearlySeriesIds(a, cal) {
-  const ids = [];
-  let path2 = `/me/calendars/${encodeURIComponent(cal.id)}/events?$filter=${encodeURIComponent("type eq 'seriesMaster'")}&$select=id,recurrence&$top=250`;
-  for (let page = 0; page < 50 && path2; page++) {
-    const r = await graphRequest(a.accessToken, "GET", path2);
-    if (r.status >= 400) throw providerError("Outlook", r);
-    if (!r.body || !r.body.value) break;
-    r.body.value.forEach((e) => {
-      const pat = e.recurrence && e.recurrence.pattern;
-      if (pat && (/yearly/i.test(pat.type || "") || (/monthly/i.test(pat.type || "") && pat.interval === 12))) ids.push(e.id);
-    });
-    const next = r.body["@odata.nextLink"];
-    path2 = next ? next.replace(/^https:\/\/graph\.microsoft\.com\/v1\.0/, "") : "";
-  }
-  return ids;
-}
+// Common misspellings count too ("Annivesary", "Aniversary", "Anniversery"),
+// and so do the Hebrew words.
+const OCCASION_WORDS = /birth\s?day|\bb-?day|\ban+i?v[ae]?r?s[ae]?r|\by[ao]h?rt?zh?e?it|\u05d9\u05d5\u05dd \u05d4\u05d5\u05dc\u05d3\u05ea|\u05d9\u05d5\u05de\u05d5\u05dc\u05d3\u05ea|\u05d9\u05d0\u05d4?\u05e8\u05e6\u05d9\u05d9\u05d8|\u05e0\u05d9\u05e9\u05d5\u05d0\u05d9\u05df/i;
 
 app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
   // "today" comes from the browser so the day boundary is the user's, not the server's
@@ -2642,15 +2642,7 @@ app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
             a.provider === "google"
               ? fetchGoogleCalendarEvents(a, cal, timeMin, timeMax)
               : fetchMicrosoftCalendarEvents(a, cal, timeMin, timeMax));
-          // yearly series count whatever they're titled; if this lookup fails, titles still work
-          let yearly = new Set();
-          if (events.some((ev) => ev.seriesId)) {
-            try {
-              yearly = new Set(await cachedFetch(`ev:${a.id}:yearly:${cal.id}:${today}`, 60 * 60 * 1000, () =>
-                a.provider === "google" ? googleYearlySeriesIds(a, cal, timeMin, timeMax) : microsoftYearlySeriesIds(a, cal)));
-            } catch (e) {}
-          }
-          const isOccasion = (ev) => ev.birthday || OCCASION_WORDS.test(ev.title || "") || (ev.seriesId && yearly.has(ev.seriesId));
+          const isOccasion = (ev) => ev.birthday || OCCASION_WORDS.test(ev.title || "");
           const push = (ev, day) => rows.push({
             event: { ...ev, provider: a.provider, accountId: a.id, accountEmail: a.email,
               calendarId: cal.id, calendarName: cal.name, color: cal.color, canEdit: cal.canEdit },
@@ -2682,7 +2674,8 @@ app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
     localEvents.filter((e) => e.userId === req.session.userId).forEach((ev) => {
       const named = ev.kind === "occasion" || OCCASION_WORDS.test(ev.title || "");
       const yearlyRepeat = ev.repeat === "yearly" || ev.repeat === "jewish-yearly";
-      if (!named && !yearlyRepeat) return;
+      // a plain yearly repeat with no occasion word isn't one (a yearly filing, a renewal...)
+      if (!named && ev.repeat !== "jewish-yearly") return;
       const byDay = (x, y) => (dayOf(x) < dayOf(y) ? -1 : dayOf(x) > dayOf(y) ? 1 : 0);
       // every occurrence in the window (a Hebrew date can land in it twice)...
       let list = expandLocalEvent(ev, today, windowEnd).filter((x) => dayOf(x) >= today && dayOf(x) <= windowEnd).sort(byDay);
@@ -2725,6 +2718,7 @@ app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
 app.post("/api/calendar/events", requireAuth, async (req, res) => {
   const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, timeZone, kind, occasionKind, afterSunset } = req.body || {};
   if (!title || !start) return res.status(400).json({ error: "invalid_request" });
+  if (calendarIsOff(req.session.userId, accountId, calendarId)) return res.status(400).json({ error: "calendar_off" });
   const isJewishRepeat = repeat === "jewish-monthly" || repeat === "jewish-yearly";
   // Google and Outlook have no Hebrew-calendar repeat; saving there used to
   // silently create ONE event. Refuse instead of pretending it worked.
@@ -2779,6 +2773,7 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
   // Moving to a different calendar?
   var moveTarget = (newAccountId && newCalendarId && (newAccountId !== accountId || newCalendarId !== calendarId))
     ? { accountId: newAccountId, calendarId: newCalendarId } : null;
+  if (moveTarget && calendarIsOff(req.session.userId, moveTarget.accountId, moveTarget.calendarId)) return res.status(400).json({ error: "calendar_off" });
 
   // Local event edit
   if (accountId === "local") {
