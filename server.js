@@ -2441,6 +2441,18 @@ app.get("/api/calendar/search", requireAuth, async (req, res) => {
   res.json({ events: found, total: found.length, errors, searched });
 });
 
+// Manual refresh: forget everything cached for THIS user's connected accounts
+// (their calendar lists and events), so the next load asks Google/Outlook again.
+// Other users' caches are untouched. Holiday feeds are left alone (they don't change).
+app.post("/api/calendar/refresh", requireAuth, (req, res) => {
+  const accounts = listAccounts(req.session.userId);
+  accounts.forEach((acct) => {
+    invalidateCalendarCache(`ev:${acct.id}:`);
+    calCache.delete("cals:" + acct.id);
+  });
+  res.json({ ok: true, accounts: accounts.length });
+});
+
 // ---- Occasions: everyone's next birthday / anniversary / yahrzeit ----
 // One row per occasion (not per year), with its NEXT date within a year from
 // today, across every visible calendar. Included: Avenium Occasions, plus any
