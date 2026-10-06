@@ -2612,20 +2612,20 @@ app.post("/api/calendar/refresh", requireAuth, (req, res) => {
 // An event is NOT an occasion just because it repeats once a year — that
 // pulled in yearly business reminders ("Make Annual ... LLC").
 const OCCASION_KINDS = ["birthday", "anniversary", "yahrzeit", "other"];
-// Meeting / Appointment / Call / Occasion — the four types in the Add Event
-// window, used by the Type filter on the Search events screen.
+// Meeting / Appointment / Occasion — the types in the Add Event window, used
+// by the Type filter on the Search events screen.
 // Avenium events made from now on remember the type that was picked. Older
 // events, and everything from Google/Outlook (which have no such field), are
-// sorted by what they look like: an occasion word in the title, "call" or
-// "phone" in the title, invited people or a meeting link, otherwise an appointment.
-const EVENT_TYPES = ["meeting", "appointment", "call"];
+// sorted by what they look like: an occasion word in the title; invited
+// people, "meeting" in the title or a meeting link; otherwise an appointment.
+// (There used to be a "Call" type; an event saved as one is sorted the same way.)
+const EVENT_TYPES = ["meeting", "appointment"];
 const MEETING_LINK = /zoom\.us|zoomgov\.com|teams\.microsoft\.com|teams\.live\.com|meet\.google\.com|webex\.com|gotomeet|goto\.com|ringcentral|bluejeans|whereby\.com|chime\.aws|meet\.jit\.si|join\.me/i;
 function eventTypeOf(ev, provider) {
   const title = ev.title || "";
   if (ev.kind === "occasion" || ev.birthday || OCCASION_WORDS.test(title)) return "occasion";
   if (provider === "local" && ev.repeat === "jewish-yearly") return "occasion";
   if (EVENT_TYPES.includes(ev.eventType)) return ev.eventType;
-  if (/\bcall\b|\bphone\b/i.test(title)) return "call";
   if ((Array.isArray(ev.attendees) && ev.attendees.length) || /\bmeeting\b|\bmtg\b/i.test(title) ||
       MEETING_LINK.test((ev.location || "") + " " + (ev.description || ""))) return "meeting";
   return "appointment";
@@ -2752,6 +2752,8 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
   if (!title || !start) return res.status(400).json({ error: "invalid_request" });
   // A Teams / Meet link is made by Outlook / Google themselves, so it needs one of their calendars
   if (onlineMeeting && accountId === "local") return res.status(400).json({ error: "online_meeting_not_available" });
+  // ...and it is only offered on a Meeting (not an Appointment or an Occasion)
+  if (onlineMeeting && (eventType !== "meeting" || kind === "occasion")) return res.status(400).json({ error: "online_meeting_meetings_only" });
   if (calendarIsOff(req.session.userId, accountId, calendarId)) return res.status(400).json({ error: "calendar_off" });
   const isJewishRepeat = repeat === "jewish-monthly" || repeat === "jewish-yearly";
   // Google and Outlook have no Hebrew-calendar repeat; saving there used to
@@ -2774,7 +2776,7 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
     if (hebrewMonth) ev.hebrewMonth = hebrewMonth;
     if (isJewishRepeat && hebrewYear) ev.hebrewYear = Number(hebrewYear);
     if (validTimeZone(timeZone)) ev.timeZone = timeZone;
-    if (kind !== "occasion" && EVENT_TYPES.includes(eventType)) ev.eventType = eventType;   // Meeting / Appointment / Call
+    if (kind !== "occasion" && EVENT_TYPES.includes(eventType)) ev.eventType = eventType;   // Meeting / Appointment
     if (kind === "occasion") {   // birthday / anniversary / yahrzeit — yearly, all-day, from the original date
       ev.kind = "occasion";
       if (OCCASION_KINDS.includes(occasionKind)) ev.occasionKind = occasionKind;

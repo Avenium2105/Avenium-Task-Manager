@@ -1128,7 +1128,6 @@
         <option value="all">All types</option>
         <option value="meeting">Meetings</option>
         <option value="appointment">Appointments</option>
-        <option value="call">Calls</option>
         <option value="occasion">Occasions</option>
       </select>
       <select id="calRfWhen" class="cal-rf-select">
@@ -1159,7 +1158,6 @@
         <div class="cal-type-row" id="calTypeRow">
           <button type="button" data-type="meeting" class="cal-type-btn active">Meeting</button>
           <button type="button" data-type="appointment" class="cal-type-btn">Appointment</button>
-          <button type="button" data-type="call" class="cal-type-btn">Call</button>
           <button type="button" data-type="occasion" class="cal-type-btn" title="Birthdays, anniversaries, yahrzeits \u2014 repeats every year">Occasion</button>
         </div>
 
@@ -3870,10 +3868,10 @@
     if (calOccListMode()) loadCalOccasions(); else calOccData = null;
     if (calSearchOverlayOpen && !calSearchQuery && calBrowseType()) loadCalBrowse(); else calBrowse = null;
   }
-  // ----- Meetings / Appointments / Calls: the same idea, every one in the next 365 days -----
-  var CAL_TYPE_NAMES = { meeting: "Meetings", appointment: "Appointments", call: "Calls", occasion: "Occasions" };
+  // ----- Meetings / Appointments: the same idea, every one in the next 365 days -----
+  var CAL_TYPE_NAMES = { meeting: "Meetings", appointment: "Appointments", occasion: "Occasions" };
   var calBrowse = null, calBrowseToken = 0, calBrowseLoading = false, calBrowseLoadedAt = 0;
-  function calBrowseType() { var t = calRfType(); return (t === "meeting" || t === "appointment" || t === "call") ? t : ""; }
+  function calBrowseType() { var t = calRfType(); return (t === "meeting" || t === "appointment") ? t : ""; }
   function loadCalBrowse() {
     var token = ++calBrowseToken, today = calTodayKey();
     var e = new Date(today + "T12:00:00"); e.setDate(e.getDate() + 364);
@@ -4025,13 +4023,13 @@
         calRfUpdateControls(calRfCountEvents());
         return;
       }
-      if (calBrowseType()) {              // ...and the same for Meetings / Appointments / Calls
+      if (calBrowseType()) {              // ...and the same for Meetings / Appointments
         renderCalBrowse(list, titleEl, calBrowseType());
         calRfUpdateControls(calRfCountEvents());
         return;
       }
       titleEl.textContent = "";
-      list.appendChild(el("div", "cal-search-prompt", { text: "Type a name or a word to search every calendar \u2014 Avenium, Google and Outlook. Set the filters first to search only one calendar, one type, future or past, or a date range. Or choose a Type on its own \u2014 Meetings, Appointments, Calls or Occasions \u2014 to list every one in the next 365 days." }));
+      list.appendChild(el("div", "cal-search-prompt", { text: "Type a name or a word to search every calendar \u2014 Avenium, Google and Outlook. Set the filters first to search only one calendar, one type, future or past, or a date range. Or choose a Type on its own \u2014 Meetings, Appointments or Occasions \u2014 to list every one in the next 365 days." }));
       calRfUpdateControls(null);
       return;
     }
@@ -4728,6 +4726,7 @@
   // Outlook makes the Teams meeting and Google makes the Meet link when the
   // event is created, so it is offered for a NEW event on one of their
   // calendars. Each calendar says whether it can (c.meeting = "teams" | "meet").
+  // Meetings only: an Appointment or an Occasion never gets the option.
   function calPickedCalendar() {
     var v = document.getElementById("calModalCalendar").value || "", i = v.indexOf("|");
     var acct = calendarAccounts.find(function (a) { return a.id === v.slice(0, i); });
@@ -4738,7 +4737,7 @@
     var label = document.getElementById("calOnlineLabel"), hint = document.getElementById("calOnlineHint");
     var kinds = {};
     calendarAccounts.forEach(function (a) { (a.calendars || []).forEach(function (c) { if (c.meeting && c.canEdit && c.visible !== false) kinds[c.meeting] = true; }); });
-    if (calEditingEvent || calOccasionMode || !(kinds.teams || kinds.meet)) {
+    if (calEditingEvent || calOccasionMode || calModalType !== "meeting" || !(kinds.teams || kinds.meet)) {
       row.style.display = "none"; hint.style.display = "none"; chk.checked = false; return;
     }
     var cal = calPickedCalendar(), kind = cal && cal.canEdit ? cal.meeting : "";
@@ -4755,12 +4754,11 @@
     }
   }
 
-  // Meeting / Appointment / Call / All-day — presets that decide the default
+  // Meeting / Appointment / Occasion — presets that decide the default
   // length, whether an attendee list makes sense, and timed vs whole-day.
   var CAL_TYPES = {
     meeting:     { minutes: 60, attendees: true,  label: "Meeting" },
     appointment: { minutes: 30, attendees: false, label: "Appointment" },
-    call:        { minutes: 30, attendees: true,  label: "Call" },
     occasion:    { minutes: 0,  attendees: false, label: "Occasion" }
   };
   var calModalType = "meeting";
@@ -5507,9 +5505,9 @@
     var repeat = repeatChecked ? document.getElementById("calModalRepeat").value : "none";
     var isLocalEvent = calEditingEvent ? calEditingEvent.provider === "local" : false;
     try { payload.timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
-    if (!calEditingEvent && !calOccasionMode) payload.eventType = calModalType;   // Meeting / Appointment / Call, for the Type filter
+    if (!calEditingEvent && !calOccasionMode) payload.eventType = calModalType;   // Meeting / Appointment, for the Type filter
     var onlineChk = document.getElementById("calOnlineCheck");
-    if (!calEditingEvent && !calOccasionMode && onlineChk.checked && !onlineChk.disabled) payload.onlineMeeting = true;   // Teams / Meet link
+    if (!calEditingEvent && !calOccasionMode && calModalType === "meeting" && onlineChk.checked && !onlineChk.disabled) payload.onlineMeeting = true;   // Teams / Meet link
     if (calOccasionMode) {
       payload.kind = "occasion"; payload.allDay = true; payload.end = payload.start;
       payload.occasionKind = calOccKind();
@@ -5593,6 +5591,7 @@
   // Say WHY a save failed (Google/Outlook's own reason) instead of a generic message
   function calSaveErrorText(d) {
     d = d || {};
+    if (d.error === "online_meeting_meetings_only") return "A Teams or Google Meet link can only be added to a Meeting.";
     if (d.error === "online_meeting_not_available") return "That calendar can\u2019t create a meeting link. Pick an Outlook calendar for Teams, or a Google calendar for Google Meet.";
     if (d.error === "calendar_off") return "That calendar is switched off. Tick it in Admin \u2192 Your calendar connections, or pick another calendar.";
     if (d.error === "jewish_repeat_avenium_only") return "Jewish repeats can only be saved to the Avenium calendar.";
