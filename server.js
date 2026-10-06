@@ -633,6 +633,37 @@ async function mapLimit(items, max, fn) {
   return out;
 }
 
+// ---- Event text helpers ----
+function decodeEntities(s) {
+  return String(s).replace(/&nbsp;/gi, " ").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'").replace(/&#x([0-9a-f]+);/gi, (m, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (m, n) => String.fromCodePoint(+n)).replace(/&amp;/gi, "&");
+}
+// Blank lines collapsed, trailing spaces gone — invitations come padded with both
+function tidyText(s) {
+  return String(s || "").replace(/\r\n?/g, "\n").replace(/[ \t\u00a0]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+// Google descriptions can be HTML. Turn them into readable text, keeping line
+// breaks; a link becomes "label<url>" (the same form Outlook's text bodies use),
+// which the app shows as a clickable label.
+function htmlToText(html) {
+  let s = String(html || "");
+  if (!/<[a-z!\/][^>]*>/i.test(s)) return /&[a-z#0-9]+;/i.test(s) ? decodeEntities(s) : s;
+  s = s.replace(/<(script|style|head)\b[\s\S]*?<\/\1>/gi, "");
+  s = s.replace(/<a\b[^>]*?href\s*=\s*["']?([^"'\s>]+)["']?[^>]*>([\s\S]*?)<\/a>/gi, (m, href, inner) => {
+    const url = decodeEntities(href), label = decodeEntities(inner.replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
+    if (/^mailto:/i.test(url)) return label || url.slice(7);
+    if (!/^https?:/i.test(url)) return label;
+    return (!label || label === url) ? url : label + "<" + url + ">";
+  });
+  s = s.replace(/\r?\n/g, " ")
+    .replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|tr|h[1-6]|ul|ol|table|blockquote)>/gi, "\n")
+    .replace(/<li\b[^>]*>/gi, "\n\u2022 ").replace(/<\/td>/gi, "  ");
+  // strip the remaining tags, but leave the label<url> links alone
+  s = s.replace(/<(?!https?:\/\/)[^>]*>/gi, "");
+  return decodeEntities(s).replace(/[ \t]{2,}/g, " ").replace(/\n /g, "\n");
+}
+
 // ---- Google Calendar API calls ----
 async function googleApiRequest(accessToken, method, path2, body) {
   const bodyStr = body ? JSON.stringify(body) : null;
@@ -671,7 +702,7 @@ async function fetchGoogleCalendarEvents(account, cal, timeMin, timeMax) {
       start: e.start && (e.start.dateTime || e.start.date),
       end: e.end && (e.end.dateTime || e.end.date),
       allDay: !!(e.start && e.start.date),
-      description: e.description || "", htmlLink: e.htmlLink || "",
+      description: tidyText(htmlToText(e.description || "")), htmlLink: e.htmlLink || "",
       location: e.location || "",
       attendees: (e.attendees || []).map((a) => a.email).filter(Boolean),
       recurring: !!e.recurringEventId   // part of a repeating series in Google
@@ -683,11 +714,12 @@ async function fetchGoogleCalendarEvents(account, cal, timeMin, timeMax) {
 }
 
 function googleEventBody(event) {
-  const body = {
-    summary: event.title,
-    description: event.description || "",
-    location: event.location || ""
-  };
+  // description / location / attendees are sent only when given: on an edit,
+  // a missing one means "leave it alone" (the app used to send its short
+  // preview back and overwrite the real invitation text).
+  const body = { summary: event.title };
+  if (event.description !== undefined) body.description = event.description || "";
+  if (event.location !== undefined) body.location = event.location || "";
   if (event.allDay) {
     // Google all-day events use plain dates, and the end date is exclusive
     const startDate = String(event.start).slice(0, 10);
@@ -703,7 +735,7 @@ function googleEventBody(event) {
     body.start = { dateTime: event.start, timeZone: tz };
     body.end = { dateTime: event.end || event.start, timeZone: tz };
   }
-  if (Array.isArray(event.attendees) && event.attendees.length) {
+  if (Array.isArray(event.attendees)) {
     body.attendees = event.attendees.map((e) => ({ email: e }));
   }
   if (event.reminderMinutes != null) {
@@ -721,9 +753,11 @@ function googleEventBody(event) {
 }
 
 // ---- Microsoft Graph Calendar API calls ----
-async function graphRequest(accessToken, method, path2, body) {
+async function graphRequest(accessToken, method, path2, body, opts) {
   const bodyStr = body ? JSON.stringify(body) : null;
-  const headers = { Authorization: "Bearer " + accessToken, Accept: "application/json", Prefer: 'outlook.timezone="UTC"' };
+  // textBody: ask Outlook for the event body as plain text (it is HTML otherwise)
+  const prefer = 'outlook.timezone="UTC"' + (opts && opts.textBody ? ', outlook.body-content-type="text"' : "");
+  const headers = { Authorization: "Bearer " + accessToken, Accept: "application/json", Prefer: prefer };
   if (bodyStr) { headers["Content-Type"] = "application/json"; headers["Content-Length"] = Buffer.byteLength(bodyStr); }
   return limited("microsoft:" + accessToken, 3, () =>
     requestWithRetry(() => httpsRequest({ hostname: "graph.microsoft.com", path: "/v1.0" + path2, method, headers }, bodyStr)));
@@ -788,12 +822,9 @@ async function fetchMicrosoftCalendarEvents(account, cal, timeMin, timeMax) {
 }
 
 function microsoftEventBody(event) {
-  const body = {
-    subject: event.title,
-    body: { contentType: "text", content: event.description || "" },
-    isAllDay: !!event.allDay
-  };
-  if (event.location) body.location = { displayName: event.location };
+  const body = { subject: event.title, isAllDay: !!event.allDay };
+  if (event.description !== undefined) body.body = { contentType: "text", content: event.description || "" };
+  if (event.location !== undefined) body.location = { displayName: event.location || "" };
   if (event.allDay) {
     // Graph all-day events must start/end at midnight, end date exclusive
     const startDate = String(event.start).slice(0, 10);
@@ -813,7 +844,7 @@ function microsoftEventBody(event) {
       body.end = { dateTime: msInputTime(event.end || event.start), timeZone: "UTC" };
     }
   }
-  if (Array.isArray(event.attendees) && event.attendees.length) {
+  if (Array.isArray(event.attendees)) {
     body.attendees = event.attendees.map((e) => ({ emailAddress: { address: e }, type: "required" }));
   }
   if (event.reminderMinutes != null) {
@@ -2441,6 +2472,71 @@ app.get("/api/calendar/search", requireAuth, async (req, res) => {
   res.json({ events: found, total: found.length, errors, searched });
 });
 
+// ---- One event's full details (opened in the app) ----
+// The month list only carries a short preview. This returns the whole thing:
+// the full description with its line breaks, the location, the join link the
+// provider knows about, and everyone invited with their name and response.
+function personKey(email) { return String(email || "").trim().toLowerCase(); }
+function buildPeople(organizer, attendees, selfEmail) {
+  const out = [], seen = new Set();
+  const add = (p) => {
+    const k = personKey(p.email) || personKey(p.name);
+    if (!k || seen.has(k)) return;
+    seen.add(k);
+    out.push({ name: p.name && p.name !== p.email ? p.name : "", email: p.email || "", response: p.response || "none",
+      optional: !!p.optional, organizer: !!p.organizer, self: !!selfEmail && personKey(p.email) === personKey(selfEmail) });
+  };
+  if (organizer && (organizer.email || organizer.name)) add({ ...organizer, organizer: true, response: "organizer" });
+  attendees.forEach(add);
+  return out;
+}
+async function fetchGoogleEventDetails(a, calendarId, eventId) {
+  const r = await googleApiRequest(a.accessToken, "GET",
+    `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}` +
+    `?fields=${encodeURIComponent("description,location,hangoutLink,htmlLink,conferenceData(entryPoints(entryPointType,uri)),organizer(email,displayName),attendees(email,displayName,responseStatus,optional,resource,organizer)")}`);
+  if (r.status >= 400 || !r.body || typeof r.body !== "object") throw providerError("Google", r);
+  const e = r.body;
+  const video = ((e.conferenceData && e.conferenceData.entryPoints) || []).find((x) => x.entryPointType === "video");
+  const resp = { accepted: "accepted", tentative: "tentative", declined: "declined", needsAction: "none" };
+  const atts = (e.attendees || []).filter((x) => !x.resource);
+  return {
+    description: tidyText(htmlToText(e.description || "")), location: e.location || "",
+    joinUrl: (video && video.uri) || e.hangoutLink || "", htmlLink: e.htmlLink || "",
+    people: buildPeople(e.organizer ? { name: e.organizer.displayName || "", email: e.organizer.email || "" } : null,
+      atts.map((x) => ({ name: x.displayName || "", email: x.email || "", response: resp[x.responseStatus] || "none", optional: x.optional, organizer: x.organizer })), a.email),
+    attendeeEmails: atts.map((x) => x.email).filter(Boolean)
+  };
+}
+async function fetchMicrosoftEventDetails(a, eventId) {
+  const r = await graphRequest(a.accessToken, "GET",
+    `/me/events/${encodeURIComponent(eventId)}?$select=${encodeURIComponent("body,location,organizer,attendees,onlineMeeting,onlineMeetingUrl,webLink")}`,
+    null, { textBody: true });
+  if (r.status >= 400 || !r.body || typeof r.body !== "object") throw providerError("Outlook", r);
+  const e = r.body;
+  const resp = { accepted: "accepted", tentativelyAccepted: "tentative", declined: "declined", organizer: "organizer" };
+  const atts = (e.attendees || []).filter((x) => x.type !== "resource" && x.emailAddress);
+  return {
+    description: tidyText(e.body && e.body.contentType === "html" ? htmlToText(e.body.content) : (e.body && e.body.content) || ""),
+    location: (e.location && e.location.displayName) || "",
+    joinUrl: (e.onlineMeeting && e.onlineMeeting.joinUrl) || e.onlineMeetingUrl || "", htmlLink: e.webLink || "",
+    people: buildPeople(e.organizer && e.organizer.emailAddress ? { name: e.organizer.emailAddress.name || "", email: e.organizer.emailAddress.address || "" } : null,
+      atts.map((x) => ({ name: x.emailAddress.name || "", email: x.emailAddress.address || "", response: resp[x.status && x.status.response] || "none", optional: x.type === "optional" })), a.email),
+    attendeeEmails: atts.map((x) => x.emailAddress.address).filter(Boolean)
+  };
+}
+app.get("/api/calendar/event-details", requireAuth, async (req, res) => {
+  const { accountId, calendarId, eventId } = req.query;
+  const acct = getAccount(req.session.userId, accountId);   // only the signed-in user's own accounts
+  if (!acct || !eventId) return res.status(400).json({ error: "invalid_request" });
+  try {
+    const a = await freshToken(acct);
+    // "ev:<account>:" prefix, so an edit or a manual Refresh clears this too
+    const details = await cachedFetch(`ev:${a.id}:detail:${calendarId}:${eventId}`, 60 * 1000, () =>
+      a.provider === "google" ? fetchGoogleEventDetails(a, calendarId, eventId) : fetchMicrosoftEventDetails(a, eventId));
+    res.json({ details });
+  } catch (e) { res.status(502).json({ error: "provider_rejected", message: e.message }); }
+});
+
 // Manual refresh: forget everything cached for THIS user's connected accounts
 // (their calendar lists and events), so the next load asks Google/Outlook again.
 // Other users' caches are untouched. Holiday feeds are left alone (they don't change).
@@ -2459,8 +2555,10 @@ app.post("/api/calendar/refresh", requireAuth, (req, res) => {
 // event on any calendar whose title says birthday / anniversary / yahrzeit
 // (that also covers Google's own "Birthdays" calendar).
 const OCCASION_KINDS = ["birthday", "anniversary", "yahrzeit", "other"];
-const OCCASION_WORDS = /\b(birthday|bday|b-day|anniversary|yahrzeit|yahrtzeit|yartzeit|yortzeit)\b/i;
-const BIRTHDAY_WORDS = /\b(birthday|bday|b-day)\b/i;
+// Loose on purpose: "Birthdays", "birth day", "B-Day", "anniversaries", and the
+// many spellings of yahrzeit (yahrtzeit, yartzeit, yortzeit, yarzeit, yartzheit...)
+const BIRTHDAY_WORDS = /birth\s?day|\bb-?day/i;
+const OCCASION_WORDS = /birth\s?day|\bb-?day|anniversar|\by[ao]h?rt?zh?e?it/i;
 app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
   // "today" comes from the browser so the year boundary is the user's, not the server's
   const today = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.today || "")) ? String(req.query.today) : new Date().toISOString().slice(0, 10);
@@ -2507,9 +2605,20 @@ app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
     localEvents.filter((e) => e.userId === req.session.userId).forEach((ev) => {
       const isOccasion = ev.kind === "occasion" || OCCASION_WORDS.test(ev.title || "");
       if (!isOccasion) return;
-      const inst = expandLocalEvent(ev, today, lastDay).filter((x) => String(x.start).slice(0, 10) >= today)[0];
+      // Look far enough ahead to reach the NEXT one. A Jewish leap year is up
+      // to 385 days long, so a Hebrew date that just passed is more than 365
+      // days away (the list used to stop at 365 and drop it). Dates that skip
+      // years — Feb 29, 30 Cheshvan, 30 Kislev — need longer still.
+      const dayOf = (x) => x._instanceDate || String(x.start).slice(0, 10);
+      const ahead = (days) => new Date(t0.getTime() + days * 86400000).toISOString().slice(0, 10);
+      const isJewishRepeat = ev.repeat === "jewish-yearly" || ev.repeat === "jewish-monthly";
+      let inst = null;
+      for (const days of (isJewishRepeat ? [400, 1500] : [366, 3000])) {
+        inst = expandLocalEvent(ev, today, ahead(days)).filter((x) => dayOf(x) >= today).sort((x, y) => (dayOf(x) < dayOf(y) ? -1 : 1))[0];
+        if (inst) break;
+      }
       if (!inst) return;
-      const next = String(inst.start).slice(0, 10);
+      const next = dayOf(inst);
       const jewish = ev.repeat === "jewish-yearly";
       // how many years (age / anniversary number), when the first year is known
       let turning = null;
