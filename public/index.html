@@ -612,8 +612,6 @@
   .cal-search-results-list { flex: 1; overflow-y: auto; padding: 0 0 12px; }
   .cal-nav-view-row { gap: 6px; }
   .cal-pill-btn:disabled { opacity: 0.6; cursor: wait; }
-  .cal-occ-add { font-family: inherit; font-size: 12px; font-weight: 600; padding: 6px 12px; border-radius: 7px; border: 1px solid var(--pine); background: var(--bg-raised); color: var(--pine); cursor: pointer; }
-  .cal-occ-add:hover { background: var(--pine-soft); }
   .cal-occ-month { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-faint); padding: 14px 16px 6px; position: sticky; top: 0; background: var(--bg-raised); border-bottom: 1px solid var(--line); z-index: 1; }
   .cal-occ-later { font-size: 12px; color: var(--ink-soft); background: var(--bg); padding: 10px 16px; margin-top: 14px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
   .cal-occ-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; font-family: inherit; background: none; border: none; border-bottom: 1px solid var(--line-soft); padding: 10px 16px; cursor: pointer; }
@@ -733,6 +731,11 @@
   .cal-date-row input { flex: 1 1 0; min-width: 0; width: auto; }
   .cal-date-row-label { font-size: 11px; color: var(--ink-faint); flex-shrink: 0; min-width: 28px; }
   .cal-repeat-row { display: flex; flex-direction: column; gap: 8px; }
+  .cal-online-row { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); cursor: pointer; user-select: none; margin-top: 8px; }
+  .cal-online-row input[type="checkbox"] { width: auto !important; flex: 0 0 auto; margin: 0; padding: 0; cursor: pointer; accent-color: var(--pine); }
+  .cal-online-row.off { color: var(--ink-faint); cursor: default; }
+  .cal-online-row.off input[type="checkbox"] { cursor: default; }
+  .cal-online-hint { font-size: 11.5px; color: var(--ink-faint); margin: 3px 0 0 22px; line-height: 1.4; }
   .cal-repeat-check-label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-soft); cursor: pointer; user-select: none; }
   .cal-repeat-check-label input[type="checkbox"] { width: auto !important; margin: 0; cursor: pointer; accent-color: var(--pine); }
   .cal-repeat-options { display: flex; align-items: center; gap: 8px; padding-left: 22px; }
@@ -1110,11 +1113,10 @@
   <!-- Search events screen: the search box, every filter, and the results -->
   <div id="calSearchResultsOverlay" class="cal-search-results-overlay">
     <div class="cal-search-results-head">
-      <input id="calSearchInput" type="text" class="cal-search-main" placeholder="Search every calendar&hellip;" autocomplete="off" spellcheck="false">
+      <input id="calSearchInput" type="text" class="cal-search-main" placeholder="Search" autocomplete="off" spellcheck="false">
       <span class="cal-search-results-title" id="calSearchResultsTitle">Search events</span>
       <label class="cal-select-all" id="calSearchSelectAllWrap"><input id="calSearchSelectAll" type="checkbox"> Select all</label>
       <button id="calSearchBulkDel" type="button" class="cal-bulk-del-btn" style="display:none;">Delete selected</button>
-      <button id="calOccAdd" type="button" class="cal-occ-add" style="display:none;">+ Add Occasion</button>
       <button id="calSearchResultsClose" type="button" class="cal-search-results-close">Back to calendar</button>
     </div>
     <div class="cal-rf-bar" id="calRfBar">
@@ -1199,7 +1201,7 @@
         </div>
 
         <div class="cal-section">
-          <div class="cal-when-row">
+          <div class="cal-when-row" style="display:none;">
             <label class="cal-radio-label"><input type="radio" name="calWhen" value="timed" id="calWhenTimed" checked> Date &amp; Time</label>
             <label class="cal-radio-label"><input type="radio" name="calWhen" value="allday" id="calWhenAllDay"> All Day</label>
           </div>
@@ -1270,6 +1272,8 @@
             <div class="cal-dsec-head"><span class="cal-section-label">Location</span><button type="button" class="cal-dsec-edit" id="calLocEdit">Edit</button></div>
             <div id="calLocView" class="cal-dview" style="display:none;"></div>
             <input id="calModalLocation" type="text" placeholder="Location or meeting link (optional)">
+            <label class="cal-online-row" id="calOnlineRow" style="display:none;"><input type="checkbox" id="calOnlineCheck"> <span id="calOnlineLabel">Add a Teams meeting link</span></label>
+            <div class="cal-online-hint" id="calOnlineHint" style="display:none;"></div>
           </div>
           <div class="cal-dsec" id="calWhoSec">
             <div class="cal-dsec-head"><span class="cal-section-label" id="calWhoLabel">Who&rsquo;s joining</span><button type="button" class="cal-dsec-edit" id="calWhoEdit">Edit</button></div>
@@ -1445,7 +1449,7 @@
     calView = "month"; calSyncViewUi();
     calJumpDay = "";
     resetCalSearch();
-    calOccData = null;
+    calOccData = null; calBrowse = null;
     closeCalPopovers();
     calMonthCache = {};
     initCalendar();
@@ -3538,11 +3542,6 @@
         if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(done, function () {});
         else { var t = document.createElement("textarea"); t.value = url; document.body.appendChild(t); t.select(); try { document.execCommand("copy"); done(); } catch (e) {} t.remove(); }
       };
-      document.getElementById("calOccAdd").onclick = function () {
-        document.getElementById("calNewBtn").click();
-        var occBtn = document.querySelector('#calTypeRow [data-type="occasion"]');
-        if (occBtn) occBtn.click();
-      };
       document.getElementById("calRfWhen").addEventListener("change", function () { renderCalSearchOverlay(); });
       document.getElementById("calRfType").addEventListener("change", function () { renderCalSearchOverlay(); });
       document.getElementById("calRfFrom").addEventListener("change", calRfDatesChanged);
@@ -3611,6 +3610,7 @@
         occText.value = calFormatDateText(occNative.value);
         calOccSetDate(occNative.value);
       });
+      document.getElementById("calModalCalendar").addEventListener("change", calSyncOnline);
       document.getElementById("calWhenTimed").onchange = applyWhenToggle;
       document.getElementById("calWhenAllDay").onchange = applyWhenToggle;
       document.getElementById("calModalRepeatCheck").onchange = function () {
@@ -3775,6 +3775,8 @@
   function calRfCountEvents() {
     if (calSearchQuery) return (calSearchResults && calSearchResults.query === calSearchQuery) ? calSearchResults.events : null;
     if (calRfType() === "occasion" && calOccData) return calOccData.occasions.map(function (o) { return o.event; });
+    var bt = calBrowseType();
+    if (bt && calBrowse) return calBrowse.events.filter(function (ev) { var day = calDayKey(ev); return (ev.type || "appointment") === bt && day >= calBrowse.today && day <= calBrowse.end; });
     return null;
   }
   function calRfDatesChanged() {
@@ -3864,7 +3866,65 @@
   function calTodayKey() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
   function calOccListMode() { return calSearchOverlayOpen && !calSearchQuery && calRfType() === "occasion"; }
   // after anything changes: forget the list, and reload it if it's on screen
-  function calOccChanged() { if (calOccListMode()) loadCalOccasions(); else calOccData = null; }
+  function calOccChanged() {
+    if (calOccListMode()) loadCalOccasions(); else calOccData = null;
+    if (calSearchOverlayOpen && !calSearchQuery && calBrowseType()) loadCalBrowse(); else calBrowse = null;
+  }
+  // ----- Meetings / Appointments / Calls: the same idea, every one in the next 365 days -----
+  var CAL_TYPE_NAMES = { meeting: "Meetings", appointment: "Appointments", call: "Calls", occasion: "Occasions" };
+  var calBrowse = null, calBrowseToken = 0, calBrowseLoading = false, calBrowseLoadedAt = 0;
+  function calBrowseType() { var t = calRfType(); return (t === "meeting" || t === "appointment" || t === "call") ? t : ""; }
+  function loadCalBrowse() {
+    var token = ++calBrowseToken, today = calTodayKey();
+    var e = new Date(today + "T12:00:00"); e.setDate(e.getDate() + 364);
+    var end = e.getFullYear() + "-" + String(e.getMonth() + 1).padStart(2, "0") + "-" + String(e.getDate()).padStart(2, "0");
+    calBrowseLoading = true;
+    var done = function (data) {
+      if (token !== calBrowseToken) return;
+      calBrowseLoading = false; calBrowse = data; calBrowseLoadedAt = Date.now();
+      if (calSearchOverlayOpen) renderCalSearchOverlay();
+    };
+    fetch("/api/calendar/search?browse=1&start=" + today + "&end=" + end)
+      .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+      .then(function (d) { done({ today: today, end: end, events: d.events || [], errors: d.errors || [] }); })
+      .catch(function () { done({ today: today, end: end, events: [], errors: ["__failed__"] }); });
+  }
+  function renderCalBrowse(list, titleEl, type) {
+    var name = CAL_TYPE_NAMES[type];
+    if (calBrowse && calBrowse.today !== calTodayKey()) calBrowse = null;   // it's a new day
+    if (!calBrowse) {
+      titleEl.textContent = name + " \u00b7 next 365 days";
+      list.appendChild(el("div", "cal-occ-msg", { text: "Loading " + name.toLowerCase() + " from all calendars\u2026" }));
+      if (!calBrowseLoading) loadCalBrowse();
+      return;
+    }
+    if (calBrowse.errors.length) {
+      list.appendChild(el("div", "cal-search-drop-warn", { text: calBrowse.errors.indexOf("__failed__") !== -1 ? "Couldn\u2019t load the list. Check your connection and try again." : "Couldn\u2019t check: " + calBrowse.errors.join(" \u2022 ") }));
+    }
+    var from = document.getElementById("calRfFrom").value, to = document.getElementById("calRfTo").value;
+    var all = calBrowse.events.filter(function (ev) {
+      var day = calDayKey(ev);
+      return (ev.type || "appointment") === type && day >= calBrowse.today && day <= calBrowse.end;
+    });
+    // the same filters as a search: calendar, future/past, from/to
+    var items = calRfApply(all).filter(function (ev) {
+      var day = calDayKey(ev);
+      return !(from && day < from) && !(to && day > to);
+    });
+    titleEl.textContent = name + " \u00b7 next 365 days (" + (items.length === all.length ? all.length : items.length + " of " + all.length) + ")";
+    if (!items.length) {
+      list.appendChild(el("div", "cal-occ-msg", { text: all.length ? "No " + name.toLowerCase() + " match these filters. This list covers the next 365 days \u2014 type a name to search further back or ahead."
+        : "No " + name.toLowerCase() + " in the next 365 days." }));
+      return;
+    }
+    items.sort(function (a, b) { return new Date(a.start) - new Date(b.start); });
+    var lastMonth = "";
+    items.forEach(function (ev) {
+      var monthLabel = new Date(calDayKey(ev) + "T12:00:00").toLocaleDateString(undefined, { month: "long", year: "numeric" });
+      if (monthLabel !== lastMonth) { list.appendChild(el("div", "cal-occ-month", { text: monthLabel })); lastMonth = monthLabel; }
+      list.appendChild(calResultRow(ev, list));
+    });
+  }
   function loadCalOccasions() {
     var token = ++calOccToken;
     calOccLoading = true;
@@ -3898,7 +3958,7 @@
     titleEl.textContent = "Occasions · next 365 days (" + (shown === total ? total : shown + " of " + total) + ")";
     if (!items.length) {
       list.appendChild(el("div", "cal-occ-msg", { text: calOccData.occasions.length ? "No occasions match these filters. This list covers the next 365 days — type a name to search further back or ahead." :
-        "No occasions yet. Add one with “+ Add Occasion”. Any event with “birthday”, “anniversary” or “yahrzeit” in its title also shows up here." }));
+        "No occasions yet. Add one with “+ Add Event”, then choose Occasion. Any event with “birthday”, “anniversary” or “yahrzeit” in its title also shows up here." }));
       return;
     }
     var today = new Date(calTodayKey() + "T12:00:00");
@@ -3936,7 +3996,8 @@
   function openCalSearchOverlay() {
     closeCalPopovers();
     calSearchOverlayOpen = true;
-    if (Date.now() - calOccLoadedAt > 60000) calOccData = null;   // the occasions list is re-read when the screen is reopened
+    if (Date.now() - calOccLoadedAt > 60000) calOccData = null;   // the lists are re-read when the screen is reopened
+    if (Date.now() - calBrowseLoadedAt > 60000) calBrowse = null;
     document.getElementById("calSearchResultsOverlay").style.display = "flex";
     document.getElementById("calSearchBtn").classList.add("active");
     if (calSearchQuery && (!calSearchResults || calSearchResults.query !== calSearchQuery)) runCalSearch();
@@ -3958,15 +4019,19 @@
     var list = document.getElementById("calSearchResultsList");
     var titleEl = document.getElementById("calSearchResultsTitle");
     list.innerHTML = "";
-    document.getElementById("calOccAdd").style.display = calRfType() === "occasion" ? "" : "none";
     if (!calSearchQuery) {
       if (calRfType() === "occasion") {   // nothing typed + Type: Occasions = the full occasions list
         renderCalOccasions(list, titleEl);
         calRfUpdateControls(calRfCountEvents());
         return;
       }
+      if (calBrowseType()) {              // ...and the same for Meetings / Appointments / Calls
+        renderCalBrowse(list, titleEl, calBrowseType());
+        calRfUpdateControls(calRfCountEvents());
+        return;
+      }
       titleEl.textContent = "";
-      list.appendChild(el("div", "cal-search-prompt", { text: "Type a name or a word to search every calendar \u2014 Avenium, Google and Outlook. Set the filters first to search only one calendar, one type, future or past, or a date range. Choose Type: Occasions to list every birthday, anniversary and yahrzeit in the next 365 days." }));
+      list.appendChild(el("div", "cal-search-prompt", { text: "Type a name or a word to search every calendar \u2014 Avenium, Google and Outlook. Set the filters first to search only one calendar, one type, future or past, or a date range. Or choose a Type on its own \u2014 Meetings, Appointments, Calls or Occasions \u2014 to list every one in the next 365 days." }));
       calRfUpdateControls(null);
       return;
     }
@@ -3996,24 +4061,25 @@
       return;
     }
     var parts = splitCalSearchResults(shownEvents);
-    var repeatLabels = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly", "jewish-monthly": "Monthly (Jewish)", "jewish-yearly": "Yearly (Jewish)" };
     [["Future", parts.upcoming], ["Past", parts.past]].forEach(function (sec) {
       if (!sec[1].length) return;
       list.appendChild(el("div", "cal-search-results-section", { text: sec[0] + " (" + sec[1].length + ")" }));
-      sec[1].forEach(function (ev) {   // every result — no limit
-        var r = calSearchRow(ev, "cal-agenda-row");
-        if (ev.canEdit) r.row.insertBefore(calBulkCheckbox(ev, function () { calBulkSync(list, "calSearchSelectAll", "calSearchBulkDel"); }), r.row.firstChild);
-        r.row.appendChild(el("span", "cal-agenda-date", { text: r.date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", weekday: "short" }) }));
-        r.row.appendChild(el("span", "cal-agenda-time", { text: r.time }));
-        r.row.appendChild(el("span", "cal-agenda-name", { text: ev.title }));
-        if (ev.repeat && ev.repeat !== "none") r.row.appendChild(el("span", "cal-agenda-repeat", { text: "\u21BB " + (repeatLabels[ev.repeat] || ev.repeat) }));
-        var calCol = el("span", "cal-search-results-cal", { text: (ev.calendarName === "Calendar" && ev.accountEmail) ? ev.accountEmail : (ev.calendarName || "") });
-        calCol.title = (ev.calendarName || "") + (ev.accountEmail ? " \u2014 " + ev.accountEmail : "");
-        r.row.appendChild(calCol);
-        r.row.onclick = function () { openCalModal(ev); };
-        list.appendChild(r.row);
-      });
+      sec[1].forEach(function (ev) { list.appendChild(calResultRow(ev, list)); });   // every result, no limit
     });
+  }
+  var CAL_REPEAT_LABELS = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", yearly: "Yearly", "jewish-monthly": "Monthly (Jewish)", "jewish-yearly": "Yearly (Jewish)" };
+  function calResultRow(ev, list) {
+    var r = calSearchRow(ev, "cal-agenda-row");
+    if (ev.canEdit) r.row.insertBefore(calBulkCheckbox(ev, function () { calBulkSync(list, "calSearchSelectAll", "calSearchBulkDel"); }), r.row.firstChild);
+    r.row.appendChild(el("span", "cal-agenda-date", { text: r.date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", weekday: "short" }) }));
+    r.row.appendChild(el("span", "cal-agenda-time", { text: r.time }));
+    r.row.appendChild(el("span", "cal-agenda-name", { text: ev.title }));
+    if (ev.repeat && ev.repeat !== "none") r.row.appendChild(el("span", "cal-agenda-repeat", { text: "\u21BB " + (CAL_REPEAT_LABELS[ev.repeat] || ev.repeat) }));
+    var calCol = el("span", "cal-search-results-cal", { text: (ev.calendarName === "Calendar" && ev.accountEmail) ? ev.accountEmail : (ev.calendarName || "") });
+    calCol.title = (ev.calendarName || "") + (ev.accountEmail ? " \u2014 " + ev.accountEmail : "");
+    r.row.appendChild(calCol);
+    r.row.onclick = function () { openCalModal(ev); };
+    return r.row;
   }
 
   function resetCalSearch() {
@@ -4658,6 +4724,37 @@
     sel.disabled = !!lockToIt;
   }
 
+  // ----- "Add a Teams meeting link" / "Add a Google Meet link" -----
+  // Outlook makes the Teams meeting and Google makes the Meet link when the
+  // event is created, so it is offered for a NEW event on one of their
+  // calendars. Each calendar says whether it can (c.meeting = "teams" | "meet").
+  function calPickedCalendar() {
+    var v = document.getElementById("calModalCalendar").value || "", i = v.indexOf("|");
+    var acct = calendarAccounts.find(function (a) { return a.id === v.slice(0, i); });
+    return acct ? (acct.calendars || []).find(function (c) { return c.id === v.slice(i + 1); }) || null : null;
+  }
+  function calSyncOnline() {
+    var row = document.getElementById("calOnlineRow"), chk = document.getElementById("calOnlineCheck");
+    var label = document.getElementById("calOnlineLabel"), hint = document.getElementById("calOnlineHint");
+    var kinds = {};
+    calendarAccounts.forEach(function (a) { (a.calendars || []).forEach(function (c) { if (c.meeting && c.canEdit && c.visible !== false) kinds[c.meeting] = true; }); });
+    if (calEditingEvent || calOccasionMode || !(kinds.teams || kinds.meet)) {
+      row.style.display = "none"; hint.style.display = "none"; chk.checked = false; return;
+    }
+    var cal = calPickedCalendar(), kind = cal && cal.canEdit ? cal.meeting : "";
+    row.style.display = "flex";
+    chk.disabled = !kind; row.classList.toggle("off", !kind);
+    if (kind) {
+      label.textContent = kind === "teams" ? "Add a Teams meeting link" : "Add a Google Meet link";
+      hint.style.display = "none";
+    } else {
+      chk.checked = false;
+      label.textContent = "Add a " + (kinds.teams && kinds.meet ? "Teams / Google Meet" : kinds.teams ? "Teams meeting" : "Google Meet") + " link";
+      hint.textContent = "Choose " + (kinds.teams && kinds.meet ? "an Outlook calendar (Teams) or a Google calendar (Meet)" : kinds.teams ? "an Outlook calendar" : "a Google calendar") + " below to turn this on.";
+      hint.style.display = "";
+    }
+  }
+
   // Meeting / Appointment / Call / All-day — presets that decide the default
   // length, whether an attendee list makes sense, and timed vs whole-day.
   var CAL_TYPES = {
@@ -4854,8 +4951,14 @@
       $("calModalRepeatCheck").checked = false;
       $("calRepeatOptions").style.display = "none";
       $("calHebrewDatePick").style.display = "none";
-      if (!calEditingEvent) $("calModalTitle").textContent = "New Event";
+      if (!calEditingEvent) {
+        $("calModalTitle").textContent = "New Event";
+        // an occasion is a whole day; a new meeting / appointment / call has a time again
+        $("calWhenTimed").checked = true; $("calWhenAllDay").checked = false;
+        applyWhenToggle();
+      }
       renderCalDetailSections();
+      calSyncOnline();
       return;
     }
     if (!calIsAllDay()) {
@@ -4912,7 +5015,7 @@
     var calSel = document.getElementById("calModalCalendar");
     if (calSel && calSel.value && calSel.value.indexOf("local|") !== 0) {
       var localOpt = [].find.call(calSel.options, function (o) { return o.value.indexOf("local|") === 0; });
-      if (localOpt) calSel.value = localOpt.value;
+      if (localOpt) { calSel.value = localOpt.value; calSyncOnline(); }
     }
     var dayEl = document.getElementById("calHebrewDay");
     var monthEl = document.getElementById("calHebrewMonth");
@@ -5000,7 +5103,7 @@
     });
     document.getElementById("calModalAttendees").style.display = def.attendees ? "" : "none";
     document.getElementById("calModalName").placeholder = def.label + " title";
-    if (type === "occasion") { applyOccasionMode(true, document.getElementById("calOccasionJewish").checked); return; }
+    if (type === "occasion") { applyOccasionMode(true, document.getElementById("calOccasionJewish").checked); calSyncOnline(); return; }
     if (calOccasionMode) applyOccasionMode(false);
     if (!keepTimes && !calIsAllDay()) {
       var startDate = document.getElementById("calModalStartDate2").value;
@@ -5013,6 +5116,7 @@
       }
     }
     renderCalDetailSections();
+    calSyncOnline();
   }
 
   // ===== Meeting details in the event window =====
@@ -5333,6 +5437,8 @@
     document.getElementById("calTypeRow").style.display = event ? "none" : "";
 
     fillCalendarPicker(event ? event.accountId : null, event ? event.calendarId : null, readOnly);
+    document.getElementById("calOnlineCheck").checked = false;
+    calSyncOnline();
 
     // Disable fields for read-only
     ["calModalName", "calModalDesc", "calModalStartDate2", "calModalStartTime", "calModalEndDate2", "calModalEndTime", "calModalLocation", "calModalAttendees", "calModalStartDateOnly", "calModalEndDateOnly", "calModalRepeat", "calModalRepeatCheck", "calWhenTimed", "calWhenAllDay", "calModalCalendar", "calHebrewDay", "calHebrewMonth", "calHebrewYear"].forEach(function (id) {
@@ -5402,6 +5508,8 @@
     var isLocalEvent = calEditingEvent ? calEditingEvent.provider === "local" : false;
     try { payload.timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
     if (!calEditingEvent && !calOccasionMode) payload.eventType = calModalType;   // Meeting / Appointment / Call, for the Type filter
+    var onlineChk = document.getElementById("calOnlineCheck");
+    if (!calEditingEvent && !calOccasionMode && onlineChk.checked && !onlineChk.disabled) payload.onlineMeeting = true;   // Teams / Meet link
     if (calOccasionMode) {
       payload.kind = "occasion"; payload.allDay = true; payload.end = payload.start;
       payload.occasionKind = calOccKind();
@@ -5485,6 +5593,7 @@
   // Say WHY a save failed (Google/Outlook's own reason) instead of a generic message
   function calSaveErrorText(d) {
     d = d || {};
+    if (d.error === "online_meeting_not_available") return "That calendar can\u2019t create a meeting link. Pick an Outlook calendar for Teams, or a Google calendar for Google Meet.";
     if (d.error === "calendar_off") return "That calendar is switched off. Tick it in Admin \u2192 Your calendar connections, or pick another calendar.";
     if (d.error === "jewish_repeat_avenium_only") return "Jewish repeats can only be saved to the Avenium calendar.";
     if (d.error === "invalid_hebrew_date") return "That Hebrew date doesn\u2019t exist.";

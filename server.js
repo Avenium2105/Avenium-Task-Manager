@@ -712,7 +712,9 @@ async function listGoogleCalendars(account) {
   // "selected" = the calendars the person has switched on in Google Calendar itself
   return r.body.items.filter((c) => c.selected !== false || c.primary).map((c) => ({
     id: c.id, name: ownCalendarName(account, c.summaryOverride || c.summary || c.id, c.primary, c.id), color: c.backgroundColor || "#1a73e8",
-    canEdit: c.accessRole === "owner" || c.accessRole === "writer", primary: !!c.primary
+    canEdit: c.accessRole === "owner" || c.accessRole === "writer", primary: !!c.primary,
+    // Google can attach a Meet link to a new event on this calendar
+    meeting: ((c.conferenceProperties && c.conferenceProperties.allowedConferenceSolutionTypes) || []).includes("hangoutsMeet") ? "meet" : ""
   }));
 }
 
@@ -804,7 +806,9 @@ async function listMicrosoftCalendars(account) {
   return r.body.value.map((c) => ({
     id: c.id, name: ownCalendarName(account, c.name, false, c.id),
     color: c.hexColor && c.hexColor !== "" ? c.hexColor : "#0078d4",
-    canEdit: c.canEdit !== false, primary: !!c.isDefaultCalendar
+    canEdit: c.canEdit !== false, primary: !!c.isDefaultCalendar,
+    // Outlook can attach a Teams meeting to a new event on this calendar (work/school accounts)
+    meeting: (c.allowedOnlineMeetingProviders || []).includes("teamsForBusiness") ? "teams" : ""
   }));
 }
 
@@ -2449,7 +2453,15 @@ app.get("/api/calendar/events", requireAuth, async (req, res) => {
 // Built-in holiday/parsha feeds are excluded, same as the agenda.
 app.get("/api/calendar/search", requireAuth, async (req, res) => {
   const q = String(req.query.q || "").trim().toLowerCase();
-  if (!q) return res.json({ events: [], total: 0, errors: [] });
+  // browse=1: no search words — every event in the given range (the Search
+  // events screen lists a type's next 365 days this way). The range must be
+  // given and short, so this can never mean "everything, all time".
+  const browse = !q && req.query.browse === "1";
+  if (!q && !browse) return res.json({ events: [], total: 0, errors: [] });
+  if (browse) {
+    const bs = new Date(String(req.query.start || "") + "T00:00:00Z"), be = new Date(String(req.query.end || "") + "T00:00:00Z");
+    if (isNaN(bs) || isNaN(be) || be < bs || be - bs > 370 * 86400000) return res.status(400).json({ error: "invalid_range" });
+  }
   const words = q.split(/\s+/).filter(Boolean);
   const thisYear = new Date().getUTCFullYear();
   const timeMin = req.query.start ? new Date(req.query.start + "T00:00:00Z").toISOString() : "1900-01-01T00:00:00.000Z";
@@ -2736,8 +2748,10 @@ app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
 });
 
 app.post("/api/calendar/events", requireAuth, async (req, res) => {
-  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, timeZone, kind, occasionKind, afterSunset, eventType } = req.body || {};
+  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, timeZone, kind, occasionKind, afterSunset, eventType, onlineMeeting } = req.body || {};
   if (!title || !start) return res.status(400).json({ error: "invalid_request" });
+  // A Teams / Meet link is made by Outlook / Google themselves, so it needs one of their calendars
+  if (onlineMeeting && accountId === "local") return res.status(400).json({ error: "online_meeting_not_available" });
   if (calendarIsOff(req.session.userId, accountId, calendarId)) return res.status(400).json({ error: "calendar_off" });
   const isJewishRepeat = repeat === "jewish-monthly" || repeat === "jewish-yearly";
   // Google and Outlook have no Hebrew-calendar repeat; saving there used to
@@ -2776,12 +2790,29 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
   try {
     const a = await freshToken(acct);
     const ev = { title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, timeZone };
-    const r = a.provider === "google"
-      ? await googleApiRequest(a.accessToken, "POST", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`, googleEventBody(ev))
-      : await graphRequest(a.accessToken, "POST", `/me/calendars/${encodeURIComponent(calendarId)}/events`, microsoftEventBody(ev));
+    let meeting = "";
+    if (onlineMeeting) {
+      const cal = (await listCalendarsFor(a)).find((c) => c.id === calendarId);
+      meeting = cal && cal.canEdit ? cal.meeting : "";
+      if (!meeting) return res.status(400).json({ error: "online_meeting_not_available" });
+    }
+    let r;
+    if (a.provider === "google") {
+      const body = googleEventBody(ev);
+      if (meeting === "meet") body.conferenceData = { createRequest: { requestId: uid("meet"), conferenceSolutionKey: { type: "hangoutsMeet" } } };
+      r = await googleApiRequest(a.accessToken, "POST",
+        `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events` + (meeting === "meet" ? "?conferenceDataVersion=1" : ""), body);
+    } else {
+      const body = microsoftEventBody(ev);
+      if (meeting === "teams") { body.isOnlineMeeting = true; body.onlineMeetingProvider = "teamsForBusiness"; }
+      r = await graphRequest(a.accessToken, "POST", `/me/calendars/${encodeURIComponent(calendarId)}/events`, body);
+    }
     if (r.status >= 300) return res.status(502).json({ error: "provider_rejected", message: providerError(a.provider === "google" ? "Google" : "Outlook", r).message });
     invalidateCalendarCache(`ev:${a.id}:`); // own change must show immediately
-    res.json({ ok: true });
+    const b = r.body || {};
+    const video = ((b.conferenceData && b.conferenceData.entryPoints) || []).find((x) => x.entryPointType === "video");
+    const joinUrl = meeting ? ((b.onlineMeeting && b.onlineMeeting.joinUrl) || (video && video.uri) || b.hangoutLink || "") : "";
+    res.json({ ok: true, meeting, joinUrl });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
