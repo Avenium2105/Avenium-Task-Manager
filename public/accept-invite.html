@@ -35,6 +35,16 @@
   .error.show, .ok.show { display: block; }
   .step { display: none; }
   .step.active { display: block; }
+  /* Phones: bigger fields and buttons. (iOS zooms the whole page when a field's
+     text is smaller than 16px, so 16px is the floor.) */
+  @media (max-width: 760px) {
+    body { padding: 14px; align-items: flex-start; padding-top: max(24px, 10vh); }
+    .card { padding: 26px 20px; }
+    input, input#code { font-size: 16px; padding: 12px; }
+    input#code { font-size: 20px; }
+    button { font-size: 16px; padding: 13px; }
+    button.link { font-size: 14px; padding: 10px 0; }
+  }
 </style>
 </head>
 <body>
@@ -58,7 +68,7 @@
       <div class="error" id="pwError"></div>
       <div id="profileFields" style="display:none;">
         <label for="usernameField">Username</label>
-        <input id="usernameField" type="text" autocomplete="username">
+        <input id="usernameField" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
         <label for="displayNameField">Display name</label>
         <input id="displayNameField" type="text" autocomplete="name">
       </div>

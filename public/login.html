@@ -53,6 +53,16 @@
     padding: 8px 10px; border-radius: 7px; margin-bottom: 16px;
   }
   .error.show { display: block; }
+  /* Phones: bigger fields and buttons. (iOS zooms the whole page when a field's
+     text is smaller than 16px, so 16px is the floor.) */
+  @media (max-width: 760px) {
+    body { padding: 14px; align-items: flex-start; padding-top: max(24px, 10vh); }
+    .card { padding: 26px 20px; }
+    input, input#code { font-size: 16px; padding: 12px; }
+    input#code { font-size: 20px; }
+    button { font-size: 16px; padding: 13px; }
+    button.link { font-size: 14px; padding: 10px 0; }
+  }
 </style>
 </head>
 <body>
@@ -63,7 +73,7 @@
     <h1>Sign in</h1>
     <div class="error" id="errorBox"></div>
     <label for="username">Username</label>
-    <input id="username" name="username" type="text" autocomplete="username" required autofocus>
+    <input id="username" name="username" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required autofocus>
     <label for="password">Password</label>
     <input id="password" name="password" type="password" autocomplete="current-password" required>
     <button id="submitBtn" type="submit">Sign in</button>

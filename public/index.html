@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Avenium</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -811,6 +811,398 @@
   .cal-loading { text-align: center; padding: 60px; color: var(--ink-faint); font-size: 14px; }
   .cal-no-calendar { text-align: center; padding: 60px 20px; color: var(--ink-faint); }
   .cal-no-calendar p { margin: 8px 0; font-size: 14px; }
+  /* Helper elements for the smaller layouts below. These lines keep them
+     invisible / inert on a full-size desktop screen. */
+  .board-tabs-row { display: contents; }   /* the tab buttons: on desktop they sit directly in the strip, as before */
+  .m-wrap { display: contents; }           /* wrapper around a one-line field that gets a wrapped copy on phones */
+  .m-mirror { display: none; }
+  .m-panes { display: none; }
+  .m-panel-back { display: none; }
+  /* search result rows: name + (date, time, repeat, calendar). On desktop the two
+     groups dissolve and the pieces line up in one row in the usual order. */
+  .cal-rf-toggle { display: none; }
+  .cal-row-main, .cal-row-meta { display: contents; }
+  .cal-agenda-row .cal-agenda-date { order: 1; }
+  .cal-agenda-row .cal-agenda-time { order: 2; }
+  .cal-agenda-row .cal-agenda-name { order: 3; }
+  .cal-agenda-row .cal-agenda-repeat { order: 4; }
+  .cal-agenda-row .cal-search-results-cal { order: 5; }
+
+  /* =====================================================================
+     TABLETS, PHONES HELD SIDEWAYS, NARROW WINDOWS (up to 1100px wide)
+     Three columns don't fit side by side here, so Boards shows one pane at
+     a time (Tasks / Action Items / Chat) picked from a bar at the bottom.
+     The phone block further down adds everything else for small screens.
+     ===================================================================== */
+  @media (max-width: 1100px) {
+    .wrap { padding-bottom: 96px; }
+    #boardsView .todo-sidebar { margin-bottom: 96px; }
+    body[data-mpane="tasks"] #boardsView .todo-sidebar, body[data-mpane="tasks"] #boardsView .board-chat { display: none !important; }
+    body[data-mpane="todo"] #boardsView .wrap, body[data-mpane="todo"] #boardsView .board-chat { display: none !important; }
+    body[data-mpane="chat"] #boardsView .wrap, body[data-mpane="chat"] #boardsView .todo-sidebar { display: none !important; }
+    /* the chat fills the screen between the tabs and the bottom bar, with the message box always in reach */
+    body[data-mpane="chat"] #boardsView .board-chat, body[data-mpane="chat"] #boardsView .board-chat.task-mode, body[data-mpane="chat"] #boardsView .board-chat.all-mode {
+      margin: 16px 0 0;
+      height: calc(100vh - var(--nav-h, 67px) - var(--tabs-h, 54px) - 94px);
+      height: calc(100dvh - var(--nav-h, 67px) - var(--tabs-h, 54px) - 94px - env(safe-area-inset-bottom));
+      min-height: 320px; max-height: none;
+    }
+    .board-chat-body { min-height: 0; }
+    .task-chat-messages { max-height: none; }
+    .task-panel-cols { grid-template-columns: minmax(0, 1fr); }            /* notes and files, then the chat under them */
+    .task-panel-col:first-child { border-right: none; padding-right: 0; border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+    .task-panel-chat-col .task-chat-messages { min-height: 80px; }
+    .board-chat.task-mode .board-chat-head .head-title { white-space: normal; }
+    body[data-mpane="todo"] .board-search-input, body[data-mpane="chat"] .board-search-input { visibility: hidden; }   /* it searches tasks */
+
+    .m-panes { display: flex; justify-content: center; position: fixed; left: 0; right: 0; bottom: 0; z-index: 450; gap: 6px; padding: 6px 8px; padding-bottom: calc(6px + env(safe-area-inset-bottom)); background: var(--bg-raised); border-top: 1px solid var(--line); box-shadow: 0 -2px 10px rgba(34,38,31,0.08); }
+    .m-panes button { flex: 1 1 0; min-width: 0; max-width: 260px; font-family: inherit; font-size: 13px; font-weight: 600; padding: 11px 4px; border: none; border-radius: 9px; background: transparent; color: var(--ink-soft); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .m-panes button:hover { background: var(--line-soft); }
+    .m-panes button.active, .m-panes button.active:hover { background: var(--pine); color: var(--bg-raised); }
+    .m-badge { display: inline-block; min-width: 18px; margin-left: 5px; padding: 1px 5px; border-radius: 10px; font-size: 11px; font-weight: 700; line-height: 1.45; background: var(--line); color: var(--ink-soft); vertical-align: 1px; }
+    .m-panes button.active .m-badge { background: rgba(255,255,255,0.25); color: var(--bg-raised); }
+    .m-badge.alert { background: var(--brick); color: #fff; }
+    .m-panel-back { display: inline-flex; align-items: center; flex-shrink: 0; font-family: inherit; font-size: 13px; font-weight: 600; color: var(--pine); background: var(--pine-soft); border: none; border-radius: 8px; padding: 8px 11px; cursor: pointer; }
+    .board-chat-head { justify-content: flex-start; gap: 10px; }
+
+    /* Ask Claude sits above the bottom bar, and stays off the Send button */
+    body[data-view="boards"] .ai-launcher { bottom: calc(70px + env(safe-area-inset-bottom)); }
+    body[data-view="boards"][data-mpane="chat"] .ai-launcher { display: none !important; }
+
+    /* the calendar bar wraps onto a second line instead of overlapping */
+    .calendar-nav-top { flex-wrap: wrap; row-gap: 8px; }
+    .cal-nav-left, .cal-nav-right { flex: 1 1 auto; }
+    .cal-nav-center { flex-direction: row; align-items: center; gap: 8px; }
+    .cal-jump-drop { left: auto; right: 0; transform: none; }
+  }
+  /* the header: the clock and date make way first */
+  @media (max-width: 1000px) {
+    .topnav { grid-template-columns: auto 1fr; gap: 12px; padding-left: 20px; padding-right: 20px; }
+    .nav-date-group { display: none; }
+    .topnav .brand-mark { justify-self: start; }
+    .topbar a, .topbar button.link { white-space: nowrap; }
+  }
+  /* a phone held sideways: very little height, so the calendar scrolls with the page instead of squeezing into it */
+  @media (max-height: 520px) and (max-width: 1100px) {
+    input, select, textarea { font-size: 16px !important; }
+    .topnav { padding-top: 8px; padding-bottom: 8px; min-height: 0; }
+    .topnav .brand-logo { height: 30px; }
+    .calendar-wrap { height: auto; overflow: visible; padding: 8px 10px 12px; }
+    .cal-layout { height: auto; }
+    .cal-main { height: auto; min-height: 620px; }
+    .cal-event-modal-box, .cal-event-modal-box.cal-wide { max-height: calc(100vh - 12px); max-height: calc(100dvh - 12px); }
+    .cal-event-modal-head { padding-top: 10px; padding-bottom: 10px; }
+    .cal-event-modal-foot { padding-top: 8px; padding-bottom: 8px; }
+  }
+
+  /* =====================================================================
+     PHONE LAYOUT (screens up to 760px wide)
+     Everything above is the desktop layout and is left as it was. The rules
+     below only apply on a phone-sized screen. A few helper elements exist
+     for the phone layout; these first lines keep them invisible on desktop.
+     ===================================================================== */
+  @media (max-width: 760px) {
+    html { -webkit-text-size-adjust: 100%; }
+    /* iOS zooms the whole page when a field with text smaller than 16px is focused */
+    input, select, textarea { font-size: 16px !important; }
+    a, button, label, input, select, textarea { touch-action: manipulation; }
+    /* tick boxes big enough for a finger (the Occasion "Repeats on" choice is drawn as buttons, so not those) */
+    input[type="checkbox"], input[type="radio"]:not([name="calOccasionCal"]) { width: 20px !important; height: 20px !important; flex: 0 0 auto; accent-color: var(--pine); }
+    * { -webkit-tap-highlight-color: rgba(60,90,70,0.12); }
+
+    /* ---- header: one compact row — the leaf mark, then the nav buttons ---- */
+    .topnav { grid-template-columns: auto 1fr; gap: 8px; padding: 8px 10px; padding-top: calc(8px + env(safe-area-inset-top)); min-height: 50px; }
+    .topnav .brand-logo { height: 32px; width: 33px; object-fit: cover; object-position: left center; }   /* just the leaf; the wordmark doesn't fit */
+    .topnav .topbar { gap: 6px; }
+    .topbar a, .topbar button.link { padding: 12px 11px; font-size: 13px; white-space: nowrap; }
+    .topbar a.active { box-shadow: 0 0 0 1.5px var(--bg-raised), 0 0 0 3px #22362a; }
+
+    /* ---- board tabs: one row you swipe sideways, search box above it ---- */
+    .board-tabs { display: flex; flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 0; padding: 8px 0 0; position: static; }
+    .board-tabs-row { display: flex; align-items: flex-end; gap: 3px; overflow-x: auto; overflow-y: hidden; padding: 0 10px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .board-tabs-row::-webkit-scrollbar { display: none; }
+    .board-tab-wrap { flex: 0 0 auto; cursor: default; }
+    .board-tab { flex: 0 0 auto; white-space: nowrap; padding: 10px 14px; margin-bottom: 0; }
+    .board-tab-rename, .board-tab-delete, .board-menu-btn { padding: 9px 9px; color: rgba(255,255,255,0.75); }
+    .board-search-spacer { display: none; }
+    .board-search-input { order: -1; width: auto; margin: 0 10px 8px; padding: 9px 12px; border-radius: 9px; }
+    body[data-mpane="todo"] .board-search-input, body[data-mpane="chat"] .board-search-input { display: none; }
+    body[data-mpane="chat"] #boardsView .board-chat, body[data-mpane="chat"] #boardsView .board-chat.task-mode, body[data-mpane="chat"] #boardsView .board-chat.all-mode { margin: 12px 0 0; }
+
+    /* ---- Boards (phone sizing; the one-pane-at-a-time layout itself is in the block above) ---- */
+    .page { padding: 0 10px; }
+    .wrap { padding: 12px 0 96px; }
+    #boardsView .todo-sidebar { margin: 12px 0 96px; }
+    #boardsView .board-chat, #boardsView .board-chat.task-mode, #boardsView .board-chat.all-mode { margin: 12px 0 0; }
+    .chat-bubble { max-width: 86%; }
+    .chat-text { font-size: 14.5px; }
+    .chat-send-btn, .chat-to-btn { padding: 11px 14px; font-size: 13.5px; }
+    .m-panes button { max-width: none; }
+    .board-chat-head { padding: 10px 12px; }
+    .board-chat-body { padding: 12px; }
+    .board-chat-foot { padding: 10px 12px; }
+
+    /* ---- task list ---- */
+    .board-section-title { font-size: 18px; }
+    .board-section-drag-handle, .group-drag-handle { display: none; }   /* dragging to reorder is a mouse thing */
+    .group { margin-bottom: 14px; border-radius: 12px; }
+    .group-head { padding: 12px 10px 12px 8px; gap: 8px; }
+    .group-head .chevron { margin-left: 2px; }
+    .group-del { width: 38px; height: 38px; }
+    .item { padding: 10px 10px 9px 6px; }
+    .item-main { flex-wrap: wrap; row-gap: 7px; align-items: flex-start; }
+    .item-collapse-btn { width: 30px; height: 30px; }
+    .item-collapse-btn svg { width: 14px; height: 14px; }
+    /* long titles wrap instead of being cut off; tap the text to edit it */
+    .m-wrap { display: block; min-width: 0; }
+    .m-wrap.m-title { flex: 1 1 calc(100% - 40px); }
+    .m-wrap.m-step { flex: 1 1 0; }
+    .m-mirror { display: block; padding: 4px 4px; border-radius: 5px; word-break: break-word; overflow-wrap: anywhere; cursor: text; }
+    .m-title .m-mirror { font-size: 15px; line-height: 1.35; color: var(--ink); }
+    .m-step .m-mirror { font-size: 14px; line-height: 1.35; color: var(--ink-soft); padding: 7px 4px; }
+    .m-wrap:not(.editing) > input { display: none; }
+    .m-wrap.editing > .m-mirror { display: none; }
+    .m-wrap.editing > input { display: block; width: 100%; background: var(--bg); }
+    .item.is-done .m-title .m-mirror, .step-row.done .m-step .m-mirror { color: var(--ink-faint); text-decoration: line-through; }
+    .item-main > .details-btn { margin-left: 38px; }                    /* second line starts under the title */
+    .details-btn, .task-archive-btn, .priority-tag { padding: 8px 13px; font-size: 12.5px; }
+    .priority-tag { display: inline-block; }
+    .item-del { opacity: 1; margin-left: auto; width: 36px; height: 34px; }
+    .step-checklist { padding: 4px 0 4px 38px; width: 100%; gap: 4px; }
+    .step-row { align-items: flex-start; gap: 6px; }
+    .step-row-update-btn { padding: 8px 12px; margin-top: 1px; }
+    .step-add-link, .step-completed-toggle { padding: 8px 4px; }
+    .step-add-row { flex-wrap: wrap; }
+    .step-add-row input { flex: 1 1 100%; }
+    .step-add-row button { flex: 1 1 0; padding: 10px 14px; }
+    .add-row { padding: 12px 10px 14px 12px; }
+    .add-group-btn { width: 100%; justify-content: center; padding: 14px; }
+    .new-group-form { flex-wrap: wrap; }
+    .new-group-form input[type=text] { flex: 1 1 100%; padding: 10px; }
+    .new-group-form label { flex: 1 1 100%; white-space: normal; }
+    .new-group-form button { flex: 1 1 0; padding: 10px 14px; }
+
+    /* ---- action items ---- */
+    .todo-list { padding: 10px; gap: 8px; }
+    .todo-row { padding: 10px; gap: 10px; }
+    .todo-check { width: 24px; height: 24px; }
+    .todo-check svg { width: 13px; height: 13px; }
+    .todo-del { width: 30px; height: 30px; }
+    .todo-del svg { width: 12px; height: 12px; }
+    .todo-share-link, .todo-shared-tag { font-size: 12px; padding: 5px 2px; }
+    .todo-shared-tag { padding: 5px 9px; }
+    .todo-add-link { padding: 13px; font-size: 14px; }
+    .todo-add-row .todo-add-btns button { padding: 11px 10px; font-size: 14px; }
+
+    /* ---- task details ---- */
+    .task-panel-cols { gap: 14px; }
+    .note-head { padding: 11px 10px; }
+    .note-del { width: 30px; height: 30px; }
+    .note-preview[title]:hover::after { content: none; }                 /* no hover pop-up on a touch screen */
+    .note-add-link { padding: 9px 2px; font-size: 14px; }
+    .note-add-row button { padding: 10px 14px; font-size: 14px; }
+    .file-drop { padding: 16px 10px; font-size: 13px; }
+    .file-row { padding: 8px 8px; }
+
+    /* ---- pop-up menus: bigger rows for fingers, never wider than the screen ---- */
+    .floating-popover { max-width: calc(100vw - 16px); }
+    .step-menu button, .board-menu button { padding: 13px 14px; font-size: 14.5px; }
+    .assignee-popover-list label, .recipient-popover label, .board-access-popover label { padding: 10px 8px; font-size: 14px; white-space: normal; }
+    .read-receipt-actions button { padding: 11px 10px; font-size: 13.5px; }
+
+    /* ---- Ask Claude: out of the way of the bottom bar; the panel takes the whole screen ---- */
+    .ai-launcher { right: 10px; bottom: calc(12px + env(safe-area-inset-bottom)); width: 54px; height: 54px; padding: 0 4px; border-radius: 50%; font-size: 10.5px; line-height: 1.15; white-space: normal; opacity: 0.94; }   /* a small round button: less in the way */
+    .ai-head { padding: 12px 14px; font-size: 16px; }
+    .ai-head button { font-size: 20px; padding: 6px 10px; }
+    .ai-msg { font-size: 14.5px; }
+    .ai-empty { font-size: 13.5px; }
+    .ai-send, .ai-clear { padding: 12px 14px; font-size: 14.5px; }
+
+    /* ================= Admin ================= */
+    .admin-wrap { padding: 16px 12px 90px; }
+    .admin-wrap h1 { font-size: 26px; margin-bottom: 16px; }
+    /* the users table becomes one card per person */
+    #usersTable, #usersTable tbody { display: block; }
+    #usersTable thead { display: none; }
+    #usersTable tr { display: flex; flex-wrap: wrap; align-items: center; }
+    #usersTable td { display: block; border-top: none; padding: 2px 0 2px 12px; font-size: 14px; }
+    #usersTable td:nth-child(1):not([colspan]) { flex: 1 1 100%; padding: 12px 12px 0; border-top: 1px solid var(--line-soft); font-size: 15px; }
+    #usersTable tr:first-child td:nth-child(1) { border-top: none; }
+    #usersTable td:nth-child(2) { flex: 1 1 100%; padding-right: 12px; color: var(--ink-soft); overflow-wrap: anywhere; }
+    #usersTable td:nth-child(3), #usersTable td:nth-child(4) { flex: 0 0 auto; padding-top: 5px; }
+    #usersTable td:nth-child(5) { flex: 1 1 100%; padding: 4px 12px 10px; }
+    #usersTable td[colspan] { flex: 1 1 100%; }
+    .admin-wrap .row-actions { gap: 4px 18px; flex-wrap: wrap; }
+    .admin-wrap .row-actions button { font-size: 14px; padding: 9px 0; }
+    .admin-wrap .edit-panel .fields, .admin-wrap .add-form .fields { flex-direction: column; align-items: stretch; }
+    .admin-wrap .edit-panel input, .admin-wrap .edit-panel select, .admin-wrap .add-form input, .admin-wrap .add-form select { width: 100%; min-width: 0; flex: none; padding: 10px; }
+    .admin-wrap .edit-panel button, .admin-wrap .add-form button { padding: 11px 14px; font-size: 14.5px; }
+    .admin-wrap .add-user-btn, .cal-add-btn { width: 100%; padding: 13px 16px; font-size: 14.5px; }
+    .cal-admin-add { flex-direction: column; }
+    .cal-hebrew-toggle { font-size: 14.5px !important; padding: 4px 0; }
+    .cal-hebrew-toggle input, .cal-toggle input { width: 20px !important; height: 20px; }
+    .cal-acct { padding: 12px; }
+    .cal-acct-head { flex-wrap: wrap; gap: 6px 10px; }
+    .cal-acct-email { font-size: 14.5px; overflow-wrap: anywhere; white-space: normal; }
+    .cal-acct-remove { font-size: 13.5px; padding: 8px 0 8px 8px; }
+    .cal-acct-cals { flex-direction: column; gap: 2px; font-size: 14.5px; margin-top: 6px; }
+    .cal-toggle { padding: 8px 0; gap: 9px; }
+    .admin-wrap .activity-toggle button { font-size: 14px; padding: 10px 0; }
+    .admin-wrap .activity-list li { flex-direction: column; gap: 2px; font-size: 14px; }
+    .ai-panel { left: 0; right: 0; top: 0; bottom: 0; width: auto; max-width: none; height: auto; max-height: none; border: none; border-radius: 0; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+
+    /* ================= Calendar ================= */
+    .calendar-wrap { padding: 8px 6px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); height: calc(100vh - var(--nav-h, 50px)); height: calc(100dvh - var(--nav-h, 50px)); }
+    .cal-main { padding: 8px; }
+    /* the bar: date on top, then the view switch, then the buttons */
+    .calendar-nav-top { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; margin-bottom: 8px; }
+    .cal-nav-center { order: 1; flex-direction: row; align-items: center; gap: 6px; }
+    .cal-nav-right { order: 2; flex: 0 0 auto; }
+    .cal-nav-left { order: 3; flex: 0 0 auto; gap: 6px; }
+    .cal-nav-date-row { flex: 1 1 0; min-width: 0; gap: 4px; }
+    #calPrevYear, #calNextYear { display: none; }          /* a whole year at a time: use the Year view or Search Date */
+    .cal-arrow-btn { padding: 7px 13px; font-size: 18px; line-height: 1; }
+    #calMonthLabel { flex: 1 1 0; min-width: 0; font-size: 16.5px; overflow: hidden; text-overflow: ellipsis; }
+    .cal-pill-btn { padding: 9px 11px; font-size: 12.5px; white-space: nowrap; }
+    .cal-jump-drop { left: auto; right: 0; transform: none; min-width: 230px; }
+    .cal-jump-opt { padding: 11px 10px; font-size: 14.5px; }
+    .cal-jump-pick .cal-filter-apply { padding: 9px 14px; }
+    .cal-view-seg { display: flex; width: 100%; }
+    .cal-view-seg button { flex: 1 1 0; padding: 9px 4px; font-size: 13px; }
+    .cal-add-event-btn { flex: 1 1 0; padding: 11px 12px; font-size: 14px; }
+    .cal-search-events-btn { padding: 10px 14px; font-size: 14px; }
+    .cal-refresh-btn { width: 42px; height: 42px; }
+
+    /* month: small boxes — tap a day to open it */
+    .cal-grid-head span { font-size: 11px; }
+    .cal-grid, .cal-grid-head { gap: 1px; }
+    .cal-cell { padding: 2px; border-radius: 4px; }
+    .cal-day-num { font-size: 11.5px; margin-bottom: 1px; padding: 0 1px; overflow: hidden; white-space: nowrap; }
+    .cal-day-link { padding: 0 1px; margin-left: 0; }
+    .cal-heb-date { font-size: 8px; overflow: hidden; text-overflow: clip; margin-left: 2px; }
+    .cal-cell-events { overflow: hidden; gap: 1px; }
+    .cal-grid .cal-event-pill { font-size: 9.5px; line-height: 1.25; padding: 1px 2px; border-radius: 3px; text-overflow: clip; pointer-events: none; }
+    .cal-grid .cal-pill-t { display: none; }
+
+    /* day & week */
+    .cal-tg-dayhead { padding: 4px 1px 3px; }
+    .cal-tg-dayhead .dow { font-size: 9.5px; letter-spacing: 0; }
+    .cal-tg-dayhead .num { font-size: 14px; min-width: 24px; height: 24px; line-height: 24px; }
+    .cal-tg-dayhead .heb { font-size: 8px; white-space: nowrap; overflow: hidden; }
+    .cal-tg-gutter { font-size: 9px; padding-right: 3px; }
+    .cal-tg-hour { font-size: 9.5px; right: 3px; }
+    .cal-tg-allday-col { padding: 2px 1px; }
+    .cal-tg-ev { padding: 1px 3px; font-size: 10.5px; border-radius: 4px; }
+    .cal-tg-ev span { font-size: 9.5px; }
+    .cal-tg-week .cal-tg-ev b { white-space: normal; overflow-wrap: anywhere; line-height: 1.15; }
+    .cal-tg-week .cal-tg-ev span { display: none; }
+    .cal-tg-week .cal-event-pill { font-size: 9.5px; padding: 1px 2px; text-overflow: clip; }
+    .cal-tg-day .cal-tg-ev { font-size: 13px; padding: 3px 7px; }
+    .cal-tg-day .cal-tg-ev span { font-size: 11.5px; }
+    .cal-tg-day .cal-event-pill { font-size: 12.5px; padding: 4px 8px; }
+
+    .cal-tg-week .cal-tg-ev { padding: 1px 2px; font-size: 9.5px; }
+    /* year */
+    .cal-year { gap: 8px; padding: 0 0 10px; }
+    .cal-ym { padding: 8px 6px 8px; }
+    .cal-ym-title { font-size: 14px; padding: 2px 4px 6px; }
+    .cal-ym-day { font-size: 12px; padding: 4px 0 8px; }
+
+    /* the event window takes the whole screen */
+    .cal-event-modal { align-items: stretch; justify-content: stretch; }
+    .cal-event-modal-box, .cal-event-modal-box.cal-wide { width: 100%; max-width: none; height: 100%; max-height: none; border-radius: 0; box-shadow: none; }
+    .cal-event-modal-head { padding: 12px 14px; padding-top: calc(12px + env(safe-area-inset-top)); font-size: 16px; }
+    .cal-event-modal-head button { font-size: 20px; padding: 6px 10px; margin: -6px -8px -6px 0; }
+    .cal-event-modal-body { padding: 14px; gap: 14px; }
+    .cal-event-modal-foot { padding: 10px 14px; padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+    .cal-event-modal-foot button { flex: 1 1 0; padding: 13px 10px; font-size: 15px; }
+    .cal-event-modal-body input, .cal-event-modal-body select { padding: 10px 10px; }
+    .cal-type-btn { flex: 1 1 0; padding: 10px 8px; font-size: 14px; text-align: center; }
+    .cal-date-group { padding: 10px; }
+    .cal-date-row { gap: 6px; }
+    .cal-date-row input { padding-left: 6px; padding-right: 4px; }
+    .cal-radio-label, .cal-repeat-check-label, .cal-online-row, .cal-occasion-check { font-size: 14.5px; padding: 4px 0; }
+    .cal-event-modal-body input[type="checkbox"], .cal-event-modal-body input[type="radio"] { width: 20px !important; height: 20px; flex: 0 0 20px; }
+    .cal-occ-form { padding: 12px 10px; }
+    .cal-occ-flabel { flex: 0 0 84px; }
+    .cal-occasion-radios label { padding: 11px 4px; font-size: 13px; }
+    .cal-occasion-radios label.cal-occ-both { padding-left: 14px; padding-right: 14px; }
+    .cal-occ-date-btn { flex: 0 0 44px; }
+    .cal-occ-form .cal-hebrew-date-pick .cal-date-row-label { flex: 1 1 100%; }
+    .cal-occ-form .cal-hebrew-date-pick input[type="number"], .cal-hebrew-date-pick input[type="number"] { width: 60px !important; flex: 0 0 60px; }
+    .cal-occ-form .cal-hebrew-date-pick #calHebrewYear, .cal-hebrew-date-pick #calHebrewYear { width: 84px !important; flex: 0 0 84px; }
+    .cal-join-btn { padding: 14px 16px; font-size: 15px; }
+    .cal-dsec-edit { font-size: 14px; padding: 6px 4px; }
+    .cal-dview { font-size: 14.5px; }
+    .cal-who-name { font-size: 14px; white-space: normal; }
+    .cal-who-list, .cal-desc-view { max-height: none; }
+    .cal-choice-btns button { padding: 14px; font-size: 15px; }
+    .cal-choice-btns button small { font-size: 12.5px; }
+
+    /* Search events */
+    .cal-search-results-head { flex-wrap: wrap; gap: 8px; padding: 10px; }
+    .cal-search-main { order: 1; flex: 1 1 60%; min-width: 0; padding: 10px 12px; }
+    .cal-search-results-close { order: 2; flex: 0 0 auto; padding: 11px 14px; font-size: 14px; }
+    .cal-back-long { display: none; }
+    .cal-search-results-title { order: 3; flex: 1 1 calc(100% - 130px); white-space: normal; font-size: 14px; }
+    /* the filters fold away behind a button so the results get the screen */
+    .cal-rf-toggle { order: 4; display: inline-flex; align-items: center; flex: 0 0 auto; font-family: inherit; font-size: 13.5px; font-weight: 600; color: var(--pine); background: var(--bg-raised); border: 1px solid var(--pine); border-radius: 8px; padding: 9px 12px; cursor: pointer; white-space: nowrap; }
+    .cal-rf-toggle.on { background: var(--pine-soft); }
+    .cal-rf-toggle.open { background: var(--pine); color: var(--bg-raised); }
+    .cal-select-all { order: 5; flex: 1 1 0; font-size: 13.5px; padding: 6px 0; }
+    .cal-select-all input, .cal-agenda-check { width: 20px !important; height: 20px; }
+    .cal-bulk-del-btn { order: 6; font-size: 13px; padding: 9px 12px; }
+    .cal-rf-bar:not(.open) { display: none; }
+    .cal-rf-bar.open { display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 6px; padding: 8px 10px; }
+    .cal-rf-cal-wrap { grid-column: 1 / -1; }
+    .cal-rf-cal-btn { width: 100%; padding: 10px 10px; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #calRfType, #calRfWhen { grid-column: span 2; padding: 9px 6px; min-width: 0; }
+    .cal-rf-date { width: 100%; min-width: 0; padding: 8px 2px 8px 6px; }
+    .cal-rf-label { font-size: 13px; }
+    .cal-rf-clear { grid-column: 1 / -1; justify-self: start; font-size: 14px; padding: 6px 2px; }
+    .cal-rf-cal-drop { left: 0; right: 0; min-width: 0; max-height: 52vh; }
+    .cal-filter-drop .cal-filter-opt { padding: 9px 4px; font-size: 14.5px; }
+    .cal-search-results-list .cal-agenda-row { padding: 11px 10px; align-items: flex-start; }
+    .cal-agenda-row .cal-search-drop-swatch { margin: 6px 8px 0 0; }
+    .cal-agenda-check { margin: 1px 10px 0 0; }
+    .cal-row-main { display: flex; flex-direction: column; gap: 3px; flex: 1 1 0; min-width: 0; }
+    .cal-row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 10px; }
+    .cal-agenda-row .cal-agenda-name { order: 0; flex: none; white-space: normal; overflow: visible; font-size: 15px; font-weight: 500; line-height: 1.3; overflow-wrap: anywhere; }
+    .cal-agenda-row .cal-agenda-date, .cal-agenda-row .cal-agenda-time { flex: 0 0 auto; font-size: 12.5px; }
+    .cal-agenda-row .cal-search-results-cal { flex: 0 1 auto; min-width: 0; padding-left: 0; font-size: 12.5px; }
+    .cal-search-results-section, .cal-occ-month { padding: 12px 10px 6px; }
+    .cal-search-results-searched { padding: 7px 10px; }
+    .cal-search-prompt { padding: 24px 14px; font-size: 14px; }
+    .cal-occ-row { padding: 11px 10px; gap: 10px; }
+    .cal-occ-day { flex: 0 0 40px; }
+    .cal-occ-name { white-space: normal; font-size: 14.5px; overflow-wrap: anywhere; }
+    .cal-occ-sub { font-size: 12.5px; }
+    .cal-occ-later { padding: 10px; }
+  }
+  @media (max-width: 760px) and (hover: none) { .item:hover, .cal-cell:hover { background: inherit; } }
+  /* touch screens: a long press on a task / step opens its menu, and a tap on a
+     message opens that message's menu — so holding must not start a text selection */
+  @media (hover: none) and (pointer: coarse) {
+    .item-main, .m-mirror, .step-row, .chat-bubble { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+    .item-main input, .step-row input { -webkit-user-select: text; user-select: text; }
+    .read-receipt-popover { max-width: min(320px, calc(100vw - 16px)); }
+    .read-receipt-info { padding: 2px 2px 8px; font-size: 13px; }
+    .read-receipt-actions { flex-wrap: wrap; }
+    .read-receipt-actions button { flex: 1 1 auto; padding: 11px 12px; font-size: 14px; white-space: nowrap; }
+  }
+  /* the very smallest phones (320px) */
+  @media (max-width: 359px) {
+    .topnav .topbar { gap: 4px; }
+    .topbar a, .topbar button.link { padding: 11px 7px; font-size: 12px; }
+    .m-panes { gap: 3px; padding-left: 4px; padding-right: 4px; }
+    .m-panes button { font-size: 12px; }
+    .m-badge { margin-left: 3px; min-width: 16px; padding: 1px 4px; }
+    .cal-add-long { display: none; }
+    #calMonthLabel { font-size: 15px; }
+    .cal-pill-btn { padding: 9px 8px; font-size: 12px; }
+    .cal-arrow-btn { padding: 7px 10px; }
+    .cal-search-events-btn { padding: 10px 10px; }
+  }
 </style>
 </head>
 <body>
@@ -987,12 +1379,17 @@
     // relative to its real rendered height instead of a guessed pixel value —
     // this bar's height is effectively fixed (same content on every page), so
     // measuring it once right after building is enough.
-    document.documentElement.style.setProperty("--nav-h", root.offsetHeight + "px");
+    var setNavH = function () { document.documentElement.style.setProperty("--nav-h", root.offsetHeight + "px"); };
+    setNavH();
+    window.addEventListener("resize", setNavH);
+    window.addEventListener("orientationchange", function () { setTimeout(setNavH, 250); });
   }
 })();
 </script>
 <div id="boardsView">
 <div class="board-tabs" id="boardTabs"></div>
+<!-- phones only: which of the three Boards panes is showing -->
+<nav class="m-panes" id="mPanes" aria-label="Boards sections"></nav>
 <div class="page">
 <aside class="todo-sidebar" id="todoSidebar">
   <div class="todo-sidebar-head">Action Items</div>
@@ -1086,7 +1483,7 @@
   <div class="cal-main">
   <div class="calendar-nav-top">
     <div class="cal-nav-left">
-      <button id="calNewBtn" type="button" class="cal-add-event-btn">+ Add Event</button>
+      <button id="calNewBtn" type="button" class="cal-add-event-btn">+ <span class="cal-add-long">Add </span>Event</button>
       <button id="calSearchBtn" type="button" class="cal-search-events-btn" title="Search every calendar"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>Search events</button>
       <button id="calRefreshBtn" type="button" class="cal-refresh-btn" title="Refresh — get the latest from Google and Outlook" aria-label="Refresh"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.6 2.2v3.2h-3.2"/></svg></button>
     </div>
@@ -1131,9 +1528,10 @@
     <div class="cal-search-results-head">
       <input id="calSearchInput" type="text" class="cal-search-main" placeholder="Search" autocomplete="off" spellcheck="false">
       <span class="cal-search-results-title" id="calSearchResultsTitle">Search events</span>
+      <button id="calRfToggle" type="button" class="cal-rf-toggle" aria-expanded="false">Filters</button>
       <label class="cal-select-all" id="calSearchSelectAllWrap"><input id="calSearchSelectAll" type="checkbox"> Select all</label>
       <button id="calSearchBulkDel" type="button" class="cal-bulk-del-btn" style="display:none;">Delete selected</button>
-      <button id="calSearchResultsClose" type="button" class="cal-search-results-close">Back to calendar</button>
+      <button id="calSearchResultsClose" type="button" class="cal-search-results-close">Back<span class="cal-back-long"> to calendar</span></button>
     </div>
     <div class="cal-rf-bar" id="calRfBar">
       <div class="cal-rf-cal-wrap">
@@ -1352,6 +1750,88 @@
   var messageRecipients = {}; // "board:id" / "item:id" -> { all: bool, ids: [] } — who a new message goes to
   var openMessageEdits = {}; // messageId -> true while inline-editing that message
   var selectedItemId = null; // when set, the right-side panel shows this task's notes/files/chat instead of board chat
+
+  // ----- Phone layout -----
+  // On a phone the three Boards columns can't sit side by side, so one shows
+  // at a time: Tasks, Action Items, or Chat (which is the task's notes / files
+  // / chat while a task is open). A bar at the bottom switches between them.
+  var phoneMq = window.matchMedia ? window.matchMedia("(max-width: 760px)") : { matches: false };
+  function isPhone() { return !!phoneMq.matches; }
+  // "compact" also covers tablets, a phone held sideways and narrow windows:
+  // anything too narrow for three columns gets the one-pane layout.
+  var compactMq = window.matchMedia ? window.matchMedia("(max-width: 1100px)") : { matches: false };
+  function isCompact() { return !!compactMq.matches; }
+  var mobilePane = "tasks";        // "tasks" | "todo" | "chat"
+  var mobileTasksScrollY = 0;      // where the task list was, to come back to after closing a task
+  // The chat marks messages as read when it is on screen. On a phone it is
+  // only on screen while its pane is the one showing.
+  function chatPaneShowing() { return !isCompact() || mobilePane === "chat"; }
+  function setMobilePane(pane) {
+    if (pane === mobilePane) return;
+    if (mobilePane === "tasks") mobileTasksScrollY = window.scrollY;
+    mobilePane = pane;
+    window.scrollTo(0, 0);
+    render();
+    if (pane === "tasks") mobileRestoreTasksScroll();
+  }
+  // render() puts the page back where it was before it redrew (once now, once on
+  // the next frame). Coming back to the task list we want the list's own place
+  // instead, so this goes after both.
+  function mobileRestoreTasksScroll() {
+    var y = mobileTasksScrollY;
+    window.scrollTo(0, y);
+    requestAnimationFrame(function () { window.scrollTo(0, y); });
+  }
+  // opening a task on a phone goes straight to its details
+  function mobileShowTask() {
+    if (!isCompact() || !selectedItemId) return;
+    if (mobilePane === "tasks") mobileTasksScrollY = window.scrollY;
+    mobilePane = "chat";
+    window.scrollTo(0, 0);
+  }
+  function renderMobilePanes() {
+    document.body.dataset.mpane = mobilePane;
+    var bar = document.getElementById("mPanes");
+    if (!bar) return;
+    bar.innerHTML = "";
+    var me = currentUser ? currentUser.id : null;
+    var openTodos = (state.todos || []).filter(function (t) { return !t.done; }).length;
+    var unread = 0;
+    if (me) {
+      var showingAll = selectedBoardId === "__all__";
+      (state.messages || []).forEach(function (m) {
+        if (m.scope !== "board" || m.byId === me) return;
+        if (!showingAll && m.scopeId !== selectedBoardId) return;
+        if (!(m.readBy || []).some(function (r) { return r.userId === me; })) unread++;
+      });
+    }
+    [["tasks", "Tasks", 0, false], ["todo", "Action Items", openTodos, false], ["chat", selectedItemId ? "Task details" : "Chat", selectedItemId ? 0 : unread, true]].forEach(function (p) {
+      var b = el("button", mobilePane === p[0] ? "active" : "", { type: "button", text: p[1] });
+      if (p[2]) b.appendChild(el("span", "m-badge" + (p[3] ? " alert" : ""), { text: String(p[2]) }));
+      b.addEventListener("click", function (e) { e.stopPropagation(); setMobilePane(p[0]); });
+      bar.appendChild(b);
+    });
+  }
+  // A one-line <input> can't wrap, so long task and step names were cut off
+  // on a phone. Each gets a wrapped, read-only copy that phones show instead;
+  // tapping it swaps in the real field to edit. On wider screens the wrapper
+  // is invisible to the layout and only the field shows, exactly as before.
+  function wrapForPhone(input, cls) {
+    var w = el("span", "m-wrap " + cls);
+    var mirror = el("span", "m-mirror", { text: input.value });
+    mirror.addEventListener("click", function (e) { e.stopPropagation(); w.classList.add("editing"); input.focus(); });
+    input.addEventListener("blur", function () { w.classList.remove("editing"); mirror.textContent = input.value; });
+    w.appendChild(mirror);
+    w.appendChild(input);
+    return w;
+  }
+  // crossing between phone and desktop width (rotating, resizing) redraws once
+  var onSizeClass = function () {
+    if (currentView === "boards") render();
+    else if (currentView === "calendar" && typeof renderCalendarBody === "function") renderCalendarBody();
+  };
+  if (phoneMq.addEventListener) phoneMq.addEventListener("change", onSizeClass);
+  if (compactMq.addEventListener) compactMq.addEventListener("change", onSizeClass);
   var pendingMessageHighlightId = null; // a message id to scroll to + flash once its chat renders (from an email deep link), cleared after first use
 
   // Deep links from notification emails ("?board=...&item=...&message=...")
@@ -1373,6 +1853,7 @@
     }
     if (itemParam) selectedItemId = itemParam; // validated against state.items once it loads; cleared automatically if not found
     if (messageParam) pendingMessageHighlightId = messageParam;
+    if ((itemParam || messageParam) && isCompact()) mobilePane = "chat"; // on a phone, the linked task / message is on the Chat pane
     if (window.history && window.history.replaceState) {
       window.history.replaceState(null, "", window.location.pathname + window.location.hash); // strip the deep-link query params but keep any #admin hash intact
     }
@@ -1424,7 +1905,8 @@
   // chance to run.
 
   function showBoardsView() {
-    currentView = "boards";
+    currentView = "boards"; document.body.dataset.view = "boards";
+    mobilePane = "tasks"; mobileTasksScrollY = 0;
     document.getElementById("boardsView").style.display = "";
     document.getElementById("adminView").style.display = "none";
     document.getElementById("calendarView").style.display = "none";
@@ -1443,7 +1925,7 @@
 
   function showAdminView() {
     if (!currentUser || currentUser.role !== "admin") { showBoardsView(); return; }
-    currentView = "admin";
+    currentView = "admin"; document.body.dataset.view = "admin";
     document.getElementById("boardsView").style.display = "none";
     document.getElementById("adminView").style.display = "";
     document.getElementById("calendarView").style.display = "none";
@@ -1454,7 +1936,7 @@
   }
 
   function showCalendarView() {
-    currentView = "calendar";
+    currentView = "calendar"; document.body.dataset.view = "calendar";
     document.getElementById("boardsView").style.display = "none";
     document.getElementById("adminView").style.display = "none";
     document.getElementById("calendarView").style.display = "";
@@ -1557,7 +2039,42 @@
   // their order. Used for groups, tasks, board sections, and board tabs.
   // Note: this is desktop mouse-drag only (HTML5 drag-and-drop isn't
   // triggered by touch), so touch/mobile users won't be able to drag.
+  // Drag-to-reorder is for a mouse. On a touch-only device (a phone) it is left
+  // off: there, a long press would lift a "ghost" of the element instead of
+  // scrolling, and the drop never registers anyway.
+  var touchOnly = !!(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches);
+  // The menus that open with a right-click on a computer ("Add to Action
+  // Items" on a task or a step) open with a long press on a touch screen.
+  // iPhones never send a right-click for a long press, so it's timed here;
+  // Android sends one as well, hence the "only once" stamp.
+  var lastCtxAt = 0, suppressClick = false;
+  function onLongPress(elm, fn) {
+    var timer = null, sx = 0, sy = 0;
+    var cancel = function () { if (timer) { clearTimeout(timer); timer = null; } };
+    elm.addEventListener("touchstart", function (e) {
+      cancel();
+      if (e.touches.length !== 1) return;
+      sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+      var target = e.target;
+      timer = setTimeout(function () {
+        timer = null;
+        if (Date.now() - lastCtxAt < 900) return;
+        if (fn(target) !== false) { lastCtxAt = Date.now(); suppressClick = true; }   // lifting the finger must not also count as a tap
+      }, 550);
+    }, { passive: true });
+    elm.addEventListener("touchmove", function (e) {
+      var t = e.touches[0];
+      if (!t || Math.abs(t.clientX - sx) > 10 || Math.abs(t.clientY - sy) > 10) cancel();   // it's a scroll, not a press
+    }, { passive: true });
+    elm.addEventListener("touchend", cancel);
+    elm.addEventListener("touchcancel", cancel);
+  }
+  if (touchOnly) {
+    document.addEventListener("touchstart", function () { suppressClick = false; }, true);
+    document.addEventListener("click", function (e) { if (suppressClick) { suppressClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
+  }
   function makeDragSource(handleEl, type, id) {
+    if (touchOnly) { handleEl.removeAttribute("title"); return; }
     handleEl.draggable = true;
     handleEl.addEventListener("dragstart", function (e) {
       e.stopPropagation();
@@ -1629,10 +2146,10 @@
   function hideMsgTooltip() {
     if (msgTooltipEl) { msgTooltipEl.remove(); msgTooltipEl = null; }
   }
-  function showMsgTooltip(bubble, m) {
-    hideMsgTooltip();
-    var tip = el("div", "msg-tooltip");
-    var recipientNames;
+  // "Sent to … / Read by …" for one message — the hover tooltip on a computer,
+  // and the top of the message's menu on a touch screen (which has no hover).
+  function msgInfoLines(m) {
+    var lines = [], recipientNames;
     if (m.mentions && m.mentions.length) {
       recipientNames = m.mentions.map(function (id) {
         var u = team.find(function (t) { return t.id === id; });
@@ -1641,16 +2158,19 @@
     } else {
       recipientNames = "Everyone";
     }
-    tip.appendChild(el("div", "", { text: "Sent to: " + recipientNames }));
+    lines.push({ text: "Sent to: " + recipientNames });
     var readers = (m.readBy || []).filter(function (r) { return r.userId !== m.byId; });
-    if (!readers.length) {
-      tip.appendChild(el("div", "faint", { text: "Not read yet" }));
-    } else {
-      tip.appendChild(el("div", "faint", { text: "Read by:" }));
-      readers.forEach(function (r) {
-        tip.appendChild(el("div", "faint", { text: r.userName + " \u00b7 " + relTime(r.at) }));
-      });
+    if (!readers.length) lines.push({ text: "Not read yet", faint: true });
+    else {
+      lines.push({ text: "Read by:", faint: true });
+      readers.forEach(function (r) { lines.push({ text: r.userName + " \u00b7 " + relTime(r.at), faint: true }); });
     }
+    return lines;
+  }
+  function showMsgTooltip(bubble, m) {
+    hideMsgTooltip();
+    var tip = el("div", "msg-tooltip");
+    msgInfoLines(m).forEach(function (l) { tip.appendChild(el("div", l.faint ? "faint" : "", { text: l.text })); });
     document.body.appendChild(tip);
     tip.style.position = "fixed";
     tip.style.zIndex = "1000";
@@ -1722,10 +2242,15 @@
     if (oldSearch && document.activeElement === oldSearch) {
       searchFocus = { start: oldSearch.selectionStart, end: oldSearch.selectionEnd };
     }
+    // phones: the tabs are one row that scrolls sideways — keep its position across redraws
+    var oldRow = mount.querySelector(".board-tabs-row");
+    var rowScroll = oldRow ? oldRow.scrollLeft : null;
     mount.innerHTML = "";
+    var tabsRow = el("div", "board-tabs-row");
+    mount.appendChild(tabsRow);
     var allTab = el("button", "board-tab" + (selectedBoardId === "__all__" ? " active" : ""), { type: "button", text: "All boards" });
     allTab.addEventListener("click", function () { selectedBoardId = "__all__"; selectedItemId = null; localStorage.setItem("daily-board-selected-board", selectedBoardId); render(); });
-    mount.appendChild(allTab);
+    tabsRow.appendChild(allTab);
 
     var isAdmin = currentUser && currentUser.role === "admin";
     boardsInTabOrder().forEach(function (b) {
@@ -1849,7 +2374,7 @@
         wrap.appendChild(accessWrap);
         if (openBoardAccess[b.id]) anchorPopover(menuWrap2, pop, "left");
       }
-      mount.appendChild(wrap);
+      tabsRow.appendChild(wrap);
     });
 
     var addWrap = el("span", "board-tab-wrap");
@@ -1886,7 +2411,7 @@
       anchorPopover(addTab, newBoardPop, "left");
       setTimeout(function () { nameInput2.focus(); }, 0);
     }
-    mount.appendChild(addWrap);
+    tabsRow.appendChild(addWrap);
 
     // Search input, right-aligned in the tab strip
     var searchSpacer = el("span", "board-search-spacer");
@@ -1909,6 +2434,11 @@
     // chat sidebar (sticky, positioned below both bars) always clears it
     // exactly, even as the tab count changes or tabs wrap to a second line.
     document.documentElement.style.setProperty("--tabs-h", mount.offsetHeight + "px");
+    if (rowScroll !== null) tabsRow.scrollLeft = rowScroll;
+    else {   // first draw: make sure the open board's tab is in view
+      var activeTab = tabsRow.querySelector(".board-tab.active");
+      if (activeTab && tabsRow.scrollWidth > tabsRow.clientWidth) tabsRow.scrollLeft = Math.max(0, activeTab.offsetLeft - 40);
+    }
   }
 
   // ---------------- to-do sidebar ----------------
@@ -2130,6 +2660,7 @@
     hideMsgTooltip(); // same idea — a hover tooltip pointing at a bubble that's about to be torn down and rebuilt
 
     var now = new Date();
+    renderMobilePanes();
     renderTabs();
     renderTodoSidebar();
 
@@ -2311,12 +2842,13 @@
     var titleInput = el("input", "item-title");
     titleInput.value = item.title || "";
     titleInput.addEventListener("change", function () { updateItem(item.id, { title: titleInput.value.trim() || "Untitled task" }); });
-    main.appendChild(titleInput);
+    main.appendChild(wrapForPhone(titleInput, "m-title"));
 
     var detailsBtn = el("button", "details-btn" + (item.id === selectedItemId ? " active" : ""), { type: "button", text: "Details", title: "Notes, files, and chat for this task" });
     detailsBtn.addEventListener("click", function (e) {
       e.stopPropagation();
       selectedItemId = (selectedItemId === item.id) ? null : item.id;
+      mobileShowTask();
       render();
     });
     main.appendChild(detailsBtn);
@@ -2374,12 +2906,11 @@
     row.addEventListener("click", function (e) {
       if (e.target.closest("input, button, textarea, a")) return;
       selectedItemId = (selectedItemId === item.id) ? null : item.id;
+      mobileShowTask();
       render();
     });
 
-    row.addEventListener("contextmenu", function (e) {
-      if (e.target.closest("textarea")) return; // don't hijack multiline text field right-click
-      e.preventDefault();
+    function openItemMenu() {
       document.querySelectorAll(".floating-popover").forEach(function (n) { n.remove(); });
       var pop = el("div", "read-receipt-popover");
       pop.addEventListener("click", function (ev) { ev.stopPropagation(); });
@@ -2392,6 +2923,17 @@
       actions.appendChild(addBtn);
       pop.appendChild(actions);
       anchorPopover(row, pop, "left");
+    }
+    row.addEventListener("contextmenu", function (e) {
+      if (e.target.closest("textarea")) return; // don't hijack multiline text field right-click
+      e.preventDefault();
+      if (Date.now() - lastCtxAt < 900) return;   // a long press already opened it (Android sends both)
+      lastCtxAt = Date.now();
+      openItemMenu();
+    });
+    if (touchOnly) onLongPress(row, function (target) {
+      if (target.closest("input, textarea, button, a, .step-row")) return false;   // steps have their own; fields keep the normal press
+      openItemMenu();
     });
 
     return row;
@@ -2423,7 +2965,7 @@
           textInput.value = s.text || "";
         }
       });
-      stepRow.appendChild(textInput);
+      stepRow.appendChild(wrapForPhone(textInput, "m-step"));
 
       if (openStepRowMenus[s.id]) {
         var rowMenu = el("div", "step-menu");
@@ -2505,9 +3047,7 @@
         anchorPopover(rowUpdateBtn, rowMenu, "left");
       }
 
-      stepRow.addEventListener("contextmenu", function (e) {
-        e.preventDefault();
-        e.stopPropagation();
+      function openStepMenu() {
         document.querySelectorAll(".floating-popover").forEach(function (n) { n.remove(); });
         var pop = el("div", "read-receipt-popover");
         pop.addEventListener("click", function (ev) { ev.stopPropagation(); });
@@ -2520,6 +3060,17 @@
         actions.appendChild(addBtn);
         pop.appendChild(actions);
         anchorPopover(stepRow, pop, "left");
+      }
+      stepRow.addEventListener("contextmenu", function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (Date.now() - lastCtxAt < 900) return;
+        lastCtxAt = Date.now();
+        openStepMenu();
+      });
+      if (touchOnly) onLongPress(stepRow, function (target) {
+        if (target.closest("input, textarea, button, a")) return false;
+        openStepMenu();
       });
 
       return stepRow;
@@ -2743,7 +3294,7 @@
     cols.appendChild(right);
     wrap.appendChild(cols);
 
-    socket.emit("markMessagesRead", { scope: "item", scopeId: item.id });
+    if (chatPaneShowing()) socket.emit("markMessagesRead", { scope: "item", scopeId: item.id });
     setTimeout(function () { chatMsgsWrap.scrollTop = chatMsgsWrap.scrollHeight; }, 0);
     return wrap;
   }
@@ -2791,7 +3342,18 @@
       // happens here right after a right-click opens the Edit/Delete
       // popover) — without the guard, that phantom mouseenter would bring
       // the just-dismissed tooltip right back.
-      bubble.addEventListener("mouseenter", function () { if (openMessagePopovers[m.id]) return; showMsgTooltip(bubble, m); });
+      bubble.addEventListener("mouseenter", function () { if (touchOnly || openMessagePopovers[m.id]) return; showMsgTooltip(bubble, m); });
+      // Touch screens have no hover and (on iPhone) no right-click, so a tap on
+      // a message opens its menu: who it went to, who has read it, and — for
+      // your own messages — Edit and Delete.
+      if (touchOnly) bubble.addEventListener("click", function (e) {
+        if (e.target.closest("a")) return;   // a link in the message still opens
+        e.stopPropagation();
+        var wasOpen = !!openMessagePopovers[m.id];
+        openMessagePopovers = {};
+        if (!wasOpen) openMessagePopovers[m.id] = true;
+        render();
+      });
       bubble.addEventListener("mouseleave", hideMsgTooltip);
       bubble.addEventListener("contextmenu", function (e) {
         e.preventDefault();
@@ -2805,7 +3367,21 @@
     if (openMessagePopovers[m.id]) {
       var pop = el("div", "read-receipt-popover");
       pop.addEventListener("click", function (e) { e.stopPropagation(); });
+      if (touchOnly) {
+        var info = el("div", "read-receipt-info");
+        msgInfoLines(m).forEach(function (l) { info.appendChild(el("div", l.faint ? "read-receipt-empty" : "read-receipt-title", { text: l.text })); });
+        pop.appendChild(info);
+      }
       var actions = el("div", "read-receipt-actions");
+      if (touchOnly) {
+        var copyBtn = el("button", "", { type: "button", text: "Copy" });
+        copyBtn.addEventListener("click", function () {
+          var done = function () { delete openMessagePopovers[m.id]; render(); };
+          if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(m.text).then(done, done);
+          else done();
+        });
+        actions.appendChild(copyBtn);
+      }
       if (canModify) {
         var editBtn = el("button", "", { type: "button", text: "Edit" });
         editBtn.addEventListener("click", function () {
@@ -2871,6 +3447,15 @@
       aside.classList.remove("all-mode");
       foot.style.display = "none"; // task mode has its own input under the chat column instead
       head.innerHTML = "";
+      // phones: a way back to the task list (closing the task)
+      var backBtn = el("button", "m-panel-back", { type: "button", text: "\u2190 Tasks" });
+      backBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        selectedItemId = null; mobilePane = "tasks";
+        render();
+        mobileRestoreTasksScroll();
+      });
+      head.appendChild(backBtn);
       head.appendChild(el("span", "head-title", { text: selectedItem.title }));
       // No explicit "back to board chat" button: the sidebar follows whatever
       // was last clicked (see the document-level click handler below), so
@@ -2959,7 +3544,7 @@
         rowAll.appendChild(bottomAll);
         chatCol.appendChild(rowAll);
 
-        socket.emit("markMessagesRead", { scope: "board", scopeId: previewBoard.id });
+        if (chatPaneShowing()) socket.emit("markMessagesRead", { scope: "board", scopeId: previewBoard.id });
         setTimeout(function () { chatMsgsWrap.scrollTop = chatMsgsWrap.scrollHeight; }, 0);
       }
       split.appendChild(chatCol);
@@ -3012,7 +3597,7 @@
     row.appendChild(bottom);
     foot.appendChild(row);
 
-    socket.emit("markMessagesRead", { scope: "board", scopeId: board.id });
+    if (chatPaneShowing()) socket.emit("markMessagesRead", { scope: "board", scopeId: board.id });
   }
 
   // Recipient picker: replaces free-text "@name" mentions. Clicking "Recipients"
@@ -3559,6 +4144,15 @@
       };
       document.getElementById("calRfWhen").addEventListener("change", function () { renderCalSearchOverlay(); });
       document.getElementById("calRfType").addEventListener("change", function () { renderCalSearchOverlay(); });
+      // phones: the filter row folds away behind this button
+      document.getElementById("calRfToggle").onclick = function (e) {
+        e.stopPropagation();
+        var bar = document.getElementById("calRfBar"), open = !bar.classList.contains("open");
+        bar.classList.toggle("open", open);
+        this.classList.toggle("open", open);
+        this.setAttribute("aria-expanded", open ? "true" : "false");
+        if (!open) document.getElementById("calRfCalDrop").style.display = "none";
+      };
       document.getElementById("calRfFrom").addEventListener("change", calRfDatesChanged);
       document.getElementById("calRfTo").addEventListener("change", calRfDatesChanged);
       document.getElementById("calRfCalBtn").onclick = function (e) {
@@ -3896,6 +4490,12 @@
     document.getElementById("calRfFrom").classList.toggle("on", !!document.getElementById("calRfFrom").value);
     document.getElementById("calRfTo").classList.toggle("on", !!document.getElementById("calRfTo").value);
     document.getElementById("calRfClear").style.display = calRfActive() ? "" : "none";
+    // how many filters are set, for the phone's "Filters" button
+    var nSet = (calRfCals.length ? 1 : 0) + (calRfType() !== "all" ? 1 : 0) + (document.getElementById("calRfWhen").value !== "all" ? 1 : 0) +
+      ((document.getElementById("calRfFrom").value || document.getElementById("calRfTo").value) ? 1 : 0);
+    var tog = document.getElementById("calRfToggle");
+    tog.textContent = nSet ? "Filters \u00b7 " + nSet : "Filters";
+    tog.classList.toggle("on", nSet > 0);
     if (document.getElementById("calRfCalDrop").style.display !== "none") calRfBuildCalDrop(events);
   }
   function calRfReset(keepDates) {
@@ -4130,13 +4730,18 @@
   function calResultRow(ev, list) {
     var r = calSearchRow(ev, "cal-agenda-row");
     if (ev.canEdit) r.row.insertBefore(calBulkCheckbox(ev, function () { calBulkSync(list, "calSearchSelectAll", "calSearchBulkDel"); }), r.row.firstChild);
-    r.row.appendChild(el("span", "cal-agenda-date", { text: r.date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", weekday: "short" }) }));
-    r.row.appendChild(el("span", "cal-agenda-time", { text: r.time }));
-    r.row.appendChild(el("span", "cal-agenda-name", { text: ev.title }));
-    if (ev.repeat && ev.repeat !== "none") r.row.appendChild(el("span", "cal-agenda-repeat", { text: "\u21BB " + (CAL_REPEAT_LABELS[ev.repeat] || ev.repeat) }));
+    // name, then (date · time · repeat · calendar). One line on desktop; on a
+    // phone the name gets its own line and the rest sits under it.
+    var main = el("span", "cal-row-main"), meta = el("span", "cal-row-meta");
+    main.appendChild(el("span", "cal-agenda-name", { text: ev.title }));
+    meta.appendChild(el("span", "cal-agenda-date", { text: r.date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric", weekday: "short" }) }));
+    meta.appendChild(el("span", "cal-agenda-time", { text: r.time }));
+    if (ev.repeat && ev.repeat !== "none") meta.appendChild(el("span", "cal-agenda-repeat", { text: "\u21BB " + (CAL_REPEAT_LABELS[ev.repeat] || ev.repeat) }));
     var calCol = el("span", "cal-search-results-cal", { text: (ev.calendarName === "Calendar" && ev.accountEmail) ? ev.accountEmail : (ev.calendarName || "") });
     calCol.title = (ev.calendarName || "") + (ev.accountEmail ? " \u2014 " + ev.accountEmail : "");
-    r.row.appendChild(calCol);
+    meta.appendChild(calCol);
+    main.appendChild(meta);
+    r.row.appendChild(main);
     r.row.onclick = function () { openCalModal(ev); };
     return r.row;
   }
@@ -4151,6 +4756,8 @@
     if (input) input.value = "";
     if (document.getElementById("calSearchResultsOverlay")) closeCalSearchOverlay();
     calRfReset(false);
+    var rb = document.getElementById("calRfBar"), rt = document.getElementById("calRfToggle");   // phones: filters folded away again
+    if (rb && rt) { rb.classList.remove("open"); rt.classList.remove("open"); rt.setAttribute("aria-expanded", "false"); }
   }
 
   function renderCalendarBody() {
@@ -4414,8 +5021,8 @@
         if (d.key === sp.first && (firstMin === null || s < firstMin)) firstMin = s;
       });
     });
-    var cols = "56px repeat(" + nDays + ", minmax(0, 1fr))";
-    var scroll = el("div", "cal-tg-scroll");
+    var cols = (isPhone() ? "34px" : "56px") + " repeat(" + nDays + ", minmax(0, 1fr))";
+    var scroll = el("div", "cal-tg-scroll " + (nDays === 1 ? "cal-tg-day" : "cal-tg-week"));
     var top = el("div", "cal-tg-top");
     var headRow = el("div", "cal-tg-row"); headRow.style.gridTemplateColumns = cols;
     headRow.appendChild(el("div", ""));
@@ -4726,7 +5333,8 @@
         if (showHebrewDates) {
           var heb = hebrewDateCache[key];
           if (heb) {
-            var hebSpan = el("span", "cal-heb-date", { text: heb.day + " " + heb.month });
+            // phones: "26 Tis" — the full month name doesn't fit a 50px box
+            var hebSpan = el("span", "cal-heb-date", { text: heb.day + " " + (isPhone() ? String(heb.month).slice(0, 3) : heb.month) });
             dayNumRow.appendChild(hebSpan);
           }
         }
@@ -4737,7 +5345,9 @@
         var evWrap = el("div", "cal-cell-events");
         dayEvents.forEach(function (ev) {
           var timeLabel = ev.allDay ? "" : new Date(ev.start).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }) + " ";
-          var pill = el("div", "cal-event-pill", { text: timeLabel + ev.title });
+          var pill = el("div", "cal-event-pill");
+          if (timeLabel) pill.appendChild(el("span", "cal-pill-t", { text: timeLabel }));   // phones leave the time out: the box is too small
+          pill.appendChild(document.createTextNode(ev.title));
           pill.style.background = colorForEvent(ev);
           // hover = read the whole thing; click = open it
           pill.addEventListener("mouseenter", function () { showCalTooltip(pill, ev); });
@@ -4747,7 +5357,12 @@
         });
         evWrap.addEventListener("scroll", hideCalTooltip);
         cell.appendChild(evWrap);
-        cell.onclick = function () { openCalModal(null, key + "T09:00"); };
+        // Desktop: click a day to add an event there. Phone: the box is too small to
+        // read or to hit one event, so a tap opens that day, where everything is listed.
+        cell.onclick = function () {
+          if (isPhone()) { calViewDate = date; setCalView("day"); return; }
+          openCalModal(null, key + "T09:00");
+        };
         grid.appendChild(cell);
       })(new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate() + i));
     }
