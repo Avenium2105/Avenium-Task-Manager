@@ -764,6 +764,10 @@
   .cal-occasion-radios { display: flex; flex: 1 1 0; min-width: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg-raised); }
   .cal-occasion-radios label { position: relative; flex: 1 1 0; text-align: center; font-size: 12.5px; padding: 7px 6px; cursor: pointer; color: var(--ink-soft); white-space: nowrap; user-select: none; }
   .cal-occasion-radios label + label { border-left: 1px solid var(--line); }
+  .cal-occ-frow.cal-occ-frow-stack { flex-direction: column; align-items: stretch; gap: 5px; }   /* three choices need the full width */
+  .cal-occ-frow.cal-occ-frow-stack .cal-occ-flabel { flex: 0 0 auto; width: auto; }
+  .cal-occ-frow.cal-occ-frow-stack .cal-occasion-radios { flex: 0 0 auto; }
+  .cal-occasion-radios label.cal-occ-both { flex: 0 0 auto; padding-left: 14px; padding-right: 14px; }
   .cal-occasion-radios label:has(input:checked) { background: var(--pine); color: var(--bg-raised); font-weight: 600; }
   .cal-occasion-radios label:has(input:focus-visible) { outline: 2px solid var(--ochre); outline-offset: -2px; }
   .cal-event-modal-body .cal-occasion-radios input { position: absolute; opacity: 0; width: 1px; height: 1px; padding: 0; border: 0; margin: 0; }
@@ -788,6 +792,18 @@
   .cal-event-modal-foot { padding: 14px 20px; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: flex-end; }
   .cal-event-modal-foot button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 18px; border: none; border-radius: 7px; cursor: pointer; }
   #calModalSave { background: var(--pine); color: var(--bg-raised); }
+  /* small "which one?" dialog (e.g. delete this occurrence or the whole series) */
+  .cal-choice-overlay { position: fixed; inset: 0; background: rgba(34,38,31,0.45); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .cal-choice-box { background: var(--bg-raised); border-radius: var(--radius); width: 100%; max-width: 380px; padding: 20px; box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
+  .cal-choice-title { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 6px; word-break: break-word; }
+  .cal-choice-text { font-size: 13px; line-height: 1.45; color: var(--ink-soft); margin-bottom: 14px; }
+  .cal-choice-btns { display: flex; flex-direction: column; gap: 8px; }
+  .cal-choice-btns button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 10px 14px; border: none; border-radius: 7px; cursor: pointer; text-align: left; background: var(--line-soft); color: var(--ink); }
+  .cal-choice-btns button:hover { background: var(--line); }
+  .cal-choice-btns button.danger { background: var(--brick-soft); color: var(--brick); }
+  .cal-choice-btns button.danger:hover { filter: brightness(0.96); }
+  .cal-choice-btns button.cancel { text-align: center; color: var(--ink-soft); }
+  .cal-choice-btns button small { display: block; font-size: 11.5px; font-weight: 400; opacity: 0.85; margin-top: 2px; }
   #calModalSave:hover { opacity: 0.9; }
   #calModalDelete { background: var(--brick-soft); color: var(--brick); }
   #calModalCancel { background: var(--line-soft); color: var(--ink-soft); }
@@ -1183,11 +1199,12 @@
             </div>
           </div>
           <div id="calOccDateErr" class="cal-occ-ferr" style="display:none;"></div>
-          <div class="cal-occ-frow">
+          <div class="cal-occ-frow cal-occ-frow-stack">
             <span class="cal-occ-flabel">Repeats on</span>
             <div class="cal-occasion-radios">
               <label><input id="calOccasionSecular" type="radio" name="calOccasionCal" value="secular" checked><span id="calOccSecularLabel">Secular birthday</span></label>
               <label><input id="calOccasionJewish" type="radio" name="calOccasionCal" value="jewish"><span id="calOccJewishLabel">Jewish birthday</span></label>
+              <label id="calOccBothWrap" class="cal-occ-both" title="Save it on both dates — one entry instead of two"><input id="calOccasionBoth" type="radio" name="calOccasionCal" value="both"><span>Both</span></label>
             </div>
           </div>
           <div class="cal-occ-frow" id="calOccSunsetWrap" style="display:none;">
@@ -3589,10 +3606,12 @@
         b.onclick = function () { applyCalType(b.dataset.type); };
       });
       document.getElementById("calOccasionJewish").onchange = function () { applyOccasionMode(true, true); };
+      document.getElementById("calOccasionBoth").onchange = function () { applyOccasionMode(true, true); };
+      document.getElementById("calModalName").addEventListener("input", function () { if (calOccBothOn()) calOccUpdateSummary(); });   // the "Both" note names the two occasions
       document.getElementById("calOccasionSecular").onchange = function () { applyOccasionMode(true, false); };
       document.getElementById("calOccasionKind").onchange = function () {
         // yahrzeits are kept by the Hebrew date
-        applyOccasionMode(true, this.value === "yahrzeit" ? true : document.getElementById("calOccasionJewish").checked);
+        applyOccasionMode(true, this.value === "yahrzeit" ? true : calOccJewishOn());
       };
       document.getElementById("calOccasionSunset").onchange = calOccRederiveHebrew;
       var occText = document.getElementById("calOccDateText"), occNative = document.getElementById("calOccDateNative");
@@ -4890,9 +4909,15 @@
   function calOccUpdateSummary() {
     var hint = document.getElementById("calOccasionHint");
     if (!calOccasionMode) return;
-    var K = CAL_OCC_KINDS[calOccKind()], jewish = document.getElementById("calOccasionJewish").checked;
+    var K = CAL_OCC_KINDS[calOccKind()], jewish = calOccJewishOn();
     var key = calOccDateBad ? "" : document.getElementById("calModalStartDateOnly").value;
     hint.classList.add("muted");
+    if (calOccBothOn()) {
+      var nm = document.getElementById("calModalName").value.trim().replace(/\s*\(hebrew\)\s*$/i, "");
+      hint.textContent = "Saves two occasions on the Avenium calendar: " + (nm ? "\u201c" + nm + "\u201d" : "one") + " every year on the secular date, and " +
+        (nm ? "\u201c" + nm + " (Hebrew)\u201d" : "one marked (Hebrew)") + " every year on the Hebrew date. Type either date \u2014 the other fills in.";
+      return;
+    }
     if (jewish) {   // the line under the Hebrew date is the summary; this is just the note
       hint.textContent = "Type either date \u2014 the other fills in. Jewish dates are saved to the Avenium calendar.";
       return;
@@ -4922,7 +4947,12 @@
     other:       { date: "Date",            sec: "Secular date",     jew: "Jewish date",     heb: "Hebrew date",     sunset: "After sunset",            name: "Occasion name" }
   };
   function calOccKind() { return document.getElementById("calOccasionKind").value || "birthday"; }
-  function calOccAfterSunset() { return calOccasionMode && document.getElementById("calOccasionJewish").checked && document.getElementById("calOccasionSunset").checked; }
+  // "Repeats on": Secular / Jewish / Both. Both (new occasions only) saves the
+  // secular one and the Hebrew one together, so nobody has to enter it twice.
+  // Everything about the Hebrew date behaves the same for Jewish and for Both.
+  function calOccJewishOn() { return document.getElementById("calOccasionJewish").checked || document.getElementById("calOccasionBoth").checked; }
+  function calOccBothOn() { return calOccasionMode && !calEditingEvent && document.getElementById("calOccasionBoth").checked; }
+  function calOccAfterSunset() { return calOccasionMode && calOccJewishOn() && document.getElementById("calOccasionSunset").checked; }
   function calAddDays(key, n) {
     var d = new Date(key + "T12:00:00"); d.setDate(d.getDate() + n);
     return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
@@ -4932,7 +4962,7 @@
   function calHebrewSourceDate(civil) { return civil && calOccAfterSunset() ? calAddDays(civil, 1) : civil; }
   // Re-read the Hebrew date from the date of birth (after DOB / sunset changes)
   function calOccRederiveHebrew() {
-    if (!calOccasionMode || !document.getElementById("calOccasionJewish").checked) return;
+    if (!calOccasionMode || !calOccJewishOn()) return;
     document.getElementById("calHebrewDay").value = "";
     document.getElementById("calHebrewYear").value = "";
     if (calEditingEvent) calEditingEvent.seriesFirstDate = null;
@@ -4969,8 +4999,11 @@
     // (Clicking a day on the calendar keeps that day.)
     if (entering && !calEditingEvent && calNewEventBlankDate) $("calModalStartDateOnly").value = "";
     $("calModalEndDateOnly").value = "";
-    $("calOccasionJewish").checked = !!jewish;
+    var both = !!jewish && !calEditingEvent && $("calOccasionBoth").checked;
+    $("calOccasionBoth").checked = both;
+    $("calOccasionJewish").checked = !!jewish && !both;
     $("calOccasionSecular").checked = !jewish;
+    $("calOccBothWrap").style.display = calEditingEvent ? "none" : "";   // an existing occasion is one or the other
     var K = CAL_OCC_KINDS[calOccKind()];
     $("calOccSecularLabel").textContent = K.sec;
     $("calOccJewishLabel").textContent = K.jew;
@@ -5101,7 +5134,7 @@
     });
     document.getElementById("calModalAttendees").style.display = def.attendees ? "" : "none";
     document.getElementById("calModalName").placeholder = def.label + " title";
-    if (type === "occasion") { applyOccasionMode(true, document.getElementById("calOccasionJewish").checked); calSyncOnline(); return; }
+    if (type === "occasion") { applyOccasionMode(true, calOccJewishOn()); calSyncOnline(); return; }
     if (calOccasionMode) applyOccasionMode(false);
     if (!keepTimes && !calIsAllDay()) {
       var startDate = document.getElementById("calModalStartDate2").value;
@@ -5350,6 +5383,7 @@
     document.getElementById("calOccDateText").value = "";
     setOccasionUi(false);
     document.getElementById("calOccasionJewish").checked = false;
+    document.getElementById("calOccasionBoth").checked = false;
     document.getElementById("calOccasionSecular").checked = true;
     document.getElementById("calOccasionKind").value = "birthday";
     document.getElementById("calOccasionSunset").checked = false;
@@ -5379,7 +5413,7 @@
       seriesNote.style.display = "";
     } else if (event && event.recurring && (event.provider === "google" || event.provider === "microsoft")) {
       seriesNote.textContent = "This is one occurrence of a repeating series in " + (event.provider === "google" ? "Google" : "Outlook") +
-        ". Changes here apply to this occurrence only; change the repeat itself in " + (event.provider === "google" ? "Google Calendar" : "Outlook") + ".";
+        ". Changes here apply to this occurrence only; change the repeat itself in " + (event.provider === "google" ? "Google Calendar" : "Outlook") + ". Delete lets you remove just this one or the whole series.";
       seriesNote.style.display = "";
     } else seriesNote.style.display = "none";
 
@@ -5512,6 +5546,7 @@
       payload.kind = "occasion"; payload.allDay = true; payload.end = payload.start;
       payload.occasionKind = calOccKind();
       payload.afterSunset = calOccAfterSunset();
+      if (calOccBothOn()) payload.occasionBoth = true;   // the server saves the secular one and the Hebrew one together
       if (!payload.start) { alert("Please enter the " + CAL_OCC_KINDS[calOccKind()].date.toLowerCase() + "."); return; }
     }
     var canSetRepeat = !calEditingEvent || isLocalEvent || !calEditingEvent.recurring;
@@ -5600,15 +5635,72 @@
     return "Couldn\u2019t save that event" + (d.error ? " (" + d.error + ")" : "") + ". Please try again.";
   }
 
+  // A small dialog with a few named choices. Resolves with the chosen value,
+  // or null for Cancel / Escape / a click outside.
+  function calChoiceDialog(title, text, choices) {
+    return new Promise(function (resolve) {
+      var overlay = el("div", "cal-choice-overlay");
+      var box = el("div", "cal-choice-box");
+      box.appendChild(el("div", "cal-choice-title", { text: title }));
+      if (text) box.appendChild(el("div", "cal-choice-text", { text: text }));
+      var btns = el("div", "cal-choice-btns");
+      var done = function (v) { document.removeEventListener("keydown", onKey, true); overlay.remove(); resolve(v); };
+      var onKey = function (e) { if (e.key === "Escape") { e.stopPropagation(); done(null); } };
+      choices.forEach(function (c) {
+        var b = el("button", c.cls || "", { type: "button", text: c.label });
+        if (c.sub) b.appendChild(el("small", "", { text: c.sub }));
+        b.onclick = function () { done(c.value); };
+        btns.appendChild(b);
+      });
+      var cancel = el("button", "cancel", { type: "button", text: "Cancel" });
+      cancel.onclick = function () { done(null); };
+      btns.appendChild(cancel);
+      box.appendChild(btns); overlay.appendChild(box);
+      overlay.addEventListener("click", function (e) { if (e.target === overlay) done(null); });
+      document.addEventListener("keydown", onKey, true);
+      document.body.appendChild(overlay);
+      cancel.focus();
+    });
+  }
+
   function deleteCalEvent() {
     if (!calEditingEvent) return;
-    var isSeriesDel = calEditingEvent.provider === "local" && calEditingEvent.repeat && calEditingEvent.repeat !== "none";
-    if (!window.confirm(isSeriesDel
-      ? "Delete \"" + calEditingEvent.title + "\" and ALL its occurrences? This removes the whole repeating series."
-      : "Delete \"" + calEditingEvent.title + "\"? This removes it from your calendar.")) return;
     var ev = calEditingEvent;
-    fetch("/api/calendar/events?accountId=" + encodeURIComponent(ev.accountId) + "&calendarId=" + encodeURIComponent(ev.calendarId) + "&eventId=" + encodeURIComponent(ev.externalId), { method: "DELETE" })
-      .then(function () { closeCalModal(); calMonthCache = {}; loadCalendarEvents(); if (calSearchQuery) { calSearchResults = null; runCalSearch(); } calOccChanged(); });
+    var isLocalSeries = ev.provider === "local" && ev.repeat && ev.repeat !== "none";
+    // A repeating Google / Outlook event: this one occurrence, or the whole
+    // series? (Delete used to remove only the occurrence that was open, so a
+    // series could only be removed in Google / Outlook itself.)
+    var isProviderSeries = (ev.provider === "google" || ev.provider === "microsoft") && ev.recurring;
+    var ask;
+    if (isProviderSeries) {
+      var where = ev.provider === "google" ? "Google" : "Outlook";
+      var day = new Date(calDayKey(ev) + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+      ask = calChoiceDialog("Delete \u201c" + ev.title + "\u201d?", "This is a repeating event in " + where + ".", [
+        { value: "one", label: "Just this one", sub: day, cls: "danger" },
+        { value: "series", label: "The whole series", sub: "Every occurrence, past and future", cls: "danger" }
+      ]);
+    } else {
+      ask = Promise.resolve(window.confirm(isLocalSeries
+        ? "Delete \"" + ev.title + "\" and ALL its occurrences? This removes the whole repeating series."
+        : "Delete \"" + ev.title + "\"? This removes it from your calendar.") ? "one" : null);
+    }
+    ask.then(function (choice) {
+      if (!choice) return;
+      var btn = document.getElementById("calModalDelete");
+      btn.disabled = true;
+      fetch("/api/calendar/events?accountId=" + encodeURIComponent(ev.accountId) + "&calendarId=" + encodeURIComponent(ev.calendarId) +
+        "&eventId=" + encodeURIComponent(ev.externalId) + (choice === "series" ? "&series=1" : ""), { method: "DELETE" })
+        .then(function (r) {
+          // say so when it didn't work (this used to close the window as if it had)
+          if (!r.ok) return r.json().catch(function () { return {}; }).then(function (d) { throw new Error(d.message || ""); });
+          btn.disabled = false;
+          closeCalModal(); calMonthCache = {}; loadCalendarEvents(); if (calSearchQuery) { calSearchResults = null; runCalSearch(); } calOccChanged();
+        })
+        .catch(function (err) {
+          btn.disabled = false;
+          alert("Couldn\u2019t delete that event." + (err && err.message ? "\n" + err.message : " Please try again."));
+        });
+    });
   }
 
   document.getElementById("calEventModal").addEventListener("click", function (e) {

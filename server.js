@@ -2748,7 +2748,7 @@ app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
 });
 
 app.post("/api/calendar/events", requireAuth, async (req, res) => {
-  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, timeZone, kind, occasionKind, afterSunset, eventType, onlineMeeting } = req.body || {};
+  const { accountId, calendarId, title, start, end, description, location, attendees, allDay, reminderMinutes, repeat, repeatUntil, hebrewDay, hebrewMonth, hebrewYear, timeZone, kind, occasionKind, afterSunset, eventType, onlineMeeting, occasionBoth } = req.body || {};
   if (!title || !start) return res.status(400).json({ error: "invalid_request" });
   // A Teams / Meet link is made by Outlook / Google themselves, so it needs one of their calendars
   if (onlineMeeting && accountId === "local") return res.status(400).json({ error: "online_meeting_not_available" });
@@ -2781,6 +2781,26 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
       ev.kind = "occasion";
       if (OCCASION_KINDS.includes(occasionKind)) ev.occasionKind = occasionKind;
       ev.afterSunset = !!afterSunset && repeat === "jewish-yearly";
+    }
+    // "Both": one entry in the form, two occasions saved together — the
+    // Hebrew-date one (named "... (Hebrew)") and a plain yearly one on the
+    // secular date, so a birthday doesn't have to be entered twice.
+    if (occasionBoth && kind === "occasion" && repeat === "jewish-yearly") {
+      const base = String(title).replace(/\s*\(hebrew\)\s*$/i, "").trim() || String(title);
+      const day = String(start).slice(0, 10);
+      ev.title = base + " (Hebrew)";
+      const secular = {
+        id: "lev_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), userId: req.session.userId,
+        title: base, start: day, end: day, allDay: true,
+        description: ev.description, location: ev.location, attendees: [],
+        repeat: "yearly", repeatUntil: "", createdAt: ev.createdAt,
+        kind: "occasion", afterSunset: false
+      };
+      if (ev.occasionKind) secular.occasionKind = ev.occasionKind;
+      if (ev.timeZone) secular.timeZone = ev.timeZone;
+      localEvents.push(secular, ev);
+      persistLocalEvents();
+      return res.json({ ok: true, created: 2 });
     }
     localEvents.push(ev);
     persistLocalEvents();
@@ -2941,9 +2961,23 @@ app.delete("/api/calendar/events", requireAuth, async (req, res) => {
   if (!acct || !eventId) return res.status(400).json({ error: "invalid_request" });
   try {
     const a = await freshToken(acct);
+    const who = a.provider === "google" ? "Google" : "Outlook";
+    // series=1: delete the WHOLE repeating series this occurrence belongs to.
+    // The series is looked up from the occurrence itself (never taken from the
+    // request), and if that lookup fails nothing is deleted.
+    let targetId = eventId;
+    if (req.query.series === "1") {
+      const look = a.provider === "google"
+        ? await googleApiRequest(a.accessToken, "GET", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?fields=${encodeURIComponent("id,recurringEventId")}`)
+        : await graphRequest(a.accessToken, "GET", `/me/events/${encodeURIComponent(eventId)}?$select=${encodeURIComponent("id,type,seriesMasterId")}`);
+      if (look.status >= 300 || !look.body) {
+        return res.status(502).json({ error: "provider_rejected", message: "Couldn\u2019t find the series in " + who + ", so nothing was deleted. " + providerError(who, look).message });
+      }
+      targetId = (a.provider === "google" ? look.body.recurringEventId : look.body.seriesMasterId) || eventId;
+    }
     const r = a.provider === "google"
-      ? await googleApiRequest(a.accessToken, "DELETE", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`)
-      : await graphRequest(a.accessToken, "DELETE", `/me/events/${encodeURIComponent(eventId)}`);
+      ? await googleApiRequest(a.accessToken, "DELETE", `/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(targetId)}`)
+      : await graphRequest(a.accessToken, "DELETE", `/me/events/${encodeURIComponent(targetId)}`);
     invalidateCalendarCache(`ev:${a.id}:`);
     // 404/410 = already gone, which is what was wanted. Anything else that
     // failed used to be reported as success.
