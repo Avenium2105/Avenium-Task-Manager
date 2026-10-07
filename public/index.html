@@ -3570,7 +3570,8 @@
       };
       document.getElementById("calRfCalDrop").addEventListener("click", function (e) { e.stopPropagation(); });
       document.getElementById("calRfClear").onclick = function () {
-        var hadDates = document.getElementById("calRfFrom").value || document.getElementById("calRfTo").value;
+        // dates and calendars are what the server searches: clearing either searches again
+        var hadDates = document.getElementById("calRfFrom").value || document.getElementById("calRfTo").value || calRfCals.length;
         calRfReset(false);
         if (hadDates) calRfDatesChanged(); else renderCalSearchOverlay();
       };
@@ -3721,7 +3722,8 @@
     if (!q) return;
     var token = ++calSearchToken;
     var sc = calSearchScope();
-    var url = "/api/calendar/search?q=" + encodeURIComponent(q);
+    var calsKey = calRfCalsKey();
+    var url = "/api/calendar/search?q=" + encodeURIComponent(q) + calRfCalsParam();
     if (sc.mode === "range") {
       if (sc.from) url += "&start=" + encodeURIComponent(sc.from);
       if (sc.to) url += "&end=" + encodeURIComponent(sc.to);
@@ -3730,12 +3732,12 @@
     fetch(url).then(function (r) { if (!r.ok) throw new Error("search_failed"); return r.json(); }).then(function (d) {
       if (token !== calSearchToken) return; // a newer search replaced this one
       calSearchLoading = false;
-      calSearchResults = { query: q, events: d.events || [], errors: d.errors || [], searched: d.searched || [] };
+      calSearchResults = { query: q, calsKey: calsKey, events: d.events || [], errors: d.errors || [], searched: d.searched || [] };
       if (calSearchOverlayOpen) renderCalSearchOverlay();
     }).catch(function () {
       if (token !== calSearchToken) return;
       calSearchLoading = false;
-      calSearchResults = { query: q, events: [], errors: ["__failed__"], searched: [] };
+      calSearchResults = { query: q, calsKey: calsKey, events: [], errors: ["__failed__"], searched: [] };
       if (calSearchOverlayOpen) renderCalSearchOverlay();
     });
   }
@@ -3770,6 +3772,36 @@
   // From / to is the range the server searches, so changing it searches again.
   var calRfCals = [];      // ["accountId|calendarId"], empty = all calendars
   function calRfKey(ev) { return ev.accountId + "|" + ev.calendarId; }
+  // The picked calendars are what the SERVER searches (it used to search every
+  // calendar and the page hid the rest). So a result set belongs to one
+  // selection, and changing the selection searches again.
+  function calRfCalsKey() { return calRfCals.slice().sort().join("\n"); }
+  function calRfCalsParam() { return calRfCals.map(function (k) { return "&cal=" + encodeURIComponent(k); }).join(""); }
+  // a calendar that has since been switched off in Admin can't stay selected
+  function calRfPrune() {
+    if (!calRfCals.length) return;
+    var ok = {}; calRfAllCalendars().forEach(function (it) { ok[it.key] = true; });
+    calRfCals = calRfCals.filter(function (k) { return ok[k]; });
+  }
+  // "all calendars" / "Avenium" / "3 calendars" — for the Searching… and Loading… lines
+  function calRfWhereText() {
+    if (!calRfCals.length) return "all calendars";
+    if (calRfCals.length > 1) return calRfCals.length + " calendars";
+    var one = calRfAllCalendars().filter(function (it) { return it.key === calRfCals[0]; })[0];
+    return one ? one.label : "1 calendar";
+  }
+  function calRfCalsChanged() {
+    if (calSearchQuery) {
+      calSearchResults = null; calSearchLoading = true;
+      renderCalSearchOverlay();                       // "Searching Avenium…"
+      clearTimeout(calSearchTimer);
+      calSearchTimer = setTimeout(runCalSearch, 200); // ticking a few boxes in a row = one search
+    } else renderCalSearchOverlay();                  // the type lists notice the new selection themselves
+  }
+  // the loaded results, if they are for what's typed AND for the calendars picked
+  function calSearchCurrent() {
+    return (calSearchResults && calSearchResults.query === calSearchQuery && calSearchResults.calsKey === calRfCalsKey()) ? calSearchResults : null;
+  }
   function calRfType() { var t = document.getElementById("calRfType"); return t ? t.value : "all"; }
   // Every calendar the search covers: the ones switched on in Admin
   // (holiday calendars aren't searched, so they aren't listed).
@@ -3790,7 +3822,7 @@
   // The events the per-calendar counts come from: the search results, or the
   // occasions list when that is what's showing. null = nothing loaded yet.
   function calRfCountEvents() {
-    if (calSearchQuery) return (calSearchResults && calSearchResults.query === calSearchQuery) ? calSearchResults.events : null;
+    if (calSearchQuery) return calSearchCurrent() ? calSearchCurrent().events : null;
     if (calRfType() === "occasion" && calOccData) return calOccData.occasions.map(function (o) { return o.event; });
     var bt = calBrowseType();
     if (bt && calBrowse) return calBrowse.events.filter(function (ev) { var day = calDayKey(ev); return (ev.type || "appointment") === bt && day >= calBrowse.today && day <= calBrowse.end; });
@@ -3830,7 +3862,7 @@
     var allLbl = el("label", "cal-filter-opt");
     var allChk = el("input", "", { type: "checkbox" });
     allChk.checked = !calRfCals.length;
-    allChk.onchange = function () { calRfCals = []; renderCalSearchOverlay(); };
+    allChk.onchange = function () { calRfCals = []; calRfCalsChanged(); };
     allLbl.appendChild(allChk); allLbl.appendChild(document.createTextNode(" All calendars"));
     drop.appendChild(allLbl);
     var lastGroup = null;
@@ -3843,11 +3875,12 @@
       chk.onchange = function () {
         if (chk.checked) { if (calRfCals.indexOf(k) === -1) calRfCals.push(k); }
         else calRfCals = calRfCals.filter(function (x) { return x !== k; });
-        renderCalSearchOverlay();
+        calRfCalsChanged();
       };
       var sw = el("span", "cal-swatch"); sw.style.background = it.color;
       lbl.appendChild(chk); lbl.appendChild(sw); lbl.appendChild(document.createTextNode(it.name));
-      if (counts) lbl.appendChild(el("span", "cal-rf-count", { text: "(" + (counts[k] || 0) + ")" }));
+      // a count only where that calendar was actually searched
+      if (counts && (!calRfCals.length || calRfCals.indexOf(k) !== -1)) lbl.appendChild(el("span", "cal-rf-count", { text: "(" + (counts[k] || 0) + ")" }));
       drop.appendChild(lbl);
     });
     if (!cals.length) drop.appendChild(el("div", "cal-rf-group", { text: "No calendars are switched on" }));
@@ -3856,8 +3889,6 @@
     var btn = document.getElementById("calRfCalBtn");
     var names = {};
     calRfAllCalendars().forEach(function (it) { names[it.key] = it.label; });
-    // a calendar that has since been switched off in Admin can't stay selected
-    calRfCals = calRfCals.filter(function (k) { return names[k] !== undefined; });
     btn.textContent = (calRfCals.length === 0 ? "All calendars" : calRfCals.length === 1 ? names[calRfCals[0]] : calRfCals.length + " calendars") + " ▾";
     btn.classList.toggle("on", calRfCals.length > 0);
     document.getElementById("calRfType").classList.toggle("on", calRfType() !== "all");
@@ -3879,7 +3910,7 @@
   // Search events → Type: Occasions, with the search box empty, lists every
   // birthday / anniversary / yahrzeit in the next 365 days (it used to be its
   // own screen behind an "Occasions" pill).
-  var calOccData = null, calOccToken = 0, calOccLoading = false, calOccLoadedAt = 0;
+  var calOccData = null, calOccToken = 0, calOccLoading = false, calOccLoadedAt = 0, calOccLoadingKey = null;
   function calTodayKey() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
   function calOccListMode() { return calSearchOverlayOpen && !calSearchQuery && calRfType() === "occasion"; }
   // after anything changes: forget the list, and reload it if it's on screen
@@ -3889,19 +3920,21 @@
   }
   // ----- Meetings / Appointments: the same idea, every one in the next 365 days -----
   var CAL_TYPE_NAMES = { meeting: "Meetings", appointment: "Appointments", occasion: "Occasions" };
-  var calBrowse = null, calBrowseToken = 0, calBrowseLoading = false, calBrowseLoadedAt = 0;
+  var calBrowse = null, calBrowseToken = 0, calBrowseLoading = false, calBrowseLoadedAt = 0, calBrowseLoadingKey = null;
   function calBrowseType() { var t = calRfType(); return (t === "meeting" || t === "appointment") ? t : ""; }
   function loadCalBrowse() {
     var token = ++calBrowseToken, today = calTodayKey();
     var e = new Date(today + "T12:00:00"); e.setDate(e.getDate() + 364);
     var end = e.getFullYear() + "-" + String(e.getMonth() + 1).padStart(2, "0") + "-" + String(e.getDate()).padStart(2, "0");
-    calBrowseLoading = true;
+    var calsKey = calRfCalsKey();
+    calBrowseLoading = true; calBrowseLoadingKey = calsKey;
     var done = function (data) {
+      data.calsKey = calsKey;
       if (token !== calBrowseToken) return;
       calBrowseLoading = false; calBrowse = data; calBrowseLoadedAt = Date.now();
       if (calSearchOverlayOpen) renderCalSearchOverlay();
     };
-    fetch("/api/calendar/search?browse=1&start=" + today + "&end=" + end)
+    fetch("/api/calendar/search?browse=1&start=" + today + "&end=" + end + calRfCalsParam())
       .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
       .then(function (d) { done({ today: today, end: end, events: d.events || [], errors: d.errors || [] }); })
       .catch(function () { done({ today: today, end: end, events: [], errors: ["__failed__"] }); });
@@ -3909,10 +3942,11 @@
   function renderCalBrowse(list, titleEl, type) {
     var name = CAL_TYPE_NAMES[type];
     if (calBrowse && calBrowse.today !== calTodayKey()) calBrowse = null;   // it's a new day
+    if (calBrowse && calBrowse.calsKey !== calRfCalsKey()) calBrowse = null; // different calendars picked
     if (!calBrowse) {
       titleEl.textContent = name + " \u00b7 next 365 days";
-      list.appendChild(el("div", "cal-occ-msg", { text: "Loading " + name.toLowerCase() + " from all calendars\u2026" }));
-      if (!calBrowseLoading) loadCalBrowse();
+      list.appendChild(el("div", "cal-occ-msg", { text: "Loading " + name.toLowerCase() + " from " + calRfWhereText() + "\u2026" }));
+      if (!calBrowseLoading || calBrowseLoadingKey !== calRfCalsKey()) loadCalBrowse();
       return;
     }
     if (calBrowse.errors.length) {
@@ -3943,18 +3977,25 @@
     });
   }
   function loadCalOccasions() {
-    var token = ++calOccToken;
-    calOccLoading = true;
-    fetch("/api/calendar/occasions?today=" + calTodayKey())
+    var token = ++calOccToken, calsKey = calRfCalsKey();
+    calOccLoading = true; calOccLoadingKey = calsKey;
+    var done = function (d) {
+      if (token !== calOccToken) return;
+      d.calsKey = calsKey;
+      calOccLoading = false; calOccData = d; calOccLoadedAt = Date.now();
+      if (calSearchOverlayOpen) renderCalSearchOverlay();
+    };
+    fetch("/api/calendar/occasions?today=" + calTodayKey() + calRfCalsParam())
       .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
-      .then(function (d) { if (token !== calOccToken) return; calOccLoading = false; calOccData = d; calOccLoadedAt = Date.now(); if (calSearchOverlayOpen) renderCalSearchOverlay(); })
-      .catch(function () { if (token !== calOccToken) return; calOccLoading = false; calOccData = { occasions: [], errors: ["__failed__"] }; calOccLoadedAt = Date.now(); if (calSearchOverlayOpen) renderCalSearchOverlay(); });
+      .then(done)
+      .catch(function () { done({ occasions: [], errors: ["__failed__"] }); });
   }
   function renderCalOccasions(list, titleEl) {
+    if (calOccData && calOccData.calsKey !== calRfCalsKey()) calOccData = null;   // different calendars picked
     if (!calOccData) {
       titleEl.textContent = "Occasions · next 365 days";
-      list.appendChild(el("div", "cal-occ-msg", { text: "Loading occasions from all calendars…" }));
-      if (!calOccLoading) loadCalOccasions();
+      list.appendChild(el("div", "cal-occ-msg", { text: "Loading occasions from " + calRfWhereText() + "\u2026" }));
+      if (!calOccLoading || calOccLoadingKey !== calRfCalsKey()) loadCalOccasions();
       return;
     }
     if (calOccData.errors && calOccData.errors.length) {
@@ -4017,7 +4058,7 @@
     if (Date.now() - calBrowseLoadedAt > 60000) calBrowse = null;
     document.getElementById("calSearchResultsOverlay").style.display = "flex";
     document.getElementById("calSearchBtn").classList.add("active");
-    if (calSearchQuery && (!calSearchResults || calSearchResults.query !== calSearchQuery)) runCalSearch();
+    if (calSearchQuery && !calSearchCurrent()) runCalSearch();
     renderCalSearchOverlay();
     var input = document.getElementById("calSearchInput");
     input.focus(); input.select();
@@ -4036,6 +4077,7 @@
     var list = document.getElementById("calSearchResultsList");
     var titleEl = document.getElementById("calSearchResultsTitle");
     list.innerHTML = "";
+    calRfPrune();
     if (!calSearchQuery) {
       if (calRfType() === "occasion") {   // nothing typed + Type: Occasions = the full occasions list
         renderCalOccasions(list, titleEl);
@@ -4052,10 +4094,10 @@
       calRfUpdateControls(null);
       return;
     }
-    var res = calSearchResults && calSearchResults.query === calSearchQuery ? calSearchResults : null;
+    var res = calSearchCurrent();
     if (!res) {
       titleEl.textContent = "Searching for \u201c" + calSearchQuery + "\u201d\u2026";
-      list.appendChild(el("div", "cal-agenda-empty", { text: "Searching all calendars\u2026" }));
+      list.appendChild(el("div", "cal-agenda-empty", { text: "Searching " + calRfWhereText() + "\u2026" }));
       list.firstChild.style.padding = "20px 16px";
       calRfUpdateControls(null);
       return;

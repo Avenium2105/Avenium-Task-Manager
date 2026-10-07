@@ -2352,6 +2352,22 @@ app.delete("/api/calendar/accounts/:id", requireAuth, (req, res) => {
 
 // ---- Calendar API endpoints (all scoped to the logged-in user's own connections) ----
 
+// Search / lists can be limited to the calendars picked on the Search events
+// screen: ?cal=<accountId|calendarId>, repeated. No cal = every active calendar.
+// It only ever NARROWS: each key is checked against this user's own accounts
+// and calendars further down, so naming someone else's calendar finds nothing.
+function calendarPick(req) {
+  let raw = req.query.cal;
+  if (raw === undefined || raw === "") return { all: true, has: () => true, account: () => true };
+  if (!Array.isArray(raw)) raw = [raw];
+  const set = new Set(raw.map((x) => String(x)).filter(Boolean).slice(0, 200));
+  return {
+    all: false,
+    has: (key) => set.has(key),
+    account: (accountId) => { for (const k of set) if (k.indexOf(accountId + "|") === 0) return true; return false; }
+  };
+}
+
 // Every connected account, with the calendars inside each one
 app.get("/api/calendar/accounts", requireAuth, async (req, res) => {
   const hidden = hiddenSet(req.session.userId);
@@ -2480,12 +2496,16 @@ app.get("/api/calendar/search", requireAuth, async (req, res) => {
   const found = [];
   const errors = [];
   const searched = [];
-  if (!hidden.has("local|avenium")) searched.push({ label: "Avenium", calendars: 1 });
-  await Promise.all(listAccounts(req.session.userId).map(async (acct) => {
+  const pick = calendarPick(req);
+  const localOn = !hidden.has("local|avenium") && pick.has("local|avenium");
+  if (localOn) searched.push({ label: "Avenium", calendars: 1 });
+  // an account with none of its calendars picked isn't contacted at all
+  await Promise.all(listAccounts(req.session.userId).filter((acct) => pick.account(acct.id)).map(async (acct) => {
     try {
       const a = await freshToken(acct);
       if (!a || !a.accessToken) throw new Error("sign-in expired — reconnect on the Admin page");
-      const calendars = (await listCalendarsFor(a)).filter((c) => !hidden.has(acct.id + "|" + c.id));
+      const calendars = (await listCalendarsFor(a)).filter((c) => !hidden.has(acct.id + "|" + c.id) && pick.has(acct.id + "|" + c.id));
+      if (!calendars.length) return;
       searched.push({ label: acct.email || acct.provider, provider: acct.provider, calendars: calendars.length });
       await Promise.all(calendars.map(async (cal) => {
         try {
@@ -2504,7 +2524,7 @@ app.get("/api/calendar/search", requireAuth, async (req, res) => {
       }));
     } catch (e) { errors.push(acct.email + " (" + e.message + ")"); }
   }));
-  if (!hidden.has("local|avenium")) {
+  if (localOn) {
     const startDate = timeMin.slice(0, 10), endDate = timeMax.slice(0, 10);
     localEvents.filter((e) => e.userId === req.session.userId).forEach((ev) => {
       const hay = ((ev.title || "") + " " + (ev.description || "") + " " + (ev.location || "")).toLowerCase();
@@ -2663,11 +2683,12 @@ app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
   // "Dassi's 7th Hebrew Birthday" and "...8th..." are the same occasion a year apart
   const normTitle = (t) => String(t || "").toLowerCase().replace(/\d+(st|nd|rd|th)?/g, "").replace(/\s+/g, " ").trim();
 
-  await Promise.all(listAccounts(req.session.userId).map(async (acct) => {
+  const pick = calendarPick(req);
+  await Promise.all(listAccounts(req.session.userId).filter((acct) => pick.account(acct.id)).map(async (acct) => {
     try {
       const a = await freshToken(acct);
       if (!a || !a.accessToken) throw new Error("sign-in expired — reconnect on the Admin page");
-      const calendars = (await listCalendarsFor(a)).filter((c) => !hidden.has(acct.id + "|" + c.id));
+      const calendars = (await listCalendarsFor(a)).filter((c) => !hidden.has(acct.id + "|" + c.id) && pick.has(acct.id + "|" + c.id));
       await Promise.all(calendars.map(async (cal) => {
         try {
           const events = await cachedFetch(`ev:${a.id}:${cal.id}:${rangeKey}`, 5 * 60 * 1000, () =>
@@ -2701,7 +2722,7 @@ app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
     } catch (e) { errors.push(acct.email + " (" + e.message + ")"); }
   }));
 
-  if (!hidden.has("local|avenium")) {
+  if (!hidden.has("local|avenium") && pick.has("local|avenium")) {
     const dayOf = (x) => x._instanceDate || String(x.start).slice(0, 10);
     localEvents.filter((e) => e.userId === req.session.userId).forEach((ev) => {
       const named = ev.kind === "occasion" || OCCASION_WORDS.test(ev.title || "");
