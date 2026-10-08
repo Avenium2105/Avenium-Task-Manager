@@ -1019,15 +1019,16 @@
     #usersTable, #usersTable tbody { display: block; }
     #usersTable thead { display: none; }
     #usersTable tr { display: flex; flex-wrap: wrap; align-items: center; }
-    #usersTable td { display: block; border-top: none; padding: 2px 0 2px 12px; font-size: 14px; }
-    #usersTable td:nth-child(1):not([colspan]) { flex: 1 1 100%; padding: 12px 12px 0; border-top: 1px solid var(--line-soft); font-size: 15px; }
+    #usersTable td { display: block; border-top: none; padding: 2px 0 2px 10px; font-size: 13px; }
+    #usersTable td:nth-child(1):not([colspan]) { flex: 0 0 auto; padding: 8px 0 8px 10px; border-top: 1px solid var(--line-soft); font-size: 13.5px; }
     #usersTable tr:first-child td:nth-child(1) { border-top: none; }
-    #usersTable td:nth-child(2) { flex: 1 1 100%; padding-right: 12px; color: var(--ink-soft); overflow-wrap: anywhere; }
-    #usersTable td:nth-child(3), #usersTable td:nth-child(4) { flex: 0 0 auto; padding-top: 5px; }
-    #usersTable td:nth-child(5) { flex: 1 1 100%; padding: 4px 12px 10px; }
+    #usersTable td:nth-child(2) { flex: 1 1 0; min-width: 0; padding-right: 10px; color: var(--ink-soft); overflow-wrap: anywhere; font-size: 12.5px; border-top: 1px solid var(--line-soft); padding-top: 8px; padding-bottom: 8px; }
+    #usersTable tr:first-child td:nth-child(2) { border-top: none; }
+    #usersTable td:nth-child(3), #usersTable td:nth-child(4) { flex: 0 0 auto; padding-top: 0; }
+    #usersTable td:nth-child(5) { flex: 1 1 100%; padding: 2px 10px 6px; }
     #usersTable td[colspan] { flex: 1 1 100%; }
-    .admin-wrap .row-actions { gap: 4px 18px; flex-wrap: wrap; }
-    .admin-wrap .row-actions button { font-size: 14px; padding: 9px 0; }
+    .admin-wrap .row-actions { gap: 4px 14px; flex-wrap: wrap; }
+    .admin-wrap .row-actions button { font-size: 13px; padding: 6px 0; }
     .admin-wrap .edit-panel .fields, .admin-wrap .add-form .fields { flex-direction: column; align-items: stretch; }
     .admin-wrap .edit-panel input, .admin-wrap .edit-panel select, .admin-wrap .add-form input, .admin-wrap .add-form select { width: 100%; min-width: 0; flex: none; padding: 10px; }
     .admin-wrap .edit-panel button, .admin-wrap .add-form button { padding: 11px 14px; font-size: 14.5px; }
@@ -3766,7 +3767,7 @@
     users.forEach(function (u) {
       var tr = el("tr");
       var nameTd = el("td");
-      nameTd.innerHTML = "<strong>" + escapeHtml(u.displayName || "(pending)") + "</strong><br><span style='color:var(--ink-faint);font-size:12px;'>" + escapeHtml(u.username || "\u2014") + "</span>";
+      nameTd.innerHTML = "<strong>" + escapeHtml(u.displayName || "(pending)") + "</strong>";
       tr.appendChild(nameTd);
 
       tr.appendChild(el("td", "", { text: u.email || "\u2014" }));
