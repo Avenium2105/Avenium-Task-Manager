@@ -447,7 +447,15 @@
   .cal-type-btn.active { background: var(--pine); border-color: var(--pine); color: var(--bg-raised); }
 
   /* ---- Calendar connections (Admin page) ---- */
-  .admin-wrap h2.cal-admin-title { margin-top: 36px; }
+  .cal-admin-header { display: flex; align-items: center; justify-content: space-between; margin-top: 36px; }
+  .admin-wrap h2.cal-admin-title { margin-top: 0; }
+  .cal-options-btn { font-family: inherit; font-size: 12.5px; font-weight: 500; color: var(--pine); background: var(--pine-soft); border: 1px solid var(--line); border-radius: 8px; padding: 6px 14px; cursor: pointer; position: relative; }
+  .cal-options-btn:hover { border-color: var(--pine); }
+  .cal-options-drop { display: none; position: absolute; top: calc(100% + 4px); right: 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 8px 0; min-width: 240px; z-index: 500; }
+  .cal-options-drop.open { display: block; }
+  .cal-options-drop label { display: flex; align-items: center; gap: 8px; padding: 8px 14px; font-size: 13px; color: var(--ink); cursor: pointer; white-space: nowrap; }
+  .cal-options-drop label:hover { background: var(--pine-soft); }
+  .cal-options-drop label .opt-note { font-size: 11px; color: var(--ink-faint); font-weight: 400; margin-left: auto; }
   .cal-admin-note { font-size: 12.5px; color: var(--ink-faint); margin: -6px 0 12px; }
   .cal-admin-notice { font-size: 13px; padding: 9px 12px; border-radius: 8px; margin-bottom: 10px; }
   .cal-admin-notice.ok { background: var(--pine-soft); color: var(--pine); }
@@ -1487,10 +1495,16 @@
     <div class="invite-link-box" id="inviteLinkBox" style="display:none;"></div>
   </div>
 
-  <h2 class="cal-admin-title">Your calendar connections</h2>
-  <label class="cal-hebrew-toggle" style="display:flex;align-items:center;gap:8px;margin:8px 0 12px;font-size:13px;color:var(--ink-soft);cursor:pointer;">
-    <input id="calHebrewToggle" type="checkbox" style="width:auto;cursor:pointer;"> Show Jewish calendar dates
-  </label>
+  <div class="cal-admin-header">
+    <h2 class="cal-admin-title">Your calendar connections</h2>
+    <button type="button" class="cal-options-btn" id="calOptionsBtn">Options
+      <div class="cal-options-drop" id="calOptionsDrop">
+        <label><input id="calHebrewToggle" type="checkbox" style="width:auto;cursor:pointer;"> Jewish calendar dates</label>
+        <label><input id="calZmanimToggle" type="checkbox" style="width:auto;cursor:pointer;"> Show Zmanim <span class="opt-note">Day view</span></label>
+        <label><input id="calLearningToggle" type="checkbox" style="width:auto;cursor:pointer;"> Daily learning <span class="opt-note">Day view</span></label>
+      </div>
+    </button>
+  </div>
   <div class="cal-admin-notice" id="calAdminNotice" style="display:none;"></div>
   <div class="cal-admin-list" id="calAdminList"></div>
   <div class="cal-admin-add">
@@ -4018,6 +4032,8 @@
   var calEditingEvent = null;  // null = creating new, otherwise the event being edited
   var calHandlersWired = false;
   var showHebrewDates = false; // toggled from Admin, persisted on server
+  var showZmanim = false;      // toggled from Admin Options, day view only
+  var showDailyLearning = false; // toggled from Admin Options, day view only
   var boardSearchQuery = "";   // boards search filter (trimmed, lowercase)
   var boardSearchText = "";    // what's actually in the box
   var calSearchQuery = "";     // calendar search filter
@@ -4055,6 +4071,8 @@
       calendarAccounts = d.accounts || [];
       builtinCalendars = d.builtin || [];
       showHebrewDates = !!d.showHebrew;
+      showZmanim = !!d.showZmanim;
+      showDailyLearning = !!d.showDailyLearning;
       assignCalendarColors();
       return d;
     });
@@ -4090,6 +4108,10 @@
     var notice = document.getElementById("calAdminNotice");
     var hebToggle = document.getElementById("calHebrewToggle");
     if (hebToggle) hebToggle.checked = showHebrewDates;
+    var zmToggle = document.getElementById("calZmanimToggle");
+    if (zmToggle) zmToggle.checked = showZmanim;
+    var dlToggle = document.getElementById("calLearningToggle");
+    if (dlToggle) dlToggle.checked = showDailyLearning;
     if (calNotice) {
       notice.style.display = "";
       notice.className = "cal-admin-notice " + (calNotice === "connected" ? "ok" : "err");
@@ -4146,9 +4168,31 @@
 
   document.getElementById("calAddGoogleBtn").addEventListener("click", function () { window.location.href = "/auth/google"; });
   document.getElementById("calAddMicrosoftBtn").addEventListener("click", function () { window.location.href = "/auth/microsoft"; });
+  // Options dropdown toggle
+  (function () {
+    var btn = document.getElementById("calOptionsBtn");
+    var drop = document.getElementById("calOptionsDrop");
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      drop.classList.toggle("open");
+    });
+    document.addEventListener("click", function () { drop.classList.remove("open"); });
+    drop.addEventListener("click", function (e) { e.stopPropagation(); });
+  })();
+
   document.getElementById("calHebrewToggle").addEventListener("change", function () {
     showHebrewDates = this.checked;
     fetch("/api/calendar/show-hebrew", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ show: showHebrewDates }) });
+    calMonthCache = {};
+  });
+  document.getElementById("calZmanimToggle").addEventListener("change", function () {
+    showZmanim = this.checked;
+    fetch("/api/calendar/show-zmanim", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ show: showZmanim }) });
+    calMonthCache = {};
+  });
+  document.getElementById("calLearningToggle").addEventListener("change", function () {
+    showDailyLearning = this.checked;
+    fetch("/api/calendar/show-daily-learning", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ show: showDailyLearning }) });
     calMonthCache = {};
   });
 

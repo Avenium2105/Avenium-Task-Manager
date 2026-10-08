@@ -141,6 +141,14 @@ function setShowHebrew(userId, show) {
   calendarPrefs[userId].showHebrew = !!show;
   persistCalPrefs();
 }
+function getCalPref(userId, key) {
+  return calendarPrefs[userId] && calendarPrefs[userId][key] !== undefined ? !!calendarPrefs[userId][key] : false;
+}
+function setCalPref(userId, key, val) {
+  if (!calendarPrefs[userId]) calendarPrefs[userId] = { hidden: [] };
+  calendarPrefs[userId][key] = !!val;
+  persistCalPrefs();
+}
 
 // ---- Built-in calendars (no sign-in needed) ----
 // Both are on by default — only calendars a user explicitly unticks are stored.
@@ -2383,7 +2391,7 @@ app.get("/api/calendar/accounts", requireAuth, async (req, res) => {
   const localCal = { id: "local", provider: "local", email: "", calendars: [
     { id: "avenium", key: "local|avenium", name: "Avenium", canEdit: true, primary: true, visible: !hidden.has("local|avenium") }
   ] };
-  res.json({ accounts: [localCal, ...out], builtin, googleConfigured: !!GOOGLE_CLIENT_ID, microsoftConfigured: !!MICROSOFT_CLIENT_ID, showHebrew: getShowHebrew(req.session.userId) });
+  res.json({ accounts: [localCal, ...out], builtin, googleConfigured: !!GOOGLE_CLIENT_ID, microsoftConfigured: !!MICROSOFT_CLIENT_ID, showHebrew: getShowHebrew(req.session.userId), showZmanim: getCalPref(req.session.userId, "showZmanim"), showDailyLearning: getCalPref(req.session.userId, "showDailyLearning") });
 });
 
 // Show / hide one calendar on this user's own view
@@ -2399,6 +2407,16 @@ app.post("/api/calendar/visibility", requireAuth, (req, res) => {
 app.post("/api/calendar/show-hebrew", requireAuth, (req, res) => {
   const { show } = req.body || {};
   setShowHebrew(req.session.userId, !!show);
+  res.json({ ok: true });
+});
+app.post("/api/calendar/show-zmanim", requireAuth, (req, res) => {
+  const { show } = req.body || {};
+  setCalPref(req.session.userId, "showZmanim", !!show);
+  res.json({ ok: true });
+});
+app.post("/api/calendar/show-daily-learning", requireAuth, (req, res) => {
+  const { show } = req.body || {};
+  setCalPref(req.session.userId, "showDailyLearning", !!show);
   res.json({ ok: true });
 });
 
