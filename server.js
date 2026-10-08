@@ -2392,7 +2392,7 @@ app.get("/api/calendar/accounts", requireAuth, async (req, res) => {
     { id: "avenium", key: "local|avenium", name: "Avenium", canEdit: true, primary: true, visible: !hidden.has("local|avenium") }
   ] };
   const userPrefs = calendarPrefs[req.session.userId] || {};
-  res.json({ accounts: [localCal, ...out], builtin, googleConfigured: !!GOOGLE_CLIENT_ID, microsoftConfigured: !!MICROSOFT_CLIENT_ID, showHebrew: getShowHebrew(req.session.userId), showZmanim: getCalPref(req.session.userId, "showZmanim"), showDailyLearning: getCalPref(req.session.userId, "showDailyLearning"), learningSchedules: userPrefs.learningSchedules || null });
+  res.json({ accounts: [localCal, ...out], builtin, googleConfigured: !!GOOGLE_CLIENT_ID, microsoftConfigured: !!MICROSOFT_CLIENT_ID, showHebrew: getShowHebrew(req.session.userId), showZmanim: getCalPref(req.session.userId, "showZmanim"), showDailyLearning: getCalPref(req.session.userId, "showDailyLearning"), learningSchedules: userPrefs.learningSchedules || null, zmanimZip: userPrefs.zmanimZip || "" });
 });
 
 // Show / hide one calendar on this user's own view
@@ -2413,6 +2413,13 @@ app.post("/api/calendar/show-hebrew", requireAuth, (req, res) => {
 app.post("/api/calendar/show-zmanim", requireAuth, (req, res) => {
   const { show } = req.body || {};
   setCalPref(req.session.userId, "showZmanim", !!show);
+  res.json({ ok: true });
+});
+app.post("/api/calendar/zmanim-location", requireAuth, (req, res) => {
+  const { zip } = req.body || {};
+  if (!calendarPrefs[req.session.userId]) calendarPrefs[req.session.userId] = { hidden: [] };
+  calendarPrefs[req.session.userId].zmanimZip = typeof zip === "string" ? zip.trim() : "";
+  persistCalPrefs();
   res.json({ ok: true });
 });
 app.post("/api/calendar/show-daily-learning", requireAuth, (req, res) => {

@@ -587,6 +587,8 @@
   .cal-zmanim-grid { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; }
   .cal-zmanim-grid .zl { color: var(--ink-soft); }
   .cal-zmanim-grid .zt { font-weight: 600; color: var(--ink); text-align: right; }
+  .zmanim-section-hdr { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--pine); margin-top: 6px; padding-bottom: 1px; border-bottom: 1px solid var(--line-soft); }
+  .zmanim-loc-label { grid-column: 1 / -1; font-size: 11px; color: var(--ink-soft); margin-bottom: 4px; font-style: italic; }
   .cal-learning-row { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
   .cal-learning-row .ll { color: var(--ink-soft); min-width: 70px; }
   .cal-learning-row .lv { font-weight: 600; color: var(--ink); }
@@ -1048,19 +1050,18 @@
     /* the users table becomes one card per person — exactly 2 lines */
     #usersTable, #usersTable tbody { display: block; }
     #usersTable thead { display: none; }
-    #usersTable tr { display: flex; flex-wrap: wrap; align-items: center; }
-    #usersTable td { display: block; border-top: none; padding: 2px 0 2px 10px; font-size: 13px; }
-    /* Line 1: name left, email right */
-    #usersTable td:nth-child(1):not([colspan]) { flex: 0 0 auto; padding: 8px 0 2px 10px; border-top: 1px solid var(--line-soft); font-size: 13.5px; order: 1; }
-    #usersTable tr:first-child td:nth-child(1) { border-top: none; }
-    #usersTable td:nth-child(2) { flex: 1 1 0; min-width: 0; padding: 8px 10px 2px 10px; color: var(--ink-soft); overflow-wrap: anywhere; font-size: 12px; text-align: right; order: 2; border-top: 1px solid var(--line-soft); }
-    #usersTable tr:first-child td:nth-child(2) { border-top: none; }
+    #usersTable tr { display: flex; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--line-soft); }
+    #usersTable tr:first-child { border-top: none; }
+    #usersTable td { display: block; border-top: none; padding: 0; font-size: 13px; }
+    /* Line 1: name left, email right — force full width */
+    #usersTable td:nth-child(1):not([colspan]) { flex: 0 0 auto; padding: 8px 0 2px 10px; font-size: 13.5px; order: 1; }
+    #usersTable td:nth-child(2) { flex: 1 1 auto; padding: 8px 10px 2px 6px; color: var(--ink-soft); font-size: 12px; text-align: right; order: 2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     /* Line 2: actions left, badges right */
     #usersTable td:nth-child(5) { flex: 0 0 auto; padding: 2px 0 6px 10px; order: 3; }
     #usersTable td:nth-child(3) { flex: 0 0 auto; padding: 2px 4px 6px 0; order: 4; margin-left: auto; }
     #usersTable td:nth-child(4) { flex: 0 0 auto; padding: 2px 10px 6px 4px; order: 5; }
-    #usersTable td[colspan] { flex: 1 1 100%; }
-    .admin-wrap .row-actions { gap: 4px 14px; flex-wrap: nowrap; }
+    #usersTable td[colspan] { flex: 1 1 100%; order: 10; }
+    .admin-wrap .row-actions { display: flex; gap: 4px 14px; flex-wrap: nowrap; }
     .admin-wrap .row-actions button { font-size: 13px; padding: 6px 0; white-space: nowrap; }
     .admin-wrap .edit-panel .fields, .admin-wrap .add-form .fields { flex-direction: column; align-items: stretch; }
     .admin-wrap .edit-panel input, .admin-wrap .edit-panel select, .admin-wrap .add-form input, .admin-wrap .add-form select { width: 100%; min-width: 0; flex: none; padding: 10px; }
@@ -1545,6 +1546,9 @@
       <div class="cal-options-drop" id="calOptionsDrop">
         <label><input id="calHebrewToggle" type="checkbox" style="width:auto;cursor:pointer;"> Jewish calendar dates</label>
         <label><input id="calZmanimToggle" type="checkbox" style="width:auto;cursor:pointer;"> Show Zmanim <span class="opt-note">Day view</span></label>
+        <div class="cal-zmanim-loc" id="calZmanimLoc" style="display:none;">
+          <label class="cal-learn-sub" style="align-items:center;gap:6px;">Location <input id="calZmanimZip" type="text" placeholder="ZIP code" style="width:80px;padding:4px 6px;font-size:12px;border:1px solid var(--line-soft);border-radius:4px;"> <button type="button" id="calZmanimZipSave" style="font-size:11px;padding:3px 8px;border:1px solid var(--line-soft);border-radius:4px;background:var(--bg-card);cursor:pointer;">Save</button> <span id="calZmanimLocName" style="font-size:11px;color:var(--ink-soft);"></span></label>
+        </div>
         <label><input id="calLearningToggle" type="checkbox" style="width:auto;cursor:pointer;"> Daily learning <span class="opt-note">Day view</span></label>
         <div class="cal-learning-subs" id="calLearningSubs" style="display:none;">
           <label class="cal-learn-sub"><input type="checkbox" data-learn="F" style="width:auto;cursor:pointer;" checked> Daf Yomi</label>
@@ -1593,8 +1597,9 @@
     <div class="cal-nav-left">
       <button id="calNewBtn" type="button" class="cal-add-event-btn">+ <span class="cal-add-word">Add Event</span></button>
       <button id="calRefreshBtn" type="button" class="cal-refresh-btn" title="Refresh — get the latest from Google and Outlook" aria-label="Refresh"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.6 2.2v3.2h-3.2"/></svg></button>
-      <button id="calQuickZmanim" type="button" class="cal-quick-toggle" title="Toggle Zmanim"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg></button>
-      <button id="calQuickLearning" type="button" class="cal-quick-toggle" title="Toggle Daily Learning"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h4.5a2.5 2.5 0 0 1 2.5 2.5V14a2 2 0 0 0-2-2H2z"/><path d="M14 3H9.5A2.5 2.5 0 0 0 7 5.5V14a2 2 0 0 1 2-2h5z"/></svg></button>
+      <button id="calQuickCal" type="button" class="cal-quick-toggle" title="Calendar events"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12"/><path d="M5.5 1.5v3"/><path d="M10.5 1.5v3"/></svg></button>
+      <button id="calQuickZmanim" type="button" class="cal-quick-toggle" title="Zmanim"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg></button>
+      <button id="calQuickLearning" type="button" class="cal-quick-toggle" title="Daily Learning"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h4.5a2.5 2.5 0 0 1 2.5 2.5V14a2 2 0 0 0-2-2H2z"/><path d="M14 3H9.5A2.5 2.5 0 0 0 7 5.5V14a2 2 0 0 1 2-2h5z"/></svg></button>
       <button id="calSearchBtn" type="button" class="cal-search-events-btn" title="Search every calendar"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span class="cal-search-word">Search events</span></button>
     </div>
     <div class="cal-nav-center">
@@ -4100,8 +4105,8 @@
   var showDailyLearning = false; // toggled from Admin Options, day view only
   // Which learning schedules are enabled — keys are hebcal params, values are booleans
   var learningSchedules = { F: true, o: true, s: true }; // defaults: Daf Yomi, Omer, Parsha
-  var zmanimExpanded = true;   // quick-toggle: panel open/closed (separate from showZmanim setting)
-  var learningExpanded = true; // quick-toggle: panel open/closed (separate from showDailyLearning setting)
+  var zmanimZip = "";          // user's preferred zip code for zmanim location
+  var dayViewMode = "cal";     // "cal" = calendar events, "zmanim" = zmanim panel, "learning" = learning panel
   var boardSearchQuery = "";   // boards search filter (trimmed, lowercase)
   var boardSearchText = "";    // what's actually in the box
   var calSearchQuery = "";     // calendar search filter
@@ -4142,6 +4147,7 @@
       showZmanim = !!d.showZmanim;
       showDailyLearning = !!d.showDailyLearning;
       if (d.learningSchedules && typeof d.learningSchedules === "object") learningSchedules = d.learningSchedules;
+      zmanimZip = d.zmanimZip || "";
       assignCalendarColors();
       return d;
     });
@@ -4183,6 +4189,10 @@
     if (hebToggle) hebToggle.checked = showHebrewDates;
     var zmToggle = document.getElementById("calZmanimToggle");
     if (zmToggle) zmToggle.checked = showZmanim;
+    var zmLocWrap = document.getElementById("calZmanimLoc");
+    if (zmLocWrap) zmLocWrap.style.display = showZmanim ? "" : "none";
+    var zmZipInput = document.getElementById("calZmanimZip");
+    if (zmZipInput) zmZipInput.value = zmanimZip;
     var dlToggle = document.getElementById("calLearningToggle");
     if (dlToggle) dlToggle.checked = showDailyLearning;
     // Show/hide sub-options and set their states
@@ -4273,15 +4283,28 @@
   });
   document.getElementById("calZmanimToggle").addEventListener("change", function () {
     showZmanim = this.checked;
-    if (showZmanim) zmanimExpanded = true; // reset expanded when enabling
+    if (showZmanim) dayViewMode = "zmanim"; // switch to zmanim view when enabling
     fetch("/api/calendar/show-zmanim", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ show: showZmanim }) });
+    var zmLocWrap = document.getElementById("calZmanimLoc");
+    if (zmLocWrap) zmLocWrap.style.display = showZmanim ? "" : "none";
     calMonthCache = {};
     updateQuickToggles();
     if (calView === "day") renderCalendarBody();
   });
+  document.getElementById("calZmanimZipSave").addEventListener("click", function () {
+    var inp = document.getElementById("calZmanimZip");
+    var zip = (inp ? inp.value : "").trim();
+    zmanimZip = zip;
+    zmanimCache = {}; userGeo = null;
+    fetch("/api/calendar/zmanim-location", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ zip: zip }) });
+    if (calView === "day") renderCalendarBody();
+    var locName = document.getElementById("calZmanimLocName");
+    if (locName) locName.textContent = zip ? "Saved ✓" : "Using device location";
+    setTimeout(function () { if (locName) locName.textContent = ""; }, 2000);
+  });
   document.getElementById("calLearningToggle").addEventListener("change", function () {
     showDailyLearning = this.checked;
-    if (showDailyLearning) learningExpanded = true; // reset expanded when enabling
+    if (showDailyLearning) dayViewMode = "learning"; // switch to learning view when enabling
     fetch("/api/calendar/show-daily-learning", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ show: showDailyLearning }) });
     var subs = document.getElementById("calLearningSubs");
     if (subs) subs.style.display = showDailyLearning ? "" : "none";
@@ -4299,22 +4322,30 @@
     if (calView === "day") renderCalendarBody();
   });
 
-  /* ── Mobile quick-toggle buttons for Zmanim / Daily Learning ── */
+  /* ── Mobile quick-toggle buttons: Calendar / Zmanim / Learning (mutually exclusive) ── */
   function updateQuickToggles() {
+    var qc = document.getElementById("calQuickCal");
     var qz = document.getElementById("calQuickZmanim");
     var ql = document.getElementById("calQuickLearning");
     var isDayView = calView === "day";
-    // Buttons visible when setting is enabled AND day view; active when panel is expanded
-    if (qz) { qz.classList.toggle("visible", isDayView && showZmanim); qz.classList.toggle("active", isDayView && showZmanim && zmanimExpanded); }
-    if (ql) { ql.classList.toggle("visible", isDayView && showDailyLearning); ql.classList.toggle("active", isDayView && showDailyLearning && learningExpanded); }
+    // All three visible in day view when at least one extra panel is enabled
+    var anyPanel = showZmanim || showDailyLearning;
+    if (qc) { qc.classList.toggle("visible", isDayView && anyPanel); qc.classList.toggle("active", isDayView && dayViewMode === "cal"); }
+    if (qz) { qz.classList.toggle("visible", isDayView && showZmanim); qz.classList.toggle("active", isDayView && dayViewMode === "zmanim"); }
+    if (ql) { ql.classList.toggle("visible", isDayView && showDailyLearning); ql.classList.toggle("active", isDayView && dayViewMode === "learning"); }
   }
+  document.getElementById("calQuickCal").addEventListener("click", function () {
+    dayViewMode = "cal";
+    updateQuickToggles();
+    if (calView === "day") renderCalendarBody();
+  });
   document.getElementById("calQuickZmanim").addEventListener("click", function () {
-    zmanimExpanded = !zmanimExpanded;
+    dayViewMode = "zmanim";
     updateQuickToggles();
     if (calView === "day") renderCalendarBody();
   });
   document.getElementById("calQuickLearning").addEventListener("click", function () {
-    learningExpanded = !learningExpanded;
+    dayViewMode = "learning";
     updateQuickToggles();
     if (calView === "day") renderCalendarBody();
   });
@@ -5363,14 +5394,13 @@
     });
     scroll.appendChild(body);
     alt.innerHTML = "";
-    /* ── Day view: time grid + sidebar for zmanim / daily learning ── */
-    if (nDays === 1 && ((showZmanim && zmanimExpanded) || (showDailyLearning && learningExpanded))) {
-      var dayLayout = el("div", "cal-day-layout");
-      dayLayout.appendChild(scroll);
-      var sidebar = el("div", "cal-day-sidebar");
-      renderDayInfoPanels(days[0].key, sidebar);
-      dayLayout.appendChild(sidebar);
-      alt.appendChild(dayLayout);
+    /* ── Day view: calendar / zmanim / learning as mutually exclusive views ── */
+    if (nDays === 1 && (dayViewMode === "zmanim" || dayViewMode === "learning")) {
+      var infoOnly = el("div", "cal-day-sidebar");
+      infoOnly.style.width = "100%";
+      infoOnly.style.maxWidth = "100%";
+      renderDayInfoPanels(days[0].key, infoOnly);
+      alt.appendChild(infoOnly);
     } else {
       alt.appendChild(scroll);
     }
@@ -5461,29 +5491,55 @@
   }
   function fetchZmanim(dateKey) {
     if (zmanimCache[dateKey]) return Promise.resolve(zmanimCache[dateKey]);
-    return getUserGeo().then(function (geo) {
-      var tzid = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
-          return fetch("https://www.hebcal.com/zmanim?cfg=json&date=" + dateKey + "&latitude=" + geo.latitude + "&longitude=" + geo.longitude + "&tzid=" + encodeURIComponent(tzid))
+    var buildUrl = function (dateKey) {
+      if (zmanimZip) {
+        return "https://www.hebcal.com/zmanim?cfg=json&date=" + dateKey + "&zip=" + encodeURIComponent(zmanimZip);
+      }
+      return getUserGeo().then(function (geo) {
+        var tzid = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
+        return "https://www.hebcal.com/zmanim?cfg=json&date=" + dateKey + "&latitude=" + geo.latitude + "&longitude=" + geo.longitude + "&tzid=" + encodeURIComponent(tzid);
+      });
+    };
+    return Promise.resolve(buildUrl(dateKey)).then(function (url) {
+      return fetch(url)
         .then(function (r) { return r.json(); })
         .then(function (d) {
           var t = d.times || {};
           var fmt = function (iso) {
-            if (!iso) return "—";
+            if (!iso) return null;
             var dt = new Date(iso);
             return dt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
           };
+          // All 29 zmanim fields grouped by category
           var parsed = {
+            // Dawn / Morning
+            chatzotNight: fmt(t.chatzotNight),
             alotHaShachar: fmt(t.alotHaShachar),
             misheyakir: fmt(t.misheyakir),
+            misheyakirMachmir: fmt(t.misheyakirMachmir),
+            dawn: fmt(t.dawn),
             sunrise: fmt(t.sunrise),
+            // Shema & Tefillah
             sofZmanShma: fmt(t.sofZmanShma),
+            sofZmanShmaMGA: fmt(t.sofZmanShmaMGA),
             sofZmanTfilla: fmt(t.sofZmanTfilla),
+            sofZmanTfillaMGA: fmt(t.sofZmanTfillaMGA),
+            // Midday / Afternoon
             chatzot: fmt(t.chatzot),
             minchaGedola: fmt(t.minchaGedola),
             minchaKetana: fmt(t.minchaKetana),
             plagHaMincha: fmt(t.plagHaMincha),
+            // Evening / Nightfall
             sunset: fmt(t.sunset),
-            tzeit: fmt(t.tzeit7083deg)
+            dusk: fmt(t.dusk),
+            beinHaShmashos: fmt(t.beinHaShmashos),
+            tzeit7083deg: fmt(t.tzeit7083deg),
+            tzeit85deg: fmt(t.tzeit85deg),
+            tzeit42min: fmt(t.tzeit42min),
+            tzeit50min: fmt(t.tzeit50min),
+            tzeit72min: fmt(t.tzeit72min),
+            // Location info
+            locationName: d.location && d.location.title ? d.location.title : ""
           };
           zmanimCache[dateKey] = parsed;
           return parsed;
@@ -5536,7 +5592,7 @@
     var wrap = el("div", "cal-day-info");
     var hasPanel = false;
 
-    if (showZmanim && zmanimExpanded) {
+    if (dayViewMode === "zmanim") {
       hasPanel = true;
       var zPanel = el("div", "cal-day-info-panel");
       zPanel.appendChild(el("h4", "", { text: "Zmanim" }));
@@ -5548,27 +5604,58 @@
       fetchZmanim(dateKey).then(function (z) {
         if (!z) { zBody.innerHTML = "<span class='cal-day-info-loading'>Unavailable</span>"; return; }
         zBody.innerHTML = "";
-        var rows = [
-          ["Alot HaShachar", z.alotHaShachar],
-          ["Misheyakir", z.misheyakir],
-          ["Sunrise", z.sunrise],
-          ["Sof Zman Shma", z.sofZmanShma],
-          ["Sof Zman Tfilla", z.sofZmanTfilla],
-          ["Chatzot", z.chatzot],
-          ["Mincha Gedola", z.minchaGedola],
-          ["Mincha Ketana", z.minchaKetana],
-          ["Plag HaMincha", z.plagHaMincha],
-          ["Sunset", z.sunset],
-          ["Tzeit", z.tzeit]
+        if (z.locationName) {
+          var locRow = el("div", "zmanim-loc-label");
+          locRow.textContent = z.locationName;
+          zBody.appendChild(locRow);
+        }
+        var sections = [
+          { label: "Dawn / Sunrise", rows: [
+            ["Chatzot HaLailah", z.chatzotNight],
+            ["Alot HaShachar", z.alotHaShachar],
+            ["Misheyakir", z.misheyakir],
+            ["Misheyakir Machmir", z.misheyakirMachmir],
+            ["Dawn", z.dawn],
+            ["Sunrise", z.sunrise]
+          ]},
+          { label: "Shema & Tefillah", rows: [
+            ["Sof Zman Shma (GRA)", z.sofZmanShma],
+            ["Sof Zman Shma (MGA)", z.sofZmanShmaMGA],
+            ["Sof Zman Tfilla (GRA)", z.sofZmanTfilla],
+            ["Sof Zman Tfilla (MGA)", z.sofZmanTfillaMGA]
+          ]},
+          { label: "Midday / Afternoon", rows: [
+            ["Chatzot", z.chatzot],
+            ["Mincha Gedola", z.minchaGedola],
+            ["Mincha Ketana", z.minchaKetana],
+            ["Plag HaMincha", z.plagHaMincha]
+          ]},
+          { label: "Evening / Nightfall", rows: [
+            ["Sunset", z.sunset],
+            ["Bein HaShmashos", z.beinHaShmashos],
+            ["Dusk", z.dusk],
+            ["Tzeit HaKochavim", z.tzeit7083deg],
+            ["Tzeit (85°)", z.tzeit85deg],
+            ["Tzeit (42 min)", z.tzeit42min],
+            ["Tzeit (50 min)", z.tzeit50min],
+            ["Tzeit (72 min)", z.tzeit72min]
+          ]}
         ];
-        rows.forEach(function (r) {
-          zBody.appendChild(el("span", "zl", { text: r[0] }));
-          zBody.appendChild(el("span", "zt", { text: r[1] }));
+        sections.forEach(function (sec) {
+          var visibleRows = sec.rows.filter(function (r) { return r[1] !== null; });
+          if (!visibleRows.length) return;
+          var hdr = el("span", "zmanim-section-hdr", { text: sec.label });
+          hdr.style.gridColumn = "1 / -1";
+          zBody.appendChild(hdr);
+          visibleRows.forEach(function (r) {
+            zBody.appendChild(el("span", "zl", { text: r[0] }));
+            zBody.appendChild(el("span", "zt", { text: r[1] }));
+          });
         });
       });
     }
 
-    if (showDailyLearning && learningExpanded) {
+    if (dayViewMode === "learning") {
       hasPanel = true;
       var lPanel = el("div", "cal-day-info-panel");
       lPanel.appendChild(el("h4", "", { text: "Daily Learning" }));
