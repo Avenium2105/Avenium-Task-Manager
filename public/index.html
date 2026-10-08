@@ -449,7 +449,7 @@
   /* ---- Calendar connections (Admin page) ---- */
   .cal-admin-header { display: flex; align-items: center; justify-content: space-between; margin-top: 36px; }
   .admin-wrap h2.cal-admin-title { margin-top: 0; }
-  .cal-options-btn { font-family: inherit; font-size: 12.5px; font-weight: 500; color: var(--pine); background: var(--pine-soft); border: 1px solid var(--line); border-radius: 8px; padding: 6px 14px; cursor: pointer; position: relative; }
+  .cal-options-btn { font-family: inherit; font-size: 12.5px; font-weight: 500; color: var(--pine); background: var(--pine-soft); border: 1px solid var(--line); border-radius: 8px; padding: 6px 14px; cursor: pointer; position: relative; user-select: none; -webkit-user-select: none; display: inline-block; }
   .cal-options-btn:hover { border-color: var(--pine); }
   .cal-options-drop { display: none; position: absolute; top: calc(100% + 4px); right: 0; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 10px; box-shadow: var(--shadow); padding: 8px 0; min-width: 240px; z-index: 500; }
   .cal-options-drop.open { display: block; }
@@ -1542,7 +1542,7 @@
 
   <div class="cal-admin-header">
     <h2 class="cal-admin-title">Your calendar connections</h2>
-    <button type="button" class="cal-options-btn" id="calOptionsBtn">Options
+    <div class="cal-options-btn" id="calOptionsBtn" role="button" tabindex="0">Options
       <div class="cal-options-drop" id="calOptionsDrop">
         <label><input id="calHebrewToggle" type="checkbox" style="width:auto;cursor:pointer;"> Jewish calendar dates</label>
         <label><input id="calZmanimToggle" type="checkbox" style="width:auto;cursor:pointer;"> Show Zmanim <span class="opt-note">Day view</span></label>
@@ -1569,7 +1569,7 @@
           <label class="cal-learn-sub"><input type="checkbox" data-learn="s" style="width:auto;cursor:pointer;" checked> Parsha</label>
         </div>
       </div>
-    </button>
+    </div>
   </div>
   <div class="cal-admin-notice" id="calAdminNotice" style="display:none;"></div>
   <div class="cal-admin-list" id="calAdminList"></div>
@@ -4271,6 +4271,9 @@
     btn.addEventListener("click", function (e) {
       e.stopPropagation();
       drop.classList.toggle("open");
+    });
+    btn.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); btn.click(); }
     });
     document.addEventListener("click", function () { drop.classList.remove("open"); });
     drop.addEventListener("click", function (e) { e.stopPropagation(); });
