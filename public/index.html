@@ -1028,14 +1028,14 @@
     #usersTable thead { display: none; }
     #usersTable tr { display: flex; flex-wrap: wrap; align-items: center; }
     #usersTable td { display: block; border-top: none; padding: 2px 0 2px 10px; font-size: 13px; }
-    /* Line 1: name takes full width */
-    #usersTable td:nth-child(1):not([colspan]) { flex: 1 1 100%; padding: 8px 10px 2px; border-top: 1px solid var(--line-soft); font-size: 13.5px; }
+    /* Line 1: name left, email right */
+    #usersTable td:nth-child(1):not([colspan]) { flex: 0 0 auto; padding: 8px 0 2px 10px; border-top: 1px solid var(--line-soft); font-size: 13.5px; order: 1; }
     #usersTable tr:first-child td:nth-child(1) { border-top: none; }
-    /* Line 2: email right-aligned, badges left */
-    #usersTable td:nth-child(2) { flex: 1 1 0; min-width: 0; padding-right: 10px; color: var(--ink-soft); overflow-wrap: anywhere; font-size: 12px; text-align: right; order: 4; padding-top: 0; padding-bottom: 0; }
-    #usersTable td:nth-child(3), #usersTable td:nth-child(4) { flex: 0 0 auto; padding-top: 0; order: 3; }
-    /* Line 3: actions */
-    #usersTable td:nth-child(5) { flex: 1 1 100%; padding: 2px 10px 6px; order: 5; }
+    #usersTable td:nth-child(2) { flex: 1 1 0; min-width: 0; padding: 8px 10px 2px 10px; color: var(--ink-soft); overflow-wrap: anywhere; font-size: 12px; text-align: right; order: 2; border-top: 1px solid var(--line-soft); }
+    #usersTable tr:first-child td:nth-child(2) { border-top: none; }
+    /* Line 2: actions left, badges right */
+    #usersTable td:nth-child(5) { flex: 1 1 0; padding: 2px 10px 6px; order: 3; }
+    #usersTable td:nth-child(3), #usersTable td:nth-child(4) { flex: 0 0 auto; padding: 2px 4px 6px 0; order: 4; }
     #usersTable td[colspan] { flex: 1 1 100%; }
     .admin-wrap .row-actions { gap: 4px 14px; flex-wrap: wrap; }
     .admin-wrap .row-actions button { font-size: 13px; padding: 6px 0; }
@@ -4083,7 +4083,11 @@
   // Saved per user on the server, so it sticks across devices.
   function buildCalendarToggles(calendars) {
     var wrap = el("div", "cal-acct-cals");
-    calendars.forEach(function (c) {
+    // Sort sub-calendars alphabetically by name
+    var sorted = calendars.slice().sort(function (a, b) {
+      return (a.name || "").toLowerCase().localeCompare((b.name || "").toLowerCase());
+    });
+    sorted.forEach(function (c) {
       var lbl = el("label", "cal-toggle");
       var chk = el("input", "", { type: "checkbox" });
       chk.checked = c.visible !== false;
@@ -4128,7 +4132,11 @@
       if (!calendarAccounts.length) {
         list.appendChild(el("div", "cal-admin-empty", { text: "No calendar accounts connected yet." }));
       }
-      calendarAccounts.forEach(function (acct) {
+      // Sort accounts alphabetically by email
+      var sortedAccounts = calendarAccounts.slice().sort(function (a, b) {
+        return (a.email || "").toLowerCase().localeCompare((b.email || "").toLowerCase());
+      });
+      sortedAccounts.forEach(function (acct) {
         if (acct.provider === "local") return; // local Avenium calendar shown separately below
         var card = el("div", "cal-acct");
         var head = el("div", "cal-acct-head");
