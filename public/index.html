@@ -5586,11 +5586,6 @@
           var label = catLabels[item.category] || item.category;
           row.appendChild(el("span", "ll", { text: label }));
           row.appendChild(el("span", "lv", { text: item.title }));
-          if (item.link) {
-            var a = el("a", "", { text: "Study →", href: item.link });
-            a.target = "_blank"; a.rel = "noopener";
-            row.appendChild(a);
-          }
           lBody.appendChild(row);
         });
       });
