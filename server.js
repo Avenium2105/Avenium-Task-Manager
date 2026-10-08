@@ -3081,6 +3081,44 @@ app.get("/api/calendar/hebrew-dates", requireAuth, (req, res) => {
 });
 
 
+// Candle lighting times for a date range (Fridays + erev Yom Tov).
+// Uses hebcal with c=on (candles) and b=18 (18 min before sunset).
+// Accepts zip OR lat/lng+tzid.
+app.get("/api/calendar/candle-lighting", requireAuth, async (req, res) => {
+  const start = req.query.start;
+  const end = req.query.end;
+  if (!start || !end) return res.status(400).json({ error: "invalid_request" });
+  const userPrefs = calendarPrefs[req.session.userId] || {};
+  let locQuery = "";
+  if (userPrefs.zmanimZip) {
+    locQuery = "&zip=" + encodeURIComponent(userPrefs.zmanimZip);
+  } else if (req.query.latitude && req.query.longitude) {
+    locQuery = "&latitude=" + req.query.latitude + "&longitude=" + req.query.longitude + "&tzid=" + encodeURIComponent(req.query.tzid || "America/New_York");
+  } else {
+    locQuery = "&zip=10001"; // default fallback
+  }
+  try {
+    const r = await httpsRequest({
+      hostname: "www.hebcal.com",
+      path: `/hebcal?v=1&cfg=json&c=on&b=18&maj=off&min=off&mod=off&nx=off&ss=off&mf=off&s=off&start=${start}&end=${end}${locQuery}`,
+      method: "GET",
+      headers: { Accept: "application/json", "User-Agent": "AveniumTasks/1.0" }
+    });
+    const items = (r.body && r.body.items) || [];
+    const result = {};
+    items.forEach((it) => {
+      if (it.category === "candles" && it.date) {
+        const dateKey = String(it.date).slice(0, 10);
+        const time = it.date.length > 10 ? new Date(it.date).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: r.body.location && r.body.location.tzid || "America/New_York" }) : it.title;
+        result[dateKey] = { time, title: it.title || "Candle Lighting" };
+      }
+    });
+    res.json({ candles: result });
+  } catch (e) {
+    res.json({ candles: {} });
+  }
+});
+
 server.listen(PORT, () => {
   console.log("Avenium Task Manager running at http://localhost:" + PORT);
 });
