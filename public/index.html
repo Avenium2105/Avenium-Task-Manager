@@ -58,6 +58,8 @@
   .topbar a.active:hover { background: #22362a; }
   .topbar button.logout { background: var(--brick); }
   .topbar button.logout:hover { background: #9a3e32; }
+  .nav-hamburger { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; background: #6b8f79; color: #fff; border-radius: 8px; cursor: pointer; font-size: 22px; line-height: 1; padding: 0; }
+  .nav-hamburger:hover { background: #4a6e57; }
   .topbar .dot { display: none; }
 
   .page { display: flex; align-items: flex-start; justify-content: center; gap: 28px; max-width: 1800px; margin: 0 auto; padding: 0 28px; }
@@ -551,6 +553,8 @@
   .cal-view-seg button:hover { color: var(--pine); }
   .cal-view-seg button.active { background: var(--pine); color: var(--bg-raised); font-weight: 600; }
   #calAltView { flex: 1 1 auto; min-height: 0; display: none; }
+  .cal-view-hamburger { display: none; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid var(--line); background: var(--bg-raised); color: var(--ink-soft); border-radius: 8px; cursor: pointer; font-size: 18px; line-height: 1; padding: 0; position: relative; }
+  .cal-view-hamburger:hover { color: var(--pine); background: var(--bg); }
   .cal-day-link { cursor: pointer; border-radius: 4px; padding: 0 3px; margin-left: -3px; }
   .cal-day-link:hover { background: var(--pine-soft); color: var(--pine); }
   /* ---- Day & Week: hour-by-hour grid ---- */
@@ -814,6 +818,7 @@
   /* Helper elements for the smaller layouts below. These lines keep them
      invisible / inert on a full-size desktop screen. */
   .board-tabs-row { display: contents; }   /* the tab buttons: on desktop they sit directly in the strip, as before */
+  .board-hamburger-bar { display: none; }
   .m-wrap { display: contents; }           /* wrapper around a one-line field that gets a wrapped copy on phones */
   .m-mirror { display: none; }
   .m-panes { display: none; }
@@ -910,20 +915,35 @@
     input[type="checkbox"], input[type="radio"]:not([name="calOccasionCal"]) { width: 20px !important; height: 20px !important; flex: 0 0 auto; accent-color: var(--pine); }
     * { -webkit-tap-highlight-color: rgba(60,90,70,0.12); }
 
-    /* ---- header: one compact row — the leaf mark, then the nav buttons ---- */
+    /* ---- header: one compact row — the leaf mark, then the hamburger ---- */
     .topnav { grid-template-columns: auto 1fr; gap: 8px; padding: 8px 10px; padding-top: calc(8px + env(safe-area-inset-top)); min-height: 50px; }
     .topnav .brand-logo { height: 32px; width: 33px; object-fit: cover; object-position: left center; }   /* just the leaf; the wordmark doesn't fit */
-    .topnav .topbar { gap: 6px; }
+    .topnav .topbar { gap: 0; position: relative; }
     .topbar a, .topbar button.link { padding: 12px 11px; font-size: 13px; white-space: nowrap; }
     .topbar a.active { box-shadow: 0 0 0 1.5px var(--bg-raised), 0 0 0 3px #22362a; }
+    /* hide the inline nav links on phones; show the hamburger instead */
+    .topbar > a, .topbar > button.link { display: none; }
+    .nav-hamburger { display: flex !important; }
+    .nav-hamburger-menu { display: flex; flex-direction: column; position: absolute; top: 100%; right: 0; background: var(--bg-raised); border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.18); z-index: 600; min-width: 180px; padding: 6px 0; margin-top: 6px; }
+    .nav-hamburger-menu a, .nav-hamburger-menu button { display: block !important; width: 100%; text-align: left; padding: 13px 18px !important; font-size: 15px !important; border-radius: 0 !important; background: none !important; color: var(--ink) !important; box-shadow: none !important; font-weight: 500 !important; border: none; font-family: inherit; cursor: pointer; }
+    .nav-hamburger-menu a:hover, .nav-hamburger-menu button:hover { background: var(--bg) !important; }
+    .nav-hamburger-menu a.active { color: var(--pine) !important; font-weight: 700 !important; }
+    .nav-hamburger-menu button.logout { color: var(--brick) !important; }
 
-    /* ---- board tabs: one row you swipe sideways, search box above it ---- */
-    .board-tabs { display: flex; flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 0; padding: 8px 0 0; position: static; }
-    .board-tabs-row { display: flex; align-items: flex-end; gap: 3px; overflow-x: auto; overflow-y: hidden; padding: 0 10px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-    .board-tabs-row::-webkit-scrollbar { display: none; }
-    .board-tab-wrap { flex: 0 0 auto; cursor: default; }
-    .board-tab { flex: 0 0 auto; white-space: nowrap; padding: 10px 14px; margin-bottom: 0; }
+    /* ---- board tabs: hamburger menu on phones ---- */
+    .board-tabs { display: flex; flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 0; padding: 8px 10px 0; position: static; }
+    .board-tabs-row { display: none; }
     .board-tab-rename, .board-tab-delete, .board-menu-btn { padding: 9px 9px; color: rgba(255,255,255,0.75); }
+    /* board hamburger (phone only) */
+    .board-hamburger-bar { display: flex !important; align-items: center; gap: 8px; padding: 0 0 8px; }
+    .board-hamburger-label { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .board-hamburger-btn { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: none; background: rgba(255,255,255,0.2); color: #fff; border-radius: 8px; cursor: pointer; font-size: 18px; line-height: 1; padding: 0; flex-shrink: 0; position: relative; }
+    .board-hamburger-btn:hover { background: rgba(255,255,255,0.3); }
+    .board-hamburger-menu { position: absolute; top: 100%; right: 0; background: var(--bg-raised); border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.18); z-index: 600; min-width: 200px; max-width: 280px; padding: 6px 0; margin-top: 6px; max-height: 60vh; overflow-y: auto; }
+    .board-hamburger-menu button { display: block; width: 100%; text-align: left; padding: 13px 18px; font-size: 14.5px; font-weight: 500; border: none; background: none; color: var(--ink); cursor: pointer; font-family: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .board-hamburger-menu button:hover { background: var(--bg); }
+    .board-hamburger-menu button.active { color: var(--pine); font-weight: 700; }
+    .board-hamburger-menu button.add-board-opt { color: var(--ink-faint); }
     .board-search-spacer { display: none; }
     .board-search-input { order: -1; width: auto; margin: 0 10px 8px; padding: 9px 12px; border-radius: 9px; }
     body[data-mpane="todo"] .board-search-input, body[data-mpane="chat"] .board-search-input { display: none; }
@@ -1063,12 +1083,19 @@
     #calPrevYear, #calNextYear { display: none; }          /* a whole year at a time: use the Year view or Search Date */
     .cal-arrow-btn { padding: 7px 13px; font-size: 18px; line-height: 1; }
     #calMonthLabel { flex: 1 1 0; min-width: 0; font-size: 16.5px; overflow: hidden; text-overflow: ellipsis; }
+    .cal-nav-view-row { align-items: center; }
     .cal-pill-btn { padding: 9px 11px; font-size: 12.5px; white-space: nowrap; }
     .cal-jump-drop { left: auto; right: 0; transform: none; min-width: 230px; }
     .cal-jump-opt { padding: 11px 10px; font-size: 14.5px; }
     .cal-jump-pick .cal-filter-apply { padding: 9px 14px; }
-    .cal-view-seg { display: flex; width: 100%; }
-    .cal-view-seg button { flex: 1 1 0; padding: 9px 4px; font-size: 13px; }
+    /* view switch becomes a dropdown button next to Search Date */
+    .cal-nav-right { order: unset; flex: 0 0 auto; }
+    .cal-view-seg { display: none; }
+    .cal-view-hamburger { display: flex !important; }
+    .cal-view-hamburger-menu { position: absolute; top: 100%; right: 0; background: var(--bg-raised); border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.18); z-index: 600; min-width: 140px; padding: 6px 0; margin-top: 4px; }
+    .cal-view-hamburger-menu button { display: block; width: 100%; text-align: left; padding: 12px 16px; font-size: 14.5px; font-weight: 500; border: none; background: none; color: var(--ink); cursor: pointer; font-family: inherit; }
+    .cal-view-hamburger-menu button:hover { background: var(--bg); }
+    .cal-view-hamburger-menu button.active { color: var(--pine); font-weight: 700; }
     .cal-add-event-btn { flex: 1 1 0; padding: 11px 12px; font-size: 14px; }
     .cal-search-events-btn { padding: 10px 14px; font-size: 14px; }
     .cal-refresh-btn { width: 42px; height: 42px; }
@@ -1193,7 +1220,6 @@
   /* the very smallest phones (320px) */
   @media (max-width: 359px) {
     .topnav .topbar { gap: 4px; }
-    .topbar a, .topbar button.link { padding: 11px 7px; font-size: 12px; }
     .m-panes { gap: 3px; padding-left: 4px; padding-right: 4px; }
     .m-panes button { font-size: 12px; }
     .m-badge { margin-left: 3px; min-width: 16px; padding: 1px 4px; }
@@ -1338,13 +1364,13 @@
 
     var bar = el("div", "topbar");
     boardsNavLink = el("a", "", { href: "#boards", text: "Boards" });
-    boardsNavLink.addEventListener("click", function (e) { routedClick(e, "#boards"); });
+    boardsNavLink.addEventListener("click", function (e) { routedClick(e, "#boards"); closeNavMenu(); });
     bar.appendChild(boardsNavLink);
     calNavLink = el("a", "", { href: "#calendar", text: "Calendar" });
-    calNavLink.addEventListener("click", function (e) { routedClick(e, "#calendar"); });
+    calNavLink.addEventListener("click", function (e) { routedClick(e, "#calendar"); closeNavMenu(); });
     bar.appendChild(calNavLink);
     adminLink = el("a", "", { href: "#admin", text: "Admin" });
-    adminLink.addEventListener("click", function (e) { routedClick(e, "#admin"); });
+    adminLink.addEventListener("click", function (e) { routedClick(e, "#admin"); closeNavMenu(); });
     adminLink.style.display = "none";
     bar.appendChild(adminLink);
     var logoutBtn = el("button", "link logout", { type: "button", text: "Log out" });
@@ -1352,6 +1378,47 @@
       fetch("/api/logout", { method: "POST" }).then(function () { window.location.href = "/login.html"; });
     });
     bar.appendChild(logoutBtn);
+
+    // Hamburger button (phones only — CSS hides it on desktop)
+    var hamburger = el("button", "nav-hamburger", { type: "button", "aria-label": "Menu" });
+    hamburger.innerHTML = "&#9776;";
+    var navMenuOpen = false;
+    var navMenu = null;
+    function closeNavMenu() { if (navMenu) { navMenu.remove(); navMenu = null; navMenuOpen = false; } }
+    hamburger.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (navMenuOpen) { closeNavMenu(); return; }
+      navMenuOpen = true;
+      navMenu = el("div", "nav-hamburger-menu");
+      navMenu.addEventListener("click", function (ev) { ev.stopPropagation(); });
+      // clone the nav links into the dropdown
+      var bLink = el("a", "", { href: "#boards", text: "Boards" });
+      bLink.addEventListener("click", function (ev) { routedClick(ev, "#boards"); closeNavMenu(); });
+      navMenu.appendChild(bLink);
+      var cLink = el("a", "", { href: "#calendar", text: "Calendar" });
+      cLink.addEventListener("click", function (ev) { routedClick(ev, "#calendar"); closeNavMenu(); });
+      navMenu.appendChild(cLink);
+      var aLink = el("a", "", { href: "#admin", text: "Admin" });
+      aLink.addEventListener("click", function (ev) { routedClick(ev, "#admin"); closeNavMenu(); });
+      if (adminLink && adminLink.style.display === "none") aLink.style.display = "none";
+      navMenu.appendChild(aLink);
+      // keep a reference so setAdmin can toggle it
+      hamburger._menuAdminLink = aLink;
+      var lBtn = el("button", "logout", { type: "button", text: "Log out" });
+      lBtn.addEventListener("click", function () {
+        fetch("/api/logout", { method: "POST" }).then(function () { window.location.href = "/login.html"; });
+      });
+      navMenu.appendChild(lBtn);
+      bar.appendChild(navMenu);
+      // mark the active view
+      var hash = window.location.hash;
+      bLink.classList.toggle("active", hash === "#boards" || hash === "" || hash === "#");
+      cLink.classList.toggle("active", hash === "#calendar");
+      aLink.classList.toggle("active", hash === "#admin");
+    });
+    document.addEventListener("click", function () { closeNavMenu(); });
+    bar.appendChild(hamburger);
+
     root.appendChild(bar);
     if (window.AveniumNav && window.AveniumNav.markActive) window.AveniumNav.markActive();
   }
@@ -1359,6 +1426,9 @@
   window.AveniumNav = {
     setAdmin: function (isAdmin) {
       if (adminLink) adminLink.style.display = isAdmin ? "" : "none";
+      // also update the hamburger menu's admin link if it exists
+      var hb = document.querySelector(".nav-hamburger");
+      if (hb && hb._menuAdminLink) hb._menuAdminLink.style.display = isAdmin ? "" : "none";
     },
     // Highlights whichever of Boards/Admin matches the current URL hash, so the
     // active view's button reads as "selected" the way tabs do.
@@ -1507,6 +1577,7 @@
             </div>
           </div>
         </div>
+        <button id="calViewHamburger" type="button" class="cal-view-hamburger" aria-label="View">&#9776;</button>
       </div>
     </div>
     <div class="cal-nav-right">
@@ -2413,6 +2484,40 @@
     }
     tabsRow.appendChild(addWrap);
 
+    // Board hamburger bar (phones only — CSS hides it on desktop)
+    var boardHamBar = el("div", "board-hamburger-bar");
+    var currentBoardName = "All boards";
+    if (selectedBoardId !== "__all__") {
+      var selBoard = boardsInTabOrder().find(function (b) { return b.id === selectedBoardId; });
+      if (selBoard) currentBoardName = selBoard.name;
+    }
+    var boardHamLabel = el("span", "board-hamburger-label", { text: currentBoardName });
+    boardHamBar.appendChild(boardHamLabel);
+    var boardHamBtn = el("button", "board-hamburger-btn", { type: "button", "aria-label": "Switch board" });
+    boardHamBtn.innerHTML = "&#9776;";
+    var boardMenuOpen = false;
+    var boardMenu = null;
+    function closeBoardMenu() { if (boardMenu) { boardMenu.remove(); boardMenu = null; boardMenuOpen = false; } }
+    boardHamBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (boardMenuOpen) { closeBoardMenu(); return; }
+      boardMenuOpen = true;
+      boardMenu = el("div", "board-hamburger-menu");
+      boardMenu.addEventListener("click", function (ev) { ev.stopPropagation(); });
+      var allOpt = el("button", selectedBoardId === "__all__" ? "active" : "", { type: "button", text: "All boards" });
+      allOpt.addEventListener("click", function () { selectedBoardId = "__all__"; selectedItemId = null; localStorage.setItem("daily-board-selected-board", selectedBoardId); closeBoardMenu(); render(); });
+      boardMenu.appendChild(allOpt);
+      boardsInTabOrder().forEach(function (b) {
+        var opt = el("button", selectedBoardId === b.id ? "active" : "", { type: "button", text: b.name });
+        opt.addEventListener("click", function () { selectedBoardId = b.id; selectedItemId = null; localStorage.setItem("daily-board-selected-board", selectedBoardId); closeBoardMenu(); render(); });
+        boardMenu.appendChild(opt);
+      });
+      boardHamBtn.appendChild(boardMenu);
+    });
+    document.addEventListener("click", function () { closeBoardMenu(); });
+    boardHamBar.appendChild(boardHamBtn);
+    mount.appendChild(boardHamBar);
+
     // Search input, right-aligned in the tab strip
     var searchSpacer = el("span", "board-search-spacer");
     mount.appendChild(searchSpacer);
@@ -2822,7 +2927,8 @@
   }
 
   function renderItem(item) {
-    var isCollapsed = !!getCollapsedItems()[item.id];
+    var cMap = getCollapsedItems();
+    var isCollapsed = cMap.hasOwnProperty(item.id) ? !!cMap[item.id] : true;
     var row = el("div", "item" + ((item.archived || item.completed) ? " is-done" : "") + (item.id === selectedItemId ? " selected" : "") + (isCollapsed ? " item-collapsed" : ""));
     var main = el("div", "item-main");
 
@@ -4085,6 +4191,33 @@
       [].forEach.call(document.querySelectorAll("#calViewSeg button"), function (b) {
         b.onclick = function () { setCalView(b.dataset.view); };
       });
+      // Hamburger menu for Day/Week/Month/Year on phones
+      (function () {
+        var hBtn = document.getElementById("calViewHamburger");
+        if (!hBtn) return;
+        var menuOpen = false;
+        var menu = null;
+        function closeMenu() { if (menu) { menu.remove(); menu = null; menuOpen = false; } }
+        hBtn.addEventListener("click", function (e) {
+          e.stopPropagation();
+          if (menuOpen) { closeMenu(); return; }
+          menuOpen = true;
+          menu = document.createElement("div");
+          menu.className = "cal-view-hamburger-menu";
+          menu.addEventListener("click", function (ev) { ev.stopPropagation(); });
+          ["day", "week", "month", "year"].forEach(function (v) {
+            var btn = document.createElement("button");
+            btn.type = "button";
+            btn.textContent = v.charAt(0).toUpperCase() + v.slice(1);
+            btn.dataset.view = v;
+            if (v === calView) btn.classList.add("active");
+            btn.addEventListener("click", function () { setCalView(v); closeMenu(); });
+            menu.appendChild(btn);
+          });
+          hBtn.appendChild(menu);
+        });
+        document.addEventListener("click", function () { closeMenu(); });
+      })();
       // keep the "now" line in Day / Week moving
       setInterval(function () {
         var line = document.querySelector("#calAltView .cal-tg-now");
