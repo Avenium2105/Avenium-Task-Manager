@@ -456,6 +456,8 @@
   .cal-options-drop label { display: flex; align-items: center; gap: 8px; padding: 8px 14px; font-size: 13px; color: var(--ink); cursor: pointer; white-space: nowrap; }
   .cal-options-drop label:hover { background: var(--pine-soft); }
   .cal-options-drop label .opt-note { font-size: 11px; color: var(--ink-faint); font-weight: 400; margin-left: auto; }
+  .cal-zmanim-subs { padding: 2px 0 4px 22px; border-top: 1px solid var(--line-soft); margin-top: 2px; }
+  .cal-zmanim-sub-hdr { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--pine); padding: 6px 0 2px; }
   .cal-learning-subs { padding: 2px 0 4px 22px; border-top: 1px solid var(--line-soft); margin-top: 2px; }
   .cal-learn-sub { display: flex; align-items: center; gap: 6px; padding: 5px 14px 5px 0; font-size: 12.5px; color: var(--ink-soft); cursor: pointer; white-space: nowrap; }
   .cal-learn-sub:hover { color: var(--ink); }
@@ -1546,8 +1548,34 @@
       <div class="cal-options-drop" id="calOptionsDrop">
         <label><input id="calHebrewToggle" type="checkbox" style="width:auto;cursor:pointer;"> Jewish calendar dates</label>
         <label><input id="calZmanimToggle" type="checkbox" style="width:auto;cursor:pointer;"> Show Zmanim <span class="opt-note">Day view</span></label>
-        <div class="cal-zmanim-loc" id="calZmanimLoc" style="display:none;">
+        <div class="cal-zmanim-subs" id="calZmanimSubs" style="display:none;">
           <label class="cal-learn-sub" style="align-items:center;gap:6px;">Location <input id="calZmanimZip" type="text" placeholder="ZIP code" style="width:80px;padding:4px 6px;font-size:12px;border:1px solid var(--line-soft);border-radius:4px;"> <button type="button" id="calZmanimZipSave" style="font-size:11px;padding:3px 8px;border:1px solid var(--line-soft);border-radius:4px;background:var(--bg-card);cursor:pointer;">Save</button> <span id="calZmanimLocName" style="font-size:11px;color:var(--ink-soft);"></span></label>
+          <div class="cal-zmanim-sub-hdr">Dawn / Sunrise</div>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="chatzotNight" style="width:auto;cursor:pointer;"> Chatzot HaLailah</label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="alotHaShachar" style="width:auto;cursor:pointer;" checked> Alot HaShachar</label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="misheyakir" style="width:auto;cursor:pointer;" checked> Misheyakir</label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="misheyakirMachmir" style="width:auto;cursor:pointer;"> Misheyakir Machmir</label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="dawn" style="width:auto;cursor:pointer;"> Dawn</label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="sunrise" style="width:auto;cursor:pointer;" checked> Sunrise</label>
+          <div class="cal-zmanim-sub-hdr">Shema & Tefillah</div>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="sofZmanShma" style="width:auto;cursor:pointer;" checked> Sof Zman Shma <span class="opt-note">GRA</span></label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="sofZmanShmaMGA" style="width:auto;cursor:pointer;" checked> Sof Zman Shma <span class="opt-note">MGA</span></label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="sofZmanTfilla" style="width:auto;cursor:pointer;" checked> Sof Zman Tfilla <span class="opt-note">GRA</span></label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="sofZmanTfillaMGA" style="width:auto;cursor:pointer;"> Sof Zman Tfilla <span class="opt-note">MGA</span></label>
+          <div class="cal-zmanim-sub-hdr">Midday / Afternoon</div>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="chatzot" style="width:auto;cursor:pointer;" checked> Chatzot</label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="minchaGedola" style="width:auto;cursor:pointer;" checked> Mincha Gedola</label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="minchaKetana" style="width:auto;cursor:pointer;" checked> Mincha Ketana</label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="plagHaMincha" style="width:auto;cursor:pointer;" checked> Plag HaMincha</label>
+          <div class="cal-zmanim-sub-hdr">Evening / Nightfall</div>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="sunset" style="width:auto;cursor:pointer;" checked> Sunset</label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="beinHaShmashos" style="width:auto;cursor:pointer;"> Bein HaShmashos</label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="dusk" style="width:auto;cursor:pointer;"> Dusk</label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="tzeit7083deg" style="width:auto;cursor:pointer;" checked> Tzeit HaKochavim</label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="tzeit85deg" style="width:auto;cursor:pointer;"> Tzeit <span class="opt-note">85°</span></label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="tzeit42min" style="width:auto;cursor:pointer;"> Tzeit <span class="opt-note">42 min</span></label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="tzeit50min" style="width:auto;cursor:pointer;"> Tzeit <span class="opt-note">50 min</span></label>
+          <label class="cal-learn-sub"><input type="checkbox" data-zman="tzeit72min" style="width:auto;cursor:pointer;" checked> Tzeit <span class="opt-note">72 min</span></label>
         </div>
         <label><input id="calLearningToggle" type="checkbox" style="width:auto;cursor:pointer;"> Daily learning <span class="opt-note">Day view</span></label>
         <div class="cal-learning-subs" id="calLearningSubs" style="display:none;">
@@ -4105,6 +4133,8 @@
   var showDailyLearning = false; // toggled from Admin Options, day view only
   // Which learning schedules are enabled — keys are hebcal params, values are booleans
   var learningSchedules = { F: true, o: true, s: true }; // defaults: Daf Yomi, Omer, Parsha
+  // Which zmanim fields to show — keys match the API response fields
+  var zmanimFields = { chatzotNight: false, alotHaShachar: true, misheyakir: true, misheyakirMachmir: false, dawn: false, sunrise: true, sofZmanShma: true, sofZmanShmaMGA: true, sofZmanTfilla: true, sofZmanTfillaMGA: false, chatzot: true, minchaGedola: true, minchaKetana: true, plagHaMincha: true, sunset: true, beinHaShmashos: false, dusk: false, tzeit7083deg: true, tzeit85deg: false, tzeit42min: false, tzeit50min: false, tzeit72min: true };
   var zmanimZip = "";          // user's preferred zip code for zmanim location
   var dayViewMode = "cal";     // "cal" = calendar events, "zmanim" = zmanim panel, "learning" = learning panel
   var boardSearchQuery = "";   // boards search filter (trimmed, lowercase)
@@ -4147,6 +4177,7 @@
       showZmanim = !!d.showZmanim;
       showDailyLearning = !!d.showDailyLearning;
       if (d.learningSchedules && typeof d.learningSchedules === "object") learningSchedules = d.learningSchedules;
+      if (d.zmanimFields && typeof d.zmanimFields === "object") zmanimFields = d.zmanimFields;
       zmanimZip = d.zmanimZip || "";
       assignCalendarColors();
       return d;
@@ -4189,8 +4220,13 @@
     if (hebToggle) hebToggle.checked = showHebrewDates;
     var zmToggle = document.getElementById("calZmanimToggle");
     if (zmToggle) zmToggle.checked = showZmanim;
-    var zmLocWrap = document.getElementById("calZmanimLoc");
-    if (zmLocWrap) zmLocWrap.style.display = showZmanim ? "" : "none";
+    var zmSubs = document.getElementById("calZmanimSubs");
+    if (zmSubs) {
+      zmSubs.style.display = showZmanim ? "" : "none";
+      zmSubs.querySelectorAll("input[data-zman]").forEach(function (inp) {
+        inp.checked = !!zmanimFields[inp.getAttribute("data-zman")];
+      });
+    }
     var zmZipInput = document.getElementById("calZmanimZip");
     if (zmZipInput) zmZipInput.value = zmanimZip;
     var dlToggle = document.getElementById("calLearningToggle");
@@ -4288,8 +4324,8 @@
     showZmanim = this.checked;
     if (showZmanim) dayViewMode = "zmanim"; // switch to zmanim view when enabling
     fetch("/api/calendar/show-zmanim", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ show: showZmanim }) });
-    var zmLocWrap = document.getElementById("calZmanimLoc");
-    if (zmLocWrap) zmLocWrap.style.display = showZmanim ? "" : "none";
+    var zmSubs = document.getElementById("calZmanimSubs");
+    if (zmSubs) zmSubs.style.display = showZmanim ? "" : "none";
     calMonthCache = {};
     updateQuickToggles();
     if (calView === "day") renderCalendarBody();
@@ -4313,6 +4349,15 @@
     if (subs) subs.style.display = showDailyLearning ? "" : "none";
     calMonthCache = {}; learningCache = {};
     updateQuickToggles();
+    if (calView === "day") renderCalendarBody();
+  });
+  // Zmanim field checkboxes
+  document.getElementById("calZmanimSubs").addEventListener("change", function (e) {
+    var inp = e.target;
+    if (!inp.hasAttribute("data-zman")) return;
+    zmanimFields[inp.getAttribute("data-zman")] = inp.checked;
+    fetch("/api/calendar/zmanim-fields", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fields: zmanimFields }) });
+    zmanimCache = {};
     if (calView === "day") renderCalendarBody();
   });
   // Sub-schedule checkboxes
@@ -5631,38 +5676,38 @@
         }
         var sections = [
           { label: "Dawn / Sunrise", rows: [
-            ["Chatzot HaLailah", z.chatzotNight],
-            ["Alot HaShachar", z.alotHaShachar],
-            ["Misheyakir", z.misheyakir],
-            ["Misheyakir Machmir", z.misheyakirMachmir],
-            ["Dawn", z.dawn],
-            ["Sunrise", z.sunrise]
+            ["Chatzot HaLailah", z.chatzotNight, "chatzotNight"],
+            ["Alot HaShachar", z.alotHaShachar, "alotHaShachar"],
+            ["Misheyakir", z.misheyakir, "misheyakir"],
+            ["Misheyakir Machmir", z.misheyakirMachmir, "misheyakirMachmir"],
+            ["Dawn", z.dawn, "dawn"],
+            ["Sunrise", z.sunrise, "sunrise"]
           ]},
           { label: "Shema & Tefillah", rows: [
-            ["Sof Zman Shma (GRA)", z.sofZmanShma],
-            ["Sof Zman Shma (MGA)", z.sofZmanShmaMGA],
-            ["Sof Zman Tfilla (GRA)", z.sofZmanTfilla],
-            ["Sof Zman Tfilla (MGA)", z.sofZmanTfillaMGA]
+            ["Sof Zman Shma (GRA)", z.sofZmanShma, "sofZmanShma"],
+            ["Sof Zman Shma (MGA)", z.sofZmanShmaMGA, "sofZmanShmaMGA"],
+            ["Sof Zman Tfilla (GRA)", z.sofZmanTfilla, "sofZmanTfilla"],
+            ["Sof Zman Tfilla (MGA)", z.sofZmanTfillaMGA, "sofZmanTfillaMGA"]
           ]},
           { label: "Midday / Afternoon", rows: [
-            ["Chatzot", z.chatzot],
-            ["Mincha Gedola", z.minchaGedola],
-            ["Mincha Ketana", z.minchaKetana],
-            ["Plag HaMincha", z.plagHaMincha]
+            ["Chatzot", z.chatzot, "chatzot"],
+            ["Mincha Gedola", z.minchaGedola, "minchaGedola"],
+            ["Mincha Ketana", z.minchaKetana, "minchaKetana"],
+            ["Plag HaMincha", z.plagHaMincha, "plagHaMincha"]
           ]},
           { label: "Evening / Nightfall", rows: [
-            ["Sunset", z.sunset],
-            ["Bein HaShmashos", z.beinHaShmashos],
-            ["Dusk", z.dusk],
-            ["Tzeit HaKochavim", z.tzeit7083deg],
-            ["Tzeit (85°)", z.tzeit85deg],
-            ["Tzeit (42 min)", z.tzeit42min],
-            ["Tzeit (50 min)", z.tzeit50min],
-            ["Tzeit (72 min)", z.tzeit72min]
+            ["Sunset", z.sunset, "sunset"],
+            ["Bein HaShmashos", z.beinHaShmashos, "beinHaShmashos"],
+            ["Dusk", z.dusk, "dusk"],
+            ["Tzeit HaKochavim", z.tzeit7083deg, "tzeit7083deg"],
+            ["Tzeit (85°)", z.tzeit85deg, "tzeit85deg"],
+            ["Tzeit (42 min)", z.tzeit42min, "tzeit42min"],
+            ["Tzeit (50 min)", z.tzeit50min, "tzeit50min"],
+            ["Tzeit (72 min)", z.tzeit72min, "tzeit72min"]
           ]}
         ];
         sections.forEach(function (sec) {
-          var visibleRows = sec.rows.filter(function (r) { return r[1] !== null; });
+          var visibleRows = sec.rows.filter(function (r) { return r[1] !== null && zmanimFields[r[2]] !== false; });
           if (!visibleRows.length) return;
           var hdr = el("span", "zmanim-section-hdr", { text: sec.label });
           hdr.style.gridColumn = "1 / -1";
