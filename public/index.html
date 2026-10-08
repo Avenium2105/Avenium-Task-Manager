@@ -448,11 +448,17 @@
 
   /* ---- Calendar connections (Admin page) ---- */
   .cal-settings-title { text-align: center; margin-top: 36px; margin-bottom: 16px; }
-  .cal-options-row { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+  .cal-options-wrap { position: relative; }
+  .cal-options-trigger { font-family: inherit; font-size: 13px; font-weight: 500; padding: 7px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-raised); color: var(--ink); cursor: pointer; }
+  .cal-options-trigger:hover { border-color: var(--pine); color: var(--pine); }
+  .cal-options-dropdown { position: absolute; right: 0; top: calc(100% + 4px); background: var(--bg-raised); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 20px rgba(0,0,0,.12); z-index: 50; min-width: 200px; padding: 6px 0; }
+  .cal-opt-drop-item { display: flex; align-items: center; gap: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .cal-opt-drop-item:hover { background: var(--pine-soft); }
   .cal-opt-toggle { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; cursor: pointer; }
   .cal-opt-settings-btn { background: none; border: none; font-size: 15px; cursor: pointer; color: var(--ink-soft); padding: 0 2px; line-height: 1; }
   .cal-opt-settings-btn:hover { color: var(--pine); }
-  .cal-admin-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .cal-admin-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .cal-admin-subtitle { margin: 0 0 10px; }
   .cal-admin-subtitle { margin: 0; font-size: 15px; font-weight: 600; }
   .cal-add-wrap { position: relative; }
   .cal-add-trigger { font-family: inherit; font-size: 13px; font-weight: 500; color: var(--pine); background: none; border: 1px dashed var(--line); border-radius: var(--radius); padding: 6px 14px; cursor: pointer; }
@@ -597,6 +603,7 @@
   .cal-day-info-panel h4 { margin: 0 0 6px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--pine); }
   .cal-day-info-hdr { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
   .cal-day-info-hdr h4 { margin: 0; }
+  .zmanim-loc-row { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
   .zmanim-loc-btn { font-size: 11px; color: var(--pine); cursor: pointer; font-weight: 500; }
   .zmanim-loc-btn:hover { text-decoration: underline; }
   .zmanim-candle-hdr { color: var(--ochre); }
@@ -608,7 +615,7 @@
   .cal-zmanim-grid .zl { color: var(--ink-soft); }
   .cal-zmanim-grid .zt { font-weight: 600; color: var(--ink); text-align: right; }
   .zmanim-section-hdr { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--pine); margin-top: 6px; padding-bottom: 1px; border-bottom: 1px solid var(--line-soft); }
-  .zmanim-loc-label { grid-column: 1 / -1; font-size: 11px; color: var(--ink-soft); margin-bottom: 4px; font-style: italic; }
+  .zmanim-loc-label { font-size: 11px; color: var(--ink-soft); font-style: italic; }
   .cal-learning-row { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
   .cal-learning-row .ll { color: var(--ink-soft); min-width: 70px; }
   .cal-learning-row .lv { font-weight: 600; color: var(--ink); }
@@ -1094,7 +1101,7 @@
     .cal-acct-cals { flex-direction: column; gap: 0; font-size: 13px; margin-top: 4px; }
     .cal-toggle { padding: 5px 0; gap: 7px; }
     .cal-hebrew-toggle { font-size: 13.5px !important; padding: 2px 0; }
-    .cal-options-row { gap: 12px; }
+    .cal-options-dropdown { min-width: 180px; }
     .cal-settings-modal { width: 92vw; }
     .admin-wrap .add-user-btn { width: 100%; padding: 10px 14px; font-size: 13.5px; }
     .admin-wrap .activity-toggle button { font-size: 14px; padding: 10px 0; }
@@ -1114,8 +1121,10 @@
     .cal-search-events-btn { padding: 10px 12px !important; min-width: 42px; justify-content: center; margin-left: auto; }
     .cal-search-events-btn .cal-search-word { display: none; }
     .cal-nav-left { flex-wrap: wrap; }
-    /* Zmanim / Learning quick-toggle buttons (mobile day view) */
-    .cal-quick-toggle { display: none; font-family: inherit; font-size: 12px; font-weight: 600; padding: 10px 10px; border: 1px solid var(--pine); border-radius: 8px; background: var(--bg-raised); color: var(--pine); cursor: pointer; white-space: nowrap; }
+    /* Zmanim / Learning quick-toggle buttons (mobile day view) — bottom bar */
+    .cal-quick-toggle-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 90; background: var(--bg-raised); border-top: 1px solid var(--line); padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); gap: 6px; }
+    .cal-quick-toggle-bar.visible { display: flex; }
+    .cal-quick-toggle { display: none; font-family: inherit; font-size: 12px; font-weight: 600; padding: 10px 10px; border: 1px solid var(--pine); border-radius: 8px; background: var(--bg-raised); color: var(--pine); cursor: pointer; white-space: nowrap; flex: 1; justify-content: center; }
     .cal-quick-toggle.visible { display: inline-flex; align-items: center; gap: 4px; }
     .cal-quick-toggle.active { background: var(--pine); color: #fff; }
 
@@ -1562,18 +1571,7 @@
 
   <h2 class="cal-settings-title">Calendar Settings</h2>
 
-  <div class="cal-options-row">
-    <label class="cal-opt-toggle"><input id="calHebrewToggle" type="checkbox" style="width:auto;cursor:pointer;"> Jewish Dates</label>
-    <label class="cal-opt-toggle"><input id="calZmanimToggle" type="checkbox" style="width:auto;cursor:pointer;"> Zmanim
-      <button type="button" class="cal-opt-settings-btn" id="calZmanimSettingsBtn" style="display:none;" title="Zmanim settings">&#9881;</button>
-    </label>
-    <label class="cal-opt-toggle"><input id="calLearningToggle" type="checkbox" style="width:auto;cursor:pointer;"> Limudim
-      <button type="button" class="cal-opt-settings-btn" id="calLimudimSettingsBtn" style="display:none;" title="Limudim settings">&#9881;</button>
-    </label>
-  </div>
-
   <div class="cal-admin-header">
-    <h3 class="cal-admin-subtitle">Calendars</h3>
     <div class="cal-add-wrap">
       <button type="button" class="cal-add-trigger" id="calAddBtn">+ Add Calendar</button>
       <div class="cal-add-dropdown" id="calAddDrop" style="display:none;">
@@ -1581,76 +1579,23 @@
         <button type="button" id="calAddMicrosoftBtn" class="cal-add-drop-item">Outlook</button>
       </div>
     </div>
+    <div class="cal-options-wrap">
+      <button type="button" class="cal-options-trigger" id="calOptionsBtn">Options ▾</button>
+      <div class="cal-options-dropdown" id="calOptionsDrop" style="display:none;">
+        <label class="cal-opt-drop-item"><input id="calHebrewToggle" type="checkbox" style="width:auto;cursor:pointer;"> Jewish Dates</label>
+        <label class="cal-opt-drop-item"><input id="calZmanimToggle" type="checkbox" style="width:auto;cursor:pointer;"> Zmanim
+          <button type="button" class="cal-opt-settings-btn" id="calZmanimSettingsBtn" style="display:none;" title="Zmanim settings">&#9881;</button>
+        </label>
+        <label class="cal-opt-drop-item"><input id="calLearningToggle" type="checkbox" style="width:auto;cursor:pointer;"> Limudim
+          <button type="button" class="cal-opt-settings-btn" id="calLimudimSettingsBtn" style="display:none;" title="Limudim settings">&#9881;</button>
+        </label>
+      </div>
+    </div>
   </div>
+
+  <h3 class="cal-admin-subtitle">Calendars</h3>
   <div class="cal-admin-notice" id="calAdminNotice" style="display:none;"></div>
   <div class="cal-admin-list" id="calAdminList"></div>
-
-  <!-- Zmanim settings modal -->
-  <div class="cal-settings-modal-overlay" id="zmanimModalOverlay" style="display:none;">
-    <div class="cal-settings-modal">
-      <div class="cal-settings-modal-hdr">
-        <h3>Zmanim Settings</h3>
-        <button type="button" class="cal-settings-modal-close" id="zmanimModalClose">&times;</button>
-      </div>
-      <div class="cal-settings-modal-body" id="calZmanimSubs">
-        <label class="cal-learn-sub" style="align-items:center;gap:6px;">Location <input id="calZmanimZip" type="text" placeholder="ZIP code" style="width:80px;padding:4px 6px;font-size:12px;border:1px solid var(--line-soft);border-radius:4px;"> <button type="button" id="calZmanimZipSave" style="font-size:11px;padding:3px 8px;border:1px solid var(--line-soft);border-radius:4px;background:var(--bg-card);cursor:pointer;">Save</button> <span id="calZmanimLocName" style="font-size:11px;color:var(--ink-soft);"></span></label>
-        <div class="cal-zmanim-sub-hdr">Dawn / Sunrise</div>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="chatzotNight" style="width:auto;cursor:pointer;"> Chatzot HaLailah</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="alotHaShachar" style="width:auto;cursor:pointer;" checked> Alot HaShachar</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="misheyakir" style="width:auto;cursor:pointer;" checked> Misheyakir</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="misheyakirMachmir" style="width:auto;cursor:pointer;"> Misheyakir Machmir</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="dawn" style="width:auto;cursor:pointer;"> Dawn</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="sunrise" style="width:auto;cursor:pointer;" checked> Sunrise</label>
-        <div class="cal-zmanim-sub-hdr">Shema & Tefillah</div>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="sofZmanShmaMGA" style="width:auto;cursor:pointer;" checked> Sof Zman Shma <span class="opt-note">MGA</span></label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="sofZmanShma" style="width:auto;cursor:pointer;" checked> Sof Zman Shma <span class="opt-note">GRA</span></label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="sofZmanTfillaMGA" style="width:auto;cursor:pointer;"> Sof Zman Tfilla <span class="opt-note">MGA</span></label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="sofZmanTfilla" style="width:auto;cursor:pointer;" checked> Sof Zman Tfilla <span class="opt-note">GRA</span></label>
-        <div class="cal-zmanim-sub-hdr">Midday / Afternoon</div>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="chatzot" style="width:auto;cursor:pointer;" checked> Chatzot</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="minchaGedola" style="width:auto;cursor:pointer;" checked> Mincha Gedola</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="minchaKetana" style="width:auto;cursor:pointer;" checked> Mincha Ketana</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="plagHaMincha" style="width:auto;cursor:pointer;" checked> Plag HaMincha</label>
-        <div class="cal-zmanim-sub-hdr">Evening / Nightfall</div>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="sunset" style="width:auto;cursor:pointer;" checked> Sunset</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="beinHaShmashos" style="width:auto;cursor:pointer;"> Bein HaShmashos</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="dusk" style="width:auto;cursor:pointer;"> Dusk</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="tzeit7083deg" style="width:auto;cursor:pointer;" checked> Tzeit HaKochavim</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="tzeit85deg" style="width:auto;cursor:pointer;"> Tzeit <span class="opt-note">85°</span></label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="tzeit42min" style="width:auto;cursor:pointer;"> Tzeit <span class="opt-note">42 min</span></label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="tzeit50min" style="width:auto;cursor:pointer;"> Tzeit <span class="opt-note">50 min</span></label>
-        <label class="cal-learn-sub"><input type="checkbox" data-zman="tzeit72min" style="width:auto;cursor:pointer;" checked> Tzeit <span class="opt-note">72 min</span></label>
-      </div>
-    </div>
-  </div>
-
-  <!-- Limudim settings modal -->
-  <div class="cal-settings-modal-overlay" id="limudimModalOverlay" style="display:none;">
-    <div class="cal-settings-modal">
-      <div class="cal-settings-modal-hdr">
-        <h3>Limudim Settings</h3>
-        <button type="button" class="cal-settings-modal-close" id="limudimModalClose">&times;</button>
-      </div>
-      <div class="cal-settings-modal-body" id="calLearningSubs">
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="F" style="width:auto;cursor:pointer;" checked> Daf Yomi</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="dw" style="width:auto;cursor:pointer;"> Daf-a-Week</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="yyomi" style="width:auto;cursor:pointer;"> Yerushalmi Yomi <span class="opt-note">Vilna</span></label>
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="myomi" style="width:auto;cursor:pointer;"> Mishna Yomi</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="nyomi" style="width:auto;cursor:pointer;"> Nach Yomi</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="dty" style="width:auto;cursor:pointer;"> Tanakh Yomi</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="dps" style="width:auto;cursor:pointer;"> Daily Tehillim</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="dr1" style="width:auto;cursor:pointer;"> Rambam <span class="opt-note">1 ch.</span></label>
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="dr3" style="width:auto;cursor:pointer;"> Rambam <span class="opt-note">3 ch.</span></label>
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="dsm" style="width:auto;cursor:pointer;"> Sefer HaMitzvot</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="dksa" style="width:auto;cursor:pointer;"> Kitzur Shulchan Arukh</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="ahsy" style="width:auto;cursor:pointer;"> Arukh HaShulchan</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="dcc" style="width:auto;cursor:pointer;"> Chofetz Chaim</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="dshl" style="width:auto;cursor:pointer;"> Shemirat HaLashon</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="o" style="width:auto;cursor:pointer;" checked> Sefirat HaOmer</label>
-        <label class="cal-learn-sub"><input type="checkbox" data-learn="s" style="width:auto;cursor:pointer;" checked> Parsha</label>
-      </div>
-    </div>
-  </div>
 
   <div class="activity-toggle" style="display:none;">
     <button id="activityToggleBtn" type="button">Show recent activity</button>
@@ -1658,6 +1603,72 @@
   <ul class="activity-list" id="activityList" style="display:none;"></ul>
 </div>
 
+<!-- Zmanim settings modal (outside adminView so position:fixed works) -->
+<div class="cal-settings-modal-overlay" id="zmanimModalOverlay" style="display:none;">
+  <div class="cal-settings-modal">
+    <div class="cal-settings-modal-hdr">
+      <h3>Zmanim Settings</h3>
+      <button type="button" class="cal-settings-modal-close" id="zmanimModalClose">&times;</button>
+    </div>
+    <div class="cal-settings-modal-body" id="calZmanimSubs">
+      <label class="cal-learn-sub" style="align-items:center;gap:6px;">Location <input id="calZmanimZip" type="text" placeholder="ZIP code" style="width:80px;padding:4px 6px;font-size:12px;border:1px solid var(--line-soft);border-radius:4px;"> <button type="button" id="calZmanimZipSave" style="font-size:11px;padding:3px 8px;border:1px solid var(--line-soft);border-radius:4px;background:var(--bg-card);cursor:pointer;">Save</button> <span id="calZmanimLocName" style="font-size:11px;color:var(--ink-soft);"></span></label>
+      <div class="cal-zmanim-sub-hdr">Dawn / Sunrise</div>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="chatzotNight" style="width:auto;cursor:pointer;"> Chatzot HaLailah</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="alotHaShachar" style="width:auto;cursor:pointer;" checked> Alot HaShachar</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="misheyakir" style="width:auto;cursor:pointer;" checked> Misheyakir</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="misheyakirMachmir" style="width:auto;cursor:pointer;"> Misheyakir Machmir</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="dawn" style="width:auto;cursor:pointer;"> Dawn</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="sunrise" style="width:auto;cursor:pointer;" checked> Sunrise</label>
+      <div class="cal-zmanim-sub-hdr">Shema & Tefillah</div>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="sofZmanShmaMGA" style="width:auto;cursor:pointer;" checked> Sof Zman Shma <span class="opt-note">MGA</span></label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="sofZmanShma" style="width:auto;cursor:pointer;" checked> Sof Zman Shma <span class="opt-note">GRA</span></label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="sofZmanTfillaMGA" style="width:auto;cursor:pointer;"> Sof Zman Tfilla <span class="opt-note">MGA</span></label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="sofZmanTfilla" style="width:auto;cursor:pointer;" checked> Sof Zman Tfilla <span class="opt-note">GRA</span></label>
+      <div class="cal-zmanim-sub-hdr">Midday / Afternoon</div>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="chatzot" style="width:auto;cursor:pointer;" checked> Chatzot</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="minchaGedola" style="width:auto;cursor:pointer;" checked> Mincha Gedola</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="minchaKetana" style="width:auto;cursor:pointer;" checked> Mincha Ketana</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="plagHaMincha" style="width:auto;cursor:pointer;" checked> Plag HaMincha</label>
+      <div class="cal-zmanim-sub-hdr">Evening / Nightfall</div>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="sunset" style="width:auto;cursor:pointer;" checked> Sunset</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="beinHaShmashos" style="width:auto;cursor:pointer;"> Bein HaShmashos</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="dusk" style="width:auto;cursor:pointer;"> Dusk</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="tzeit7083deg" style="width:auto;cursor:pointer;" checked> Tzeit HaKochavim</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="tzeit85deg" style="width:auto;cursor:pointer;"> Tzeit <span class="opt-note">85°</span></label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="tzeit42min" style="width:auto;cursor:pointer;"> Tzeit <span class="opt-note">42 min</span></label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="tzeit50min" style="width:auto;cursor:pointer;"> Tzeit <span class="opt-note">50 min</span></label>
+      <label class="cal-learn-sub"><input type="checkbox" data-zman="tzeit72min" style="width:auto;cursor:pointer;" checked> Tzeit <span class="opt-note">72 min</span></label>
+    </div>
+  </div>
+</div>
+
+<!-- Limudim settings modal (outside adminView so position:fixed works) -->
+<div class="cal-settings-modal-overlay" id="limudimModalOverlay" style="display:none;">
+  <div class="cal-settings-modal">
+    <div class="cal-settings-modal-hdr">
+      <h3>Limudim Settings</h3>
+      <button type="button" class="cal-settings-modal-close" id="limudimModalClose">&times;</button>
+    </div>
+    <div class="cal-settings-modal-body" id="calLearningSubs">
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="F" style="width:auto;cursor:pointer;" checked> Daf Yomi</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dw" style="width:auto;cursor:pointer;"> Daf-a-Week</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="yyomi" style="width:auto;cursor:pointer;"> Yerushalmi Yomi <span class="opt-note">Vilna</span></label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="myomi" style="width:auto;cursor:pointer;"> Mishna Yomi</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="nyomi" style="width:auto;cursor:pointer;"> Nach Yomi</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dty" style="width:auto;cursor:pointer;"> Tanakh Yomi</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dps" style="width:auto;cursor:pointer;"> Daily Tehillim</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dr1" style="width:auto;cursor:pointer;"> Rambam <span class="opt-note">1 ch.</span></label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dr3" style="width:auto;cursor:pointer;"> Rambam <span class="opt-note">3 ch.</span></label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dsm" style="width:auto;cursor:pointer;"> Sefer HaMitzvot</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dksa" style="width:auto;cursor:pointer;"> Kitzur Shulchan Arukh</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="ahsy" style="width:auto;cursor:pointer;"> Arukh HaShulchan</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dcc" style="width:auto;cursor:pointer;"> Chofetz Chaim</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dshl" style="width:auto;cursor:pointer;"> Shemirat HaLashon</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="o" style="width:auto;cursor:pointer;" checked> Sefirat HaOmer</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="s" style="width:auto;cursor:pointer;" checked> Parsha</label>
+    </div>
+  </div>
+</div>
 
 <!-- Calendar view -->
 <div id="calendarView" class="calendar-wrap" style="display:none;">
@@ -1671,9 +1682,6 @@
     <div class="cal-nav-left">
       <button id="calNewBtn" type="button" class="cal-add-event-btn">+ <span class="cal-add-word">Add Event</span></button>
       <button id="calRefreshBtn" type="button" class="cal-refresh-btn" title="Refresh — get the latest from Google and Outlook" aria-label="Refresh"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.6 2.2v3.2h-3.2"/></svg></button>
-      <button id="calQuickCal" type="button" class="cal-quick-toggle" title="Calendar events"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12"/><path d="M5.5 1.5v3"/><path d="M10.5 1.5v3"/></svg></button>
-      <button id="calQuickZmanim" type="button" class="cal-quick-toggle" title="Zmanim"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg></button>
-      <button id="calQuickLearning" type="button" class="cal-quick-toggle" title="Daily Learning"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h4.5a2.5 2.5 0 0 1 2.5 2.5V14a2 2 0 0 0-2-2H2z"/><path d="M14 3H9.5A2.5 2.5 0 0 0 7 5.5V14a2 2 0 0 1 2-2h5z"/></svg></button>
       <button id="calSearchBtn" type="button" class="cal-search-events-btn" title="Search every calendar"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span class="cal-search-word">Search events</span></button>
     </div>
     <div class="cal-nav-center">
@@ -1747,6 +1755,13 @@
   </div>
   </div>
   </div>
+  <!-- Mobile quick-toggle bottom bar (day view only) -->
+  <div class="cal-quick-toggle-bar" id="calQuickToggleBar">
+    <button id="calQuickCal" type="button" class="cal-quick-toggle" title="Schedule"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="12" height="11" rx="1.5"/><path d="M2 6.5h12"/><path d="M5.5 1.5v3"/><path d="M10.5 1.5v3"/></svg> Schedule</button>
+    <button id="calQuickZmanim" type="button" class="cal-quick-toggle" title="Zmanim"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M8 4v4l3 2"/></svg> Zmanim</button>
+    <button id="calQuickLearning" type="button" class="cal-quick-toggle" title="Limudim"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h4.5a2.5 2.5 0 0 1 2.5 2.5V14a2 2 0 0 0-2-2H2z"/><path d="M14 3H9.5A2.5 2.5 0 0 0 7 5.5V14a2 2 0 0 1 2-2h5z"/></svg> Limudim</button>
+  </div>
+
   <div class="cal-event-modal" id="calEventModal" style="display:none;">
     <div class="cal-event-modal-box">
       <div class="cal-event-modal-head">
@@ -4358,6 +4373,15 @@
     drop.addEventListener("click", function (e) { e.stopPropagation(); });
   })();
 
+  // Options dropdown toggle
+  (function () {
+    var btn = document.getElementById("calOptionsBtn");
+    var drop = document.getElementById("calOptionsDrop");
+    btn.addEventListener("click", function (e) { e.stopPropagation(); drop.style.display = drop.style.display === "none" ? "" : "none"; });
+    document.addEventListener("click", function () { drop.style.display = "none"; });
+    drop.addEventListener("click", function (e) { e.stopPropagation(); });
+  })();
+
   // Options: 3 toggles
   document.getElementById("calHebrewToggle").addEventListener("change", function () {
     showHebrewDates = this.checked;
@@ -4441,12 +4465,15 @@
 
   /* ── Mobile quick-toggle buttons: Calendar / Zmanim / Learning (mutually exclusive) ── */
   function updateQuickToggles() {
+    var bar = document.getElementById("calQuickToggleBar");
     var qc = document.getElementById("calQuickCal");
     var qz = document.getElementById("calQuickZmanim");
     var ql = document.getElementById("calQuickLearning");
     var isDayView = calView === "day";
     // All three visible in day view when at least one extra panel is enabled
     var anyPanel = showZmanim || showDailyLearning;
+    var showBar = isDayView && anyPanel && isPhone();
+    if (bar) bar.classList.toggle("visible", showBar);
     if (qc) { qc.classList.toggle("visible", isDayView && anyPanel); qc.classList.toggle("active", isDayView && dayViewMode === "cal"); }
     if (qz) { qz.classList.toggle("visible", isDayView && showZmanim); qz.classList.toggle("active", isDayView && dayViewMode === "zmanim"); }
     if (ql) { ql.classList.toggle("visible", isDayView && showDailyLearning); ql.classList.toggle("active", isDayView && dayViewMode === "learning"); }
@@ -5767,21 +5794,6 @@
       var zPanel = el("div", "cal-day-info-panel");
       var zHdr = el("div", "cal-day-info-hdr");
       zHdr.appendChild(el("h4", "", { text: "Zmanim" }));
-      var locBtn = el("span", "zmanim-loc-btn", { text: "Location", title: "Change location" });
-      locBtn.addEventListener("click", function () {
-        var cur = zmanimZip || "";
-        var val = window.prompt("Enter ZIP code for zmanim location:", cur);
-        if (val === null) return;
-        val = val.trim();
-        zmanimZip = val;
-        zmanimCache = {}; candleCache = {};
-        userGeo = null;
-        fetch("/api/calendar/zmanim-location", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ zip: val }) });
-        var zmZipInput = document.getElementById("calZmanimZip");
-        if (zmZipInput) zmZipInput.value = val;
-        if (calView === "day") renderCalendarBody();
-      });
-      zHdr.appendChild(locBtn);
       zPanel.appendChild(zHdr);
       var zBody = el("div", "cal-zmanim-grid");
       zBody.innerHTML = "<span class='cal-day-info-loading'>Loading…</span>";
@@ -5791,11 +5803,28 @@
       fetchZmanim(dateKey).then(function (z) {
         if (!z) { zBody.innerHTML = "<span class='cal-day-info-loading'>Unavailable</span>"; return; }
         zBody.innerHTML = "";
+        var locRow = el("div", "zmanim-loc-row");
         if (z.locationName) {
-          var locRow = el("div", "zmanim-loc-label");
-          locRow.textContent = z.locationName;
-          zBody.appendChild(locRow);
+          var locName = el("span", "zmanim-loc-label");
+          locName.textContent = z.locationName;
+          locRow.appendChild(locName);
         }
+        var locBtn = el("span", "zmanim-loc-btn", { text: "Change", title: "Change location" });
+        locBtn.addEventListener("click", function () {
+          var cur = zmanimZip || "";
+          var val = window.prompt("Enter ZIP code for zmanim location:", cur);
+          if (val === null) return;
+          val = val.trim();
+          zmanimZip = val;
+          zmanimCache = {}; candleCache = {};
+          userGeo = null;
+          fetch("/api/calendar/zmanim-location", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ zip: val }) });
+          var zmZipInput = document.getElementById("calZmanimZip");
+          if (zmZipInput) zmZipInput.value = val;
+          if (calView === "day") renderCalendarBody();
+        });
+        locRow.appendChild(locBtn);
+        zBody.appendChild(locRow);
         var sections = [
           { label: "Dawn / Sunrise", rows: [
             ["Chatzot HaLailah", z.chatzotNight, "chatzotNight"],
