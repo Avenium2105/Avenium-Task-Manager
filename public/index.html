@@ -921,7 +921,7 @@
     .board-hamburger-label { flex: 1; min-width: 0; font-size: 15px; font-weight: 600; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .board-hamburger-btn { display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border: none; background: rgba(255,255,255,0.2); color: #fff; border-radius: 8px; cursor: pointer; font-size: 18px; line-height: 1; padding: 0; flex-shrink: 0; position: relative; }
     .board-hamburger-btn:hover { background: rgba(255,255,255,0.3); }
-    .board-hamburger-menu { position: absolute; top: 100%; right: 0; background: var(--bg-raised); border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.18); z-index: 600; min-width: 200px; max-width: 280px; padding: 6px 0; margin-top: 6px; max-height: 60vh; overflow-y: auto; }
+    .board-hamburger-menu { position: absolute; top: 100%; left: 0; background: var(--bg-raised); border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.18); z-index: 600; min-width: 200px; max-width: 280px; padding: 6px 0; margin-top: 6px; max-height: 60vh; overflow-y: auto; }
     .board-hamburger-menu button { display: block; width: 100%; text-align: left; padding: 13px 18px; font-size: 14.5px; font-weight: 500; border: none; background: none; color: var(--ink); cursor: pointer; font-family: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .board-hamburger-menu button:hover { background: var(--bg); }
     .board-hamburger-menu button.active { color: var(--pine); font-weight: 700; }
@@ -1020,32 +1020,36 @@
     #usersTable thead { display: none; }
     #usersTable tr { display: flex; flex-wrap: wrap; align-items: center; }
     #usersTable td { display: block; border-top: none; padding: 2px 0 2px 10px; font-size: 13px; }
-    #usersTable td:nth-child(1):not([colspan]) { flex: 0 0 auto; padding: 8px 0 8px 10px; border-top: 1px solid var(--line-soft); font-size: 13.5px; }
+    /* Line 1: name takes full width */
+    #usersTable td:nth-child(1):not([colspan]) { flex: 1 1 100%; padding: 8px 10px 2px; border-top: 1px solid var(--line-soft); font-size: 13.5px; }
     #usersTable tr:first-child td:nth-child(1) { border-top: none; }
-    #usersTable td:nth-child(2) { flex: 1 1 0; min-width: 0; padding-right: 10px; color: var(--ink-soft); overflow-wrap: anywhere; font-size: 12.5px; border-top: 1px solid var(--line-soft); padding-top: 8px; padding-bottom: 8px; }
-    #usersTable tr:first-child td:nth-child(2) { border-top: none; }
-    #usersTable td:nth-child(3), #usersTable td:nth-child(4) { flex: 0 0 auto; padding-top: 0; }
-    #usersTable td:nth-child(5) { flex: 1 1 100%; padding: 2px 10px 6px; }
+    /* Line 2: email right-aligned, badges left */
+    #usersTable td:nth-child(2) { flex: 1 1 0; min-width: 0; padding-right: 10px; color: var(--ink-soft); overflow-wrap: anywhere; font-size: 12px; text-align: right; order: 4; padding-top: 0; padding-bottom: 0; }
+    #usersTable td:nth-child(3), #usersTable td:nth-child(4) { flex: 0 0 auto; padding-top: 0; order: 3; }
+    /* Line 3: actions */
+    #usersTable td:nth-child(5) { flex: 1 1 100%; padding: 2px 10px 6px; order: 5; }
     #usersTable td[colspan] { flex: 1 1 100%; }
     .admin-wrap .row-actions { gap: 4px 14px; flex-wrap: wrap; }
     .admin-wrap .row-actions button { font-size: 13px; padding: 6px 0; }
     .admin-wrap .edit-panel .fields, .admin-wrap .add-form .fields { flex-direction: column; align-items: stretch; }
     .admin-wrap .edit-panel input, .admin-wrap .edit-panel select, .admin-wrap .add-form input, .admin-wrap .add-form select { width: 100%; min-width: 0; flex: none; padding: 10px; }
     .admin-wrap .edit-panel button, .admin-wrap .add-form button { padding: 11px 14px; font-size: 14.5px; }
-    .admin-wrap .add-user-btn, .cal-add-btn { width: 100%; padding: 13px 16px; font-size: 14.5px; }
-    .cal-admin-add { flex-direction: column; }
-    .cal-hebrew-toggle { font-size: 14.5px !important; padding: 4px 0; }
-    .cal-hebrew-toggle input, .cal-toggle input { width: 20px !important; height: 20px; }
-    .cal-acct { padding: 12px; }
-    .cal-acct-head { flex-wrap: wrap; gap: 6px 10px; }
-    .cal-acct-email { font-size: 14.5px; overflow-wrap: anywhere; white-space: normal; }
-    .cal-acct-remove { font-size: 13.5px; padding: 8px 0 8px 8px; }
-    .cal-acct-cals { flex-direction: column; gap: 2px; font-size: 14.5px; margin-top: 6px; }
-    .cal-toggle { padding: 8px 0; gap: 9px; }
+    .cal-hebrew-toggle input, .cal-toggle input { width: 18px !important; height: 18px; }
+    .cal-acct { padding: 10px 12px; }
+    .cal-acct-head { flex-wrap: wrap; gap: 4px 8px; }
+    .cal-acct-email { font-size: 13px; overflow-wrap: anywhere; white-space: normal; }
+    .cal-acct-remove { font-size: 12.5px; padding: 4px 0 4px 6px; }
+    .cal-acct-cals { flex-direction: column; gap: 0; font-size: 13px; margin-top: 4px; }
+    .cal-toggle { padding: 5px 0; gap: 7px; }
+    .cal-hebrew-toggle { font-size: 13.5px !important; padding: 2px 0; }
+    .cal-admin-add { flex-direction: column; gap: 6px; }
+    .admin-wrap .add-user-btn, .cal-add-btn { width: 100%; padding: 10px 14px; font-size: 13.5px; }
     .admin-wrap .activity-toggle button { font-size: 14px; padding: 10px 0; }
     .admin-wrap .activity-list li { flex-direction: column; gap: 2px; font-size: 14px; }
 
     /* ================= Calendar ================= */
+    /* Kill body min-height so no green gap appears below the calendar */
+    body[data-view="calendar"] { min-height: 0; height: calc(100vh); height: calc(100dvh); overflow: hidden; }
     .calendar-wrap { padding: 8px 6px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); height: calc(100vh - var(--nav-h, 50px)); height: calc(100dvh - var(--nav-h, 50px)); overflow: hidden; }
     .cal-main { padding: 8px; }
     /* the bar: date on top, then the view switch, then the buttons */
