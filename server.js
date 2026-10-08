@@ -35,9 +35,6 @@ const GOOGLE_REDIRECT = PUBLIC_URL + "/auth/google/callback";
 const MICROSOFT_REDIRECT = PUBLIC_URL + "/auth/microsoft/callback";
 const CALENDAR_ENABLED = !!(GOOGLE_CLIENT_ID && MICROSOFT_CLIENT_ID);
 
-// ---- Claude assistant (optional — set ANTHROPIC_API_KEY to switch it on) ----
-const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || "";
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5-20250929";
 
 const GROUP_COLORS = ["#3C5A46", "#C68A2E", "#7D6BAE", "#4C7A9E", "#B24A3C"];
 const DEFAULT_GROUPS = ["Today", "This week", "Someday"];
@@ -3037,119 +3034,6 @@ app.get("/api/calendar/hebrew-dates", requireAuth, (req, res) => {
   res.json({ dates: results });
 });
 
-// ---- Claude assistant ----
-// The key lives on the server only, never in the browser. Each request is
-// answered with just THIS user's own boards, tasks, to-dos and calendar as
-// context — the same data they can already see — so the assistant can't
-// surface anything they don't have access to.
-app.get("/api/assistant/status", requireAuth, (req, res) => {
-  res.json({ enabled: !!ANTHROPIC_API_KEY });
-});
-
-function buildAssistantContext(user) {
-  const visible = stateForUser(user.id);
-  const lines = [];
-  lines.push(`The person you are helping is ${user.displayName || user.username}. Today is ${new Date().toDateString()}.`);
-
-  const boards = visible.boards || [];
-  lines.push(`\nBOARDS (${boards.length}):`);
-  boards.forEach((b) => {
-    const groups = (visible.groups || []).filter((g) => g.boardId === b.id);
-    lines.push(`- ${b.name}`);
-    groups.forEach((g) => {
-      const items = (visible.items || []).filter((i) => i.groupId === g.id && !i.archived);
-      if (!items.length) return;
-      lines.push(`  Group "${g.name}":`);
-      items.forEach((i) => {
-        const openSteps = (i.steps || []).filter((st) => !st.done).map((st) => st.text);
-        const who = (i.assigneeIds || []).map((id) => { const u = findUserById(id); return u ? (u.displayName || u.username) : null; }).filter(Boolean);
-        let line = `    * ${i.title}`;
-        if (i.completed) line += " [completed]";
-        if (i.priority) line += ` [priority: ${i.priority}]`;
-        if (who.length) line += ` [assigned: ${who.join(", ")}]`;
-        if (openSteps.length) line += ` [next steps: ${openSteps.join("; ")}]`;
-        const notes = (i.notesList || []).map((n) => n.text).join(" | ");
-        if (notes) line += ` [notes: ${notes.slice(0, 500)}]`;
-        lines.push(line);
-      });
-    });
-  });
-
-  const todos = (visible.todos || []).filter((t) => !t.done);
-  if (todos.length) {
-    lines.push(`\nACTION ITEMS (open items):`);
-    todos.forEach((t) => lines.push(`- ${t.text}`));
-  }
-  return lines.join("\n");
-}
-
-app.post("/api/assistant/chat", requireAuth, async (req, res) => {
-  if (!ANTHROPIC_API_KEY) return res.status(503).json({ error: "assistant_not_configured" });
-  const user = findUserById(req.session.userId);
-  if (!user) return res.status(401).json({ error: "not_authenticated" });
-  const history = Array.isArray(req.body && req.body.messages) ? req.body.messages : [];
-  if (!history.length) return res.status(400).json({ error: "no_messages" });
-
-  // keep the request small: last 20 turns, each capped
-  const messages = history.slice(-20).map((m) => ({
-    role: m.role === "assistant" ? "assistant" : "user",
-    content: String(m.content || "").slice(0, 8000)
-  }));
-
-  // upcoming calendar events, if any calendars are connected
-  let calendarText = "";
-  try {
-    const hidden = hiddenSet(user.id);
-    const timeMin = new Date().toISOString();
-    const timeMax = new Date(Date.now() + 14 * 86400000).toISOString();
-    const evs = [];
-    await Promise.all(listAccounts(user.id).map(async (acct) => {
-      const a = await freshToken(acct);
-      const cals = (await listCalendarsFor(a)).filter((c) => !hidden.has(acct.id + "|" + c.id));
-      await Promise.all(cals.map(async (cal) => {
-        const list = a.provider === "google"
-          ? await fetchGoogleCalendarEvents(a, cal, timeMin, timeMax)
-          : await fetchMicrosoftCalendarEvents(a, cal, timeMin, timeMax);
-        list.forEach((e) => evs.push(`- ${e.start}${e.allDay ? " (all day)" : ""}: ${e.title}${e.location ? " @ " + e.location : ""}`));
-      }));
-    }));
-    if (evs.length) calendarText = `\n\nCALENDAR (next 14 days):\n` + evs.sort().slice(0, 60).join("\n");
-  } catch (e) { /* calendar is optional context */ }
-
-  const system = `You are Claude, built into Avenium Task Manager — a task and calendar app used by a small real-estate team.
-Help the user with their work: summarising what's on their plate, drafting messages and notes, thinking through next steps, and answering questions about their tasks and schedule.
-Use the context below, which is this user's own data. If something isn't in the context, say so rather than guessing.
-Be concise and practical. You cannot change anything in the app yourself — if the user wants something created or edited, tell them briefly where to do it.
-
-${buildAssistantContext(user)}${calendarText}`;
-
-  const payload = JSON.stringify({
-    model: ANTHROPIC_MODEL,
-    max_tokens: 1500,
-    system,
-    messages
-  });
-
-  try {
-    const r = await httpsRequest({
-      hostname: "api.anthropic.com", path: "/v1/messages", method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Content-Length": Buffer.byteLength(payload),
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01"
-      }
-    }, payload);
-    if (r.status >= 300 || !r.body || !r.body.content) {
-      const detail = r.body && r.body.error && r.body.error.message;
-      return res.status(502).json({ error: detail || "assistant_failed" });
-    }
-    const text = (r.body.content || []).filter((c) => c.type === "text").map((c) => c.text).join("\n").trim();
-    res.json({ reply: text || "(no reply)" });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
 
 server.listen(PORT, () => {
   console.log("Avenium Task Manager running at http://localhost:" + PORT);
