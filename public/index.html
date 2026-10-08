@@ -1042,8 +1042,9 @@
     .cal-acct-cals { flex-direction: column; gap: 0; font-size: 13px; margin-top: 4px; }
     .cal-toggle { padding: 5px 0; gap: 7px; }
     .cal-hebrew-toggle { font-size: 13.5px !important; padding: 2px 0; }
-    .cal-admin-add { flex-direction: column; gap: 6px; }
-    .admin-wrap .add-user-btn, .cal-add-btn { width: 100%; padding: 10px 14px; font-size: 13.5px; }
+    .cal-admin-add { flex-direction: row; gap: 6px; }
+    .cal-add-btn { flex: 1 1 0; min-width: 0; padding: 10px 8px; font-size: 12.5px; text-align: center; }
+    .admin-wrap .add-user-btn { width: 100%; padding: 10px 14px; font-size: 13.5px; }
     .admin-wrap .activity-toggle button { font-size: 14px; padding: 10px 0; }
     .admin-wrap .activity-list li { flex-direction: column; gap: 2px; font-size: 14px; }
 
@@ -1486,8 +1487,7 @@
     <div class="invite-link-box" id="inviteLinkBox" style="display:none;"></div>
   </div>
 
-  <h2 class="cal-admin-title">Your calendar connections</h2>
-  <p class="cal-admin-note">Private to you. Other users never see these calendars, even if they're admins.</p>
+  <div style="margin-top: 36px;"></div>
   <label class="cal-hebrew-toggle" style="display:flex;align-items:center;gap:8px;margin:8px 0 12px;font-size:13px;color:var(--ink-soft);cursor:pointer;">
     <input id="calHebrewToggle" type="checkbox" style="width:auto;cursor:pointer;"> Show Jewish calendar dates
   </label>
