@@ -576,8 +576,8 @@
   .cal-tg-now::before { content: ""; position: absolute; left: -4px; top: -5px; width: 8px; height: 8px; border-radius: 50%; background: var(--brick); }
   /* ---- Day view info panels (Zmanim + Daily Learning) ---- */
   /* Day view: side-by-side layout (time grid left, info sidebar right) */
-  .cal-day-layout { display: flex; gap: 10px; height: 100%; min-height: 0; }
-  .cal-day-layout .cal-tg-scroll { flex: 1 1 0; min-width: 0; }
+  .cal-day-layout, .cal-day-flex { display: flex; gap: 10px; height: 100%; min-height: 0; }
+  .cal-day-layout .cal-tg-scroll, .cal-day-flex .cal-tg-scroll { flex: 1 1 0; min-width: 0; }
   .cal-day-sidebar { flex: 0 0 260px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
   .cal-day-info { display: flex; flex-direction: column; gap: 8px; }
   .cal-day-info-panel { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; font-size: 12.5px; }
@@ -1081,7 +1081,7 @@
     .admin-wrap .activity-list li { flex-direction: column; gap: 2px; font-size: 14px; }
 
     /* Day view sidebar → stacked on mobile */
-    .cal-day-layout { flex-direction: column; gap: 0; }
+    .cal-day-layout, .cal-day-flex { flex-direction: column; gap: 0; }
     .cal-day-sidebar { flex: 0 0 auto; padding: 6px 4px; }
     .cal-day-info { gap: 6px; }
     .cal-day-info-panel { padding: 6px 10px; font-size: 12px; }
@@ -5397,13 +5397,28 @@
     });
     scroll.appendChild(body);
     alt.innerHTML = "";
-    /* ── Day view: calendar / zmanim / learning as mutually exclusive views ── */
-    if (nDays === 1 && (dayViewMode === "zmanim" || dayViewMode === "learning")) {
-      var infoOnly = el("div", "cal-day-sidebar");
-      infoOnly.style.width = "100%";
-      infoOnly.style.maxWidth = "100%";
-      renderDayInfoPanels(days[0].key, infoOnly);
-      alt.appendChild(infoOnly);
+    /* ── Day view: desktop = calendar grid + sidebar; mobile = mutually exclusive panels ── */
+    if (nDays === 1 && (showZmanim || showDailyLearning)) {
+      if (isPhone()) {
+        // Mobile: mutually exclusive panels controlled by quick-toggle buttons
+        if (dayViewMode === "zmanim" || dayViewMode === "learning") {
+          var infoOnly = el("div", "cal-day-sidebar");
+          infoOnly.style.width = "100%";
+          infoOnly.style.maxWidth = "100%";
+          renderDayInfoPanels(days[0].key, infoOnly, true);
+          alt.appendChild(infoOnly);
+        } else {
+          alt.appendChild(scroll);
+        }
+      } else {
+        // Desktop: calendar grid + sidebar side by side
+        var dayFlex = el("div", "cal-day-flex");
+        dayFlex.appendChild(scroll);
+        var sidebar = el("div", "cal-day-sidebar");
+        renderDayInfoPanels(days[0].key, sidebar, false);
+        dayFlex.appendChild(sidebar);
+        alt.appendChild(dayFlex);
+      }
     } else {
       alt.appendChild(scroll);
     }
@@ -5591,11 +5606,13 @@
   }
 
   // ---- Render info panels in day view ----
-  function renderDayInfoPanels(dateKey, container) {
+  function renderDayInfoPanels(dateKey, container, mobileToggle) {
     var wrap = el("div", "cal-day-info");
     var hasPanel = false;
+    var wantZmanim = mobileToggle ? dayViewMode === "zmanim" : showZmanim;
+    var wantLearning = mobileToggle ? dayViewMode === "learning" : showDailyLearning;
 
-    if (dayViewMode === "zmanim") {
+    if (wantZmanim) {
       hasPanel = true;
       var zPanel = el("div", "cal-day-info-panel");
       zPanel.appendChild(el("h4", "", { text: "Zmanim" }));
@@ -5658,7 +5675,7 @@
       });
     }
 
-    if (dayViewMode === "learning") {
+    if (wantLearning) {
       hasPanel = true;
       var lPanel = el("div", "cal-day-info-panel");
       lPanel.appendChild(el("h4", "", { text: "Daily Learning" }));
