@@ -1145,7 +1145,7 @@
     .cal-nav-date-row { flex: 1 1 0; min-width: 0; gap: 4px; }
     #calPrevYear, #calNextYear { display: none; }          /* a whole year at a time: use the Year view or Search Date */
     .cal-arrow-btn { padding: 7px 13px; font-size: 18px; line-height: 1; }
-    #calMonthLabel { flex: 1 1 0; min-width: 0; font-size: 16.5px; overflow: hidden; text-overflow: ellipsis; }
+    #calMonthLabel { flex: 1 1 0; min-width: 0; font-size: 15px; text-align: center; }
     .cal-nav-view-row { align-items: center; }
     .cal-pill-btn { padding: 9px 11px; font-size: 12.5px; white-space: nowrap; }
     .cal-jump-drop { left: auto; right: 0; transform: none; min-width: 230px; }
@@ -1581,14 +1581,7 @@
 
   <h2 class="cal-settings-title">Calendar Settings</h2>
 
-  <div class="cal-admin-header">
-    <div class="cal-add-wrap">
-      <button type="button" class="cal-add-trigger" id="calAddBtn">+ Add Calendar</button>
-      <div class="cal-add-dropdown" id="calAddDrop" style="display:none;">
-        <button type="button" id="calAddGoogleBtn" class="cal-add-drop-item">Google</button>
-        <button type="button" id="calAddMicrosoftBtn" class="cal-add-drop-item">Outlook</button>
-      </div>
-    </div>
+  <div class="cal-admin-header" style="justify-content:flex-end;">
     <div class="cal-options-wrap">
       <button type="button" class="cal-options-trigger" id="calOptionsBtn">Options ▾</button>
       <div class="cal-options-dropdown" id="calOptionsDrop" style="display:none;">
@@ -1606,7 +1599,16 @@
 
   <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;">
     <h3 class="cal-admin-subtitle" style="margin:0;">Calendars</h3>
-    <button id="calAdminRefreshBtn" type="button" class="cal-refresh-btn" title="Refresh — get the latest from Google and Outlook" aria-label="Refresh" style="display:inline-flex;width:34px;height:34px;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.6 2.2v3.2h-3.2"/></svg></button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="cal-add-wrap">
+        <button type="button" class="cal-add-trigger" id="calAddBtn">+ Add Calendar</button>
+        <div class="cal-add-dropdown" id="calAddDrop" style="display:none;">
+          <button type="button" id="calAddGoogleBtn" class="cal-add-drop-item">Google</button>
+          <button type="button" id="calAddMicrosoftBtn" class="cal-add-drop-item">Outlook</button>
+        </div>
+      </div>
+      <button id="calAdminRefreshBtn" type="button" class="cal-refresh-btn" title="Refresh — get the latest from Google and Outlook" aria-label="Refresh" style="display:inline-flex;width:34px;height:34px;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.6 2.2v3.2h-3.2"/></svg></button>
+    </div>
   </div>
   <div class="cal-admin-notice" id="calAdminNotice" style="display:none;"></div>
   <div class="cal-admin-list" id="calAdminList"></div>
@@ -5500,7 +5502,10 @@
     var d = calViewDate;
     if (calView === "year") return String(d.getFullYear());
     if (calView === "month") return d.toLocaleDateString(undefined, { month: "long", year: "numeric" });
-    if (calView === "day") return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+    if (calView === "day") {
+      if (isPhone()) return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+      return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+    }
     var s = calStartOfWeek(d), e = new Date(s.getFullYear(), s.getMonth(), s.getDate() + 6);
     var md = function (x) { return x.toLocaleDateString(undefined, { month: "short", day: "numeric" }); };
     if (s.getFullYear() !== e.getFullYear()) return md(s) + ", " + s.getFullYear() + " – " + md(e) + ", " + e.getFullYear();
