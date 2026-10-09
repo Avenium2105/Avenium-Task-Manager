@@ -537,8 +537,8 @@
   .calendar-wrap { max-width: none; margin: 0; padding: 14px 22px 10px; height: calc(100vh - var(--nav-h, 67px)); box-sizing: border-box; overflow: hidden; background: #6b8f79; }
   .cal-layout { display: flex; gap: 0; height: 100%; align-items: stretch; }
   .cal-side { display: none; }
-  .cal-main { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; background: var(--bg); border-radius: var(--radius); padding: 10px 16px; box-sizing: border-box; overflow: hidden; }
-  .calendar-nav-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .cal-main { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; background: var(--bg); border-radius: var(--radius); padding: 10px 16px; box-sizing: border-box; overflow: auto; }
+  .calendar-nav-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; position: sticky; top: 0; z-index: 50; background: var(--bg); padding-bottom: 4px; }
   /* equal-width sides keep the month title truly centred */
   .cal-nav-left { display: flex; align-items: center; gap: 8px; flex: 1 1 0; min-width: 0; }
   .cal-search-events-btn { display: inline-flex; align-items: center; gap: 7px; font-family: inherit; font-size: 13px; font-weight: 600; padding: 7px 14px; border: 1px solid var(--pine); border-radius: 8px; background: var(--bg-raised); color: var(--pine); cursor: pointer; flex-shrink: 0; }
@@ -1123,7 +1123,7 @@
     /* Compact toolbar: icon-only buttons */
     .cal-add-event-btn { flex: 0 0 auto !important; min-width: 42px; padding: 10px 14px !important; font-size: 18px !important; text-align: center; }
     .cal-add-event-btn .cal-add-word { display: none; }
-    .cal-search-events-btn { padding: 10px 12px !important; min-width: 42px; justify-content: center; margin-left: auto; }
+    .cal-search-events-btn { padding: 10px 12px !important; min-width: 42px; justify-content: center; }
     .cal-search-events-btn .cal-search-word { display: none; }
     .cal-nav-left { flex-wrap: wrap; }
     /* Zmanim / Learning quick-toggle buttons (mobile day view) — bottom bar */
@@ -1137,16 +1137,16 @@
     /* Kill body min-height so no green gap appears below the calendar */
     body[data-view="calendar"] { min-height: 0; height: calc(100vh); height: calc(100dvh); overflow: hidden; }
     .calendar-wrap { padding: 8px 6px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); height: calc(100vh - var(--nav-h, 50px)); height: calc(100dvh - var(--nav-h, 50px)); overflow: hidden; }
-    .cal-main { padding: 8px; }
+    .cal-main { padding: 8px; overflow: auto; }
     /* the bar: date on top, then the view switch, then the buttons */
-    .calendar-nav-top { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; margin-bottom: 8px; }
+    .calendar-nav-top { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; margin-bottom: 8px; position: sticky; top: 0; z-index: 50; background: var(--bg); padding-bottom: 4px; }
     .cal-nav-center { order: 1; flex-direction: row; align-items: center; gap: 6px; }
     .cal-nav-right { order: 2; flex: 0 0 auto; }
     .cal-nav-left { order: 3; flex: 0 0 auto; gap: 6px; }
-    .cal-nav-date-row { flex: 1 1 0; min-width: 0; gap: 4px; }
+    .cal-nav-date-row { flex: 1 1 0; min-width: 0; gap: 6px; }
     #calPrevYear, #calNextYear { display: none; }          /* a whole year at a time: use the Year view or Search Date */
-    .cal-arrow-btn { padding: 7px 13px; font-size: 18px; line-height: 1; }
-    #calMonthLabel { flex: 1 1 0; min-width: 0; font-size: 15px; text-align: center; }
+    .cal-arrow-btn { padding: 7px 13px; font-size: 18px; line-height: 1; flex-shrink: 0; }
+    #calMonthLabel { flex: 1 1 0; min-width: 0; font-size: 15px; text-align: center; padding: 0 2px; }
     .cal-nav-view-row { align-items: center; }
     .cal-pill-btn { padding: 9px 11px; font-size: 12.5px; white-space: nowrap; }
     .cal-jump-drop { left: auto; right: 0; transform: none; min-width: 230px; }
@@ -1557,15 +1557,17 @@
 <div id="adminView" class="admin-wrap" style="display:none;">
   <h1>Admin</h1>
 
-  <h2>Manage users</h2>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+    <div style="flex:1"></div>
+    <h2 style="margin:0;text-align:center;flex:2">User Settings</h2>
+    <div style="flex:1;display:flex;justify-content:flex-end;">
+      <button id="showAddUserBtn" class="add-user-btn" type="button">+ Add user</button>
+    </div>
+  </div>
   <table id="usersTable">
     <thead><tr><th>User</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
     <tbody id="usersBody"></tbody>
   </table>
-
-  <div class="add-user-row">
-    <button id="showAddUserBtn" class="add-user-btn" type="button">+ Add user</button>
-  </div>
   <div class="add-form" id="addForm" style="display:none;">
     <div class="fields">
       <input id="newEmail" placeholder="Email (required)" type="email" autocomplete="off">
@@ -1582,30 +1584,29 @@
 
   <h2 class="cal-settings-title">Calendar Settings</h2>
 
-  <div class="cal-admin-header" style="justify-content:flex-end;gap:8px;">
-    <button id="calAdminRefreshBtn" type="button" class="cal-refresh-btn" title="Refresh — get the latest from Google and Outlook" aria-label="Refresh" style="display:inline-flex;width:34px;height:34px;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.6 2.2v3.2h-3.2"/></svg></button>
-    <div class="cal-options-wrap">
-      <button type="button" class="cal-options-trigger" id="calOptionsBtn">Options ▾</button>
-      <div class="cal-options-dropdown" id="calOptionsDrop" style="display:none;">
-        <label class="cal-opt-drop-item"><input id="calHebrewToggle" type="checkbox" style="width:auto;cursor:pointer;"> Jewish Dates</label>
-        <label class="cal-opt-drop-item" style="padding-left:28px;"><input id="calCandleLightingToggle" type="checkbox" style="width:auto;cursor:pointer;"> Candle Lighting</label>
-        <label class="cal-opt-drop-item"><input id="calZmanimToggle" type="checkbox" style="width:auto;cursor:pointer;"> Zmanim
-          <button type="button" class="cal-opt-settings-btn" id="calZmanimSettingsBtn" style="display:none;" title="Zmanim settings">&#9881;</button>
-        </label>
-        <label class="cal-opt-drop-item"><input id="calLearningToggle" type="checkbox" style="width:auto;cursor:pointer;"> Limudim
-          <button type="button" class="cal-opt-settings-btn" id="calLimudimSettingsBtn" style="display:none;" title="Limudim settings">&#9881;</button>
-        </label>
-      </div>
-    </div>
-  </div>
-
-  <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
     <h3 class="cal-admin-subtitle" style="margin:0;">Calendars</h3>
-    <div class="cal-add-wrap">
-      <button type="button" class="cal-add-trigger" id="calAddBtn">+ Add Calendar</button>
-      <div class="cal-add-dropdown" id="calAddDrop" style="display:none;">
-        <button type="button" id="calAddGoogleBtn" class="cal-add-drop-item">Google</button>
-        <button type="button" id="calAddMicrosoftBtn" class="cal-add-drop-item">Outlook</button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="cal-add-wrap">
+        <button type="button" class="cal-add-trigger" id="calAddBtn">+ Add Calendar</button>
+        <div class="cal-add-dropdown" id="calAddDrop" style="display:none;">
+          <button type="button" id="calAddGoogleBtn" class="cal-add-drop-item">Google</button>
+          <button type="button" id="calAddMicrosoftBtn" class="cal-add-drop-item">Outlook</button>
+        </div>
+      </div>
+      <button id="calAdminRefreshBtn" type="button" class="cal-refresh-btn" title="Refresh — get the latest from Google and Outlook" aria-label="Refresh" style="display:inline-flex;width:34px;height:34px;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.6 2.2v3.2h-3.2"/></svg></button>
+      <div class="cal-options-wrap">
+        <button type="button" class="cal-options-trigger" id="calOptionsBtn">Options ▾</button>
+        <div class="cal-options-dropdown" id="calOptionsDrop" style="display:none;">
+          <label class="cal-opt-drop-item"><input id="calHebrewToggle" type="checkbox" style="width:auto;cursor:pointer;"> Jewish Dates</label>
+          <label class="cal-opt-drop-item" style="padding-left:28px;"><input id="calCandleLightingToggle" type="checkbox" style="width:auto;cursor:pointer;"> Candle Lighting</label>
+          <label class="cal-opt-drop-item"><input id="calZmanimToggle" type="checkbox" style="width:auto;cursor:pointer;"> Zmanim
+            <button type="button" class="cal-opt-settings-btn" id="calZmanimSettingsBtn" style="display:none;" title="Zmanim settings">&#9881;</button>
+          </label>
+          <label class="cal-opt-drop-item"><input id="calLearningToggle" type="checkbox" style="width:auto;cursor:pointer;"> Limudim
+            <button type="button" class="cal-opt-settings-btn" id="calLimudimSettingsBtn" style="display:none;" title="Limudim settings">&#9881;</button>
+          </label>
+        </div>
       </div>
     </div>
   </div>
@@ -1696,11 +1697,11 @@
   <div class="calendar-nav-top">
     <div class="cal-nav-left">
       <button id="calNewBtn" type="button" class="cal-add-event-btn">+ <span class="cal-add-word">Add Event</span></button>
+      <button id="calSearchBtn" type="button" class="cal-search-events-btn" title="Search every calendar"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span class="cal-search-word">Search events</span></button>
       <button id="calRefreshBtn" type="button" class="cal-refresh-btn" title="Refresh — get the latest from Google and Outlook" aria-label="Refresh"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.6 2.2v3.2h-3.2"/></svg></button>
     </div>
     <div class="cal-nav-center">
       <div class="cal-nav-date-row">
-        <button id="calSearchBtn" type="button" class="cal-search-events-btn" title="Search every calendar"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg><span class="cal-search-word">Search events</span></button>
         <button id="calPrevYear" type="button" class="cal-arrow-btn cal-arrow-sm" title="Previous year">&laquo;</button>
         <button id="calPrevBtn" type="button" class="cal-arrow-btn" title="Previous month">&lsaquo;</button>
         <span id="calMonthLabel"></span>
@@ -4752,6 +4753,40 @@
         var THRESHOLD = 50; // minimum px to count as a swipe
 
         // Smooth slide transition helper
+        function swipeNavigate(direction) {
+          // direction: 1 = swiped left (go next), -1 = swiped right (go prev)
+          var grid = document.getElementById("calGrid");
+          var alt = document.getElementById("calAltView");
+          var target = (calView === "month" || calView === "year") ? grid : alt;
+          if (!target || !target.offsetParent && target.style.display === "none") {
+            // fallback — just navigate without animation
+            calNavigate(false, direction);
+            return;
+          }
+          var slideOut = direction > 0 ? "-100%" : "100%";
+          var slideIn = direction > 0 ? "100%" : "-100%";
+          // Slide the old content out
+          target.style.transition = "transform 0.25s ease, opacity 0.25s ease";
+          target.style.transform = "translateX(" + slideOut + ")";
+          target.style.opacity = "0";
+          setTimeout(function () {
+            // Navigate to new content
+            target.style.transition = "none";
+            target.style.transform = "translateX(" + slideIn + ")";
+            calNavigate(false, direction);
+            // Force reflow then slide in
+            void target.offsetWidth;
+            target.style.transition = "transform 0.25s ease, opacity 0.25s ease";
+            target.style.transform = "translateX(0)";
+            target.style.opacity = "1";
+            setTimeout(function () {
+              target.style.transition = "";
+              target.style.transform = "";
+              target.style.opacity = "";
+            }, 280);
+          }, 250);
+        }
+
         calWrap.addEventListener("touchstart", function (e) {
           if (!isPhone()) return;
           var t = e.touches[0];
@@ -4764,18 +4799,8 @@
           var dx = t.clientX - startX, dy = t.clientY - startY;
           var absDx = Math.abs(dx), absDy = Math.abs(dy);
           if (absDx < THRESHOLD && absDy < THRESHOLD) return;
-          // Day: left/right = prev/next day
-          if (calView === "day") {
-            if (absDx > absDy) calNavigate(false, dx < 0 ? 1 : -1);
-          // Week: left/right = prev/next week
-          } else if (calView === "week") {
-            if (absDx > absDy) calNavigate(false, dx < 0 ? 1 : -1);
-          // Month: left/right = prev/next month
-          } else if (calView === "month") {
-            if (absDx > absDy) calNavigate(false, dx < 0 ? 1 : -1);
-          // Year: left/right = prev/next year
-          } else if (calView === "year") {
-            if (absDx > absDy) calNavigate(false, dx < 0 ? 1 : -1);
+          if (absDx > absDy) {
+            swipeNavigate(dx < 0 ? 1 : -1);
           }
         }, { passive: true });
       })();
