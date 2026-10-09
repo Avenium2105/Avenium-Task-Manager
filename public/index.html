@@ -616,9 +616,10 @@
   .cal-zmanim-grid .zt { font-weight: 600; color: var(--ink); text-align: right; }
   .zmanim-section-hdr { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--pine); margin-top: 6px; padding-bottom: 1px; border-bottom: 1px solid var(--line-soft); }
   .zmanim-loc-label { font-size: 11px; color: var(--ink-soft); font-style: italic; }
-  .cal-learning-row { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
-  .cal-learning-row .ll { color: var(--ink-soft); min-width: 70px; }
-  .cal-learning-row .lv { font-weight: 600; color: var(--ink); }
+  .cal-learning-grid { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; }
+  .cal-learning-row { display: contents; }
+  .cal-learning-row .ll { color: var(--ink-soft); padding: 2px 0; }
+  .cal-learning-row .lv { font-weight: 600; color: var(--ink); text-align: right; padding: 2px 0; }
   .cal-learning-row a { color: var(--pine); text-decoration: none; font-size: 11px; }
   .cal-learning-row a:hover { text-decoration: underline; }
   .cal-day-info-loading { color: var(--ink-faint); font-size: 12px; font-style: italic; }
@@ -5381,6 +5382,8 @@
     var set = function (id, t) { var e = document.getElementById(id); if (e) e.title = t; };
     set("calPrevBtn", "Previous " + calView); set("calNextBtn", "Next " + calView);
     set("calPrevYear", "Back one " + big.replace(/^10 years$/, "decade")); set("calNextYear", "Forward one " + big.replace(/^10 years$/, "decade"));
+    var hBtn = document.getElementById("calViewHamburger");
+    if (hBtn) hBtn.textContent = calView.charAt(0).toUpperCase();
   }
   function setCalView(view) {
     if (["day", "week", "month", "year"].indexOf(view) === -1) return;
@@ -5884,14 +5887,14 @@
       hasPanel = true;
       var lPanel = el("div", "cal-day-info-panel");
       lPanel.appendChild(el("h4", "", { text: "Daily Learning" }));
-      var lBody = el("div", "");
-      lBody.innerHTML = "<span class='cal-day-info-loading'>Loading…</span>";
+      var lBody = el("div", "cal-learning-grid");
+      lBody.innerHTML = "<span class='cal-day-info-loading' style='grid-column:1/-1'>Loading…</span>";
       lPanel.appendChild(lBody);
       wrap.appendChild(lPanel);
 
       fetchDailyLearning(dateKey).then(function (items) {
         lBody.innerHTML = "";
-        if (!items || !items.length) { lBody.innerHTML = "<span class='cal-day-info-loading'>No learning info for this date</span>"; return; }
+        if (!items || !items.length) { lBody.innerHTML = "<span class='cal-day-info-loading' style='grid-column:1/-1'>No learning info for this date</span>"; return; }
         items.forEach(function (item) {
           var row = el("div", "cal-learning-row");
           var catLabels = { dafyomi: "Daf Yomi", dafWeekly: "Daf-a-Week", yerushalmi: "Yerushalmi Yomi", mishnayomi: "Mishna Yomi", nachyomi: "Nach Yomi", tanakhYomi: "Tanakh Yomi", dailyPsalms: "Daily Tehillim", rpiRambam1: "Rambam (1 ch.)", rpiRambam3: "Rambam (3 ch.)", rpiSeferHaMitzvot: "Sefer HaMitzvot", rpiKitzurShulchanArukh: "Kitzur SA", rpiArukhHaShulchan: "Arukh HaShulchan", chofetzChaim: "Chofetz Chaim", shemiratHaLashon: "Shemirat HaLashon", omer: "Omer", parashat: "Parsha" };
