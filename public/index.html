@@ -1602,7 +1602,9 @@
         <button type="button" class="cal-options-trigger" id="calOptionsBtn">Options ▾</button>
         <div class="cal-options-dropdown" id="calOptionsDrop" style="display:none;">
           <label class="cal-opt-drop-item"><input id="calHebrewToggle" type="checkbox" style="width:auto;cursor:pointer;"> Jewish Dates</label>
-          <label class="cal-opt-drop-item" style="padding-left:28px;"><input id="calCandleLightingToggle" type="checkbox" style="width:auto;cursor:pointer;"> Candle Lighting</label>
+          <label class="cal-opt-drop-item cal-opt-sub-jewish" style="padding-left:28px;"><input id="calJewishHolidaysToggle" type="checkbox" style="width:auto;cursor:pointer;"> Jewish Holidays</label>
+          <label class="cal-opt-drop-item cal-opt-sub-jewish" style="padding-left:28px;"><input id="calTorahPortionToggle" type="checkbox" style="width:auto;cursor:pointer;"> Torah Portion</label>
+          <label class="cal-opt-drop-item cal-opt-sub-jewish" style="padding-left:28px;"><input id="calCandleLightingToggle" type="checkbox" style="width:auto;cursor:pointer;"> Candle Lighting</label>
           <label class="cal-opt-drop-item"><input id="calZmanimToggle" type="checkbox" style="width:auto;cursor:pointer;"> Zmanim
             <button type="button" class="cal-opt-settings-btn" id="calZmanimSettingsBtn" style="display:none;" title="Zmanim settings">&#9881;</button>
           </label>
@@ -4303,6 +4305,15 @@
     if (hebToggle) hebToggle.checked = showHebrewDates;
     var clToggle = document.getElementById("calCandleLightingToggle");
     if (clToggle) { clToggle.checked = showCandleLighting; clToggle.disabled = !showHebrewDates; }
+    // Jewish Holidays and Torah Portion sub-toggles under Jewish Dates
+    var jhToggle = document.getElementById("calJewishHolidaysToggle");
+    var tpToggle = document.getElementById("calTorahPortionToggle");
+    var jhCal = builtinCalendars.find(function (c) { return c.id === "jewish"; });
+    var tpCal = builtinCalendars.find(function (c) { return c.id === "parsha"; });
+    if (jhToggle) { jhToggle.checked = jhCal ? jhCal.visible !== false : true; jhToggle.disabled = !showHebrewDates; }
+    if (tpToggle) { tpToggle.checked = tpCal ? tpCal.visible !== false : true; tpToggle.disabled = !showHebrewDates; }
+    // Show/hide sub-jewish items based on Jewish Dates state
+    document.querySelectorAll(".cal-opt-sub-jewish").forEach(function (el) { el.style.display = showHebrewDates ? "" : "none"; });
     var zmToggle = document.getElementById("calZmanimToggle");
     if (zmToggle) zmToggle.checked = showZmanim;
     // Sync zmanim settings modal checkboxes
@@ -4374,9 +4385,9 @@
         bhead.appendChild(el("span", "cal-acct-badge builtin", { text: "Built-in" }));
         bhead.appendChild(el("span", "cal-acct-email", { text: "No account needed" }));
         bcard.appendChild(bhead);
-        // Merge local Avenium calendar toggles with built-in
+        // Merge local Avenium calendar toggles with built-in (exclude jewish/parsha — they live in Options > Jewish Dates)
         var localAcct = calendarAccounts.find(function (a) { return a.provider === "local"; });
-        var allBuiltin = builtinCalendars.slice();
+        var allBuiltin = builtinCalendars.filter(function (c) { return c.id !== "jewish" && c.id !== "parsha"; });
         if (localAcct) allBuiltin = localAcct.calendars.concat(allBuiltin);
         bcard.appendChild(buildCalendarToggles(allBuiltin));
         list.appendChild(bcard);
@@ -4411,10 +4422,33 @@
     showHebrewDates = this.checked;
     fetch("/api/calendar/show-hebrew", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ show: showHebrewDates }) });
     calMonthCache = {};
-    // Gate candle lighting sub-toggle
+    // Gate all sub-toggles under Jewish Dates
     var clToggle = document.getElementById("calCandleLightingToggle");
     if (clToggle) { clToggle.disabled = !showHebrewDates; if (!showHebrewDates) { clToggle.checked = false; showCandleLighting = false; fetch("/api/calendar/show-candle-lighting", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ show: false }) }); } }
+    var jhToggle = document.getElementById("calJewishHolidaysToggle");
+    if (jhToggle) { jhToggle.disabled = !showHebrewDates; if (!showHebrewDates) { jhToggle.checked = false; fetch("/api/calendar/visibility", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "builtin|jewish", visible: false }) }); var jc = builtinCalendars.find(function (c) { return c.id === "jewish"; }); if (jc) jc.visible = false; } }
+    var tpToggle = document.getElementById("calTorahPortionToggle");
+    if (tpToggle) { tpToggle.disabled = !showHebrewDates; if (!showHebrewDates) { tpToggle.checked = false; fetch("/api/calendar/visibility", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "builtin|parsha", visible: false }) }); var tc = builtinCalendars.find(function (c) { return c.id === "parsha"; }); if (tc) tc.visible = false; } }
+    // Show/hide sub-jewish items
+    document.querySelectorAll(".cal-opt-sub-jewish").forEach(function (el) { el.style.display = showHebrewDates ? "" : "none"; });
     updateNavZmanim();
+    loadCalendarEvents();
+  });
+  // Jewish Holidays toggle (builtin|jewish visibility)
+  document.getElementById("calJewishHolidaysToggle").addEventListener("change", function () {
+    var visible = this.checked;
+    fetch("/api/calendar/visibility", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "builtin|jewish", visible: visible }) });
+    var jc = builtinCalendars.find(function (c) { return c.id === "jewish"; }); if (jc) jc.visible = visible;
+    calMonthCache = {};
+    loadCalendarEvents();
+  });
+  // Torah Portion toggle (builtin|parsha visibility)
+  document.getElementById("calTorahPortionToggle").addEventListener("change", function () {
+    var visible = this.checked;
+    fetch("/api/calendar/visibility", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key: "builtin|parsha", visible: visible }) });
+    var tc = builtinCalendars.find(function (c) { return c.id === "parsha"; }); if (tc) tc.visible = visible;
+    calMonthCache = {};
+    loadCalendarEvents();
   });
   document.getElementById("calCandleLightingToggle").addEventListener("change", function () {
     showCandleLighting = this.checked;
