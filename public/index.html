@@ -5854,17 +5854,19 @@
   }
 
   // ---- Desktop navbar: Mincha Gedola, Shkia, Candle lighting ----
+  var navZmanimToken = 0;
   function updateNavZmanim() {
     var row = document.getElementById("navZmanimRow");
     if (!row) return;
     row.innerHTML = "";
+    var myToken = ++navZmanimToken;
     // Only show when both Jewish dates AND zmanim are enabled, and on desktop
     if (!showHebrewDates || !showZmanim || isPhone()) return;
     var today = new Date();
     var dateKey = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
     // Fetch today's zmanim for Mincha Gedola and Shkia
     fetchZmanim(dateKey).then(function (z) {
-      if (!z) return;
+      if (!z || myToken !== navZmanimToken) return;
       var parts = [];
       if (z.minchaGedola) parts.push("Mincha Gedola " + z.minchaGedola);
       if (z.sunset) parts.push("Shkia " + z.sunset);
@@ -5872,6 +5874,7 @@
       // Candle lighting (only when showCandleLighting is on)
       if (showCandleLighting) {
         fetchCandleLighting(dateKey).then(function (c) {
+          if (myToken !== navZmanimToken) return;
           if (c && c.time) row.appendChild(el("span", "", { text: "🕯️ " + c.time }));
         });
       }
