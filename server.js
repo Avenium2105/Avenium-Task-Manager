@@ -2392,7 +2392,7 @@ app.get("/api/calendar/accounts", requireAuth, async (req, res) => {
     { id: "avenium", key: "local|avenium", name: "Avenium", canEdit: true, primary: true, visible: !hidden.has("local|avenium") }
   ] };
   const userPrefs = calendarPrefs[req.session.userId] || {};
-  res.json({ accounts: [localCal, ...out], builtin, googleConfigured: !!GOOGLE_CLIENT_ID, microsoftConfigured: !!MICROSOFT_CLIENT_ID, showHebrew: getShowHebrew(req.session.userId), showZmanim: getCalPref(req.session.userId, "showZmanim"), showDailyLearning: getCalPref(req.session.userId, "showDailyLearning"), learningSchedules: userPrefs.learningSchedules || null, zmanimZip: userPrefs.zmanimZip || "", zmanimFields: userPrefs.zmanimFields || null });
+  res.json({ accounts: [localCal, ...out], builtin, googleConfigured: !!GOOGLE_CLIENT_ID, microsoftConfigured: !!MICROSOFT_CLIENT_ID, showHebrew: getShowHebrew(req.session.userId), showZmanim: getCalPref(req.session.userId, "showZmanim"), showDailyLearning: getCalPref(req.session.userId, "showDailyLearning"), showCandleLighting: getCalPref(req.session.userId, "showCandleLighting"), learningSchedules: userPrefs.learningSchedules || null, zmanimZip: userPrefs.zmanimZip || "", zmanimFields: userPrefs.zmanimFields || null });
 });
 
 // Show / hide one calendar on this user's own view
@@ -2420,6 +2420,11 @@ app.post("/api/calendar/zmanim-location", requireAuth, (req, res) => {
   if (!calendarPrefs[req.session.userId]) calendarPrefs[req.session.userId] = { hidden: [] };
   calendarPrefs[req.session.userId].zmanimZip = typeof zip === "string" ? zip.trim() : "";
   persistCalPrefs();
+  res.json({ ok: true });
+});
+app.post("/api/calendar/show-candle-lighting", requireAuth, (req, res) => {
+  const { show } = req.body || {};
+  setCalPref(req.session.userId, "showCandleLighting", !!show);
   res.json({ ok: true });
 });
 app.post("/api/calendar/show-daily-learning", requireAuth, (req, res) => {
@@ -3100,7 +3105,7 @@ app.get("/api/calendar/candle-lighting", requireAuth, async (req, res) => {
   try {
     const r = await httpsRequest({
       hostname: "www.hebcal.com",
-      path: `/hebcal?v=1&cfg=json&c=on&b=18&maj=off&min=off&mod=off&nx=off&ss=off&mf=off&s=off&start=${start}&end=${end}${locQuery}`,
+      path: `/hebcal?v=1&cfg=json&c=on&b=18&maj=on&min=off&mod=off&nx=off&ss=off&mf=off&s=off&start=${start}&end=${end}${locQuery}`,
       method: "GET",
       headers: { Accept: "application/json", "User-Agent": "AveniumTasks/1.0" }
     });
