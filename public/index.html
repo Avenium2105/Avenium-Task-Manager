@@ -544,6 +544,7 @@
   .cal-search-events-btn { display: inline-flex; align-items: center; gap: 7px; font-family: inherit; font-size: 13px; font-weight: 600; padding: 7px 14px; border: 1px solid var(--pine); border-radius: 8px; background: var(--bg-raised); color: var(--pine); cursor: pointer; flex-shrink: 0; }
   .cal-search-events-btn:hover, .cal-search-events-btn.active { background: var(--pine-soft); }
   .cal-refresh-btn { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--pine); border-radius: 8px; background: var(--bg-raised); color: var(--pine); cursor: pointer; flex-shrink: 0; }
+  #calRefreshBtn { display: none !important; }  /* lives in Admin > Calendar Settings now */
   .cal-refresh-btn:hover { background: var(--pine-soft); }
   .cal-refresh-btn:disabled { cursor: wait; }
   .cal-refresh-btn.spinning svg { animation: calSpin 0.8s linear infinite; }
@@ -1165,7 +1166,7 @@
     .cal-search-events-btn { flex: 0 0 auto; width: 36px; height: 36px; padding: 0 !important; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; }
     .cal-search-events-btn.active { background: var(--pine-soft); border-radius: 8px; }
     .cal-search-events-btn svg { width: 16px; height: 16px; }
-    .cal-refresh-btn { display: none !important; }  /* moved to Admin > Calendar Settings on mobile */
+    /* cal-refresh-btn hidden globally via #calRefreshBtn rule above */
 
     /* month: small boxes — tap a day to open it */
     .cal-grid-head span { font-size: 11px; }
@@ -1581,7 +1582,8 @@
 
   <h2 class="cal-settings-title">Calendar Settings</h2>
 
-  <div class="cal-admin-header" style="justify-content:flex-end;">
+  <div class="cal-admin-header" style="justify-content:flex-end;gap:8px;">
+    <button id="calAdminRefreshBtn" type="button" class="cal-refresh-btn" title="Refresh — get the latest from Google and Outlook" aria-label="Refresh" style="display:inline-flex;width:34px;height:34px;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.6 2.2v3.2h-3.2"/></svg></button>
     <div class="cal-options-wrap">
       <button type="button" class="cal-options-trigger" id="calOptionsBtn">Options ▾</button>
       <div class="cal-options-dropdown" id="calOptionsDrop" style="display:none;">
@@ -1597,17 +1599,14 @@
     </div>
   </div>
 
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:10px;">
+  <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
     <h3 class="cal-admin-subtitle" style="margin:0;">Calendars</h3>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <div class="cal-add-wrap">
-        <button type="button" class="cal-add-trigger" id="calAddBtn">+ Add Calendar</button>
-        <div class="cal-add-dropdown" id="calAddDrop" style="display:none;">
-          <button type="button" id="calAddGoogleBtn" class="cal-add-drop-item">Google</button>
-          <button type="button" id="calAddMicrosoftBtn" class="cal-add-drop-item">Outlook</button>
-        </div>
+    <div class="cal-add-wrap">
+      <button type="button" class="cal-add-trigger" id="calAddBtn">+ Add Calendar</button>
+      <div class="cal-add-dropdown" id="calAddDrop" style="display:none;">
+        <button type="button" id="calAddGoogleBtn" class="cal-add-drop-item">Google</button>
+        <button type="button" id="calAddMicrosoftBtn" class="cal-add-drop-item">Outlook</button>
       </div>
-      <button id="calAdminRefreshBtn" type="button" class="cal-refresh-btn" title="Refresh — get the latest from Google and Outlook" aria-label="Refresh" style="display:inline-flex;width:34px;height:34px;"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9"/><path d="M13.6 2.2v3.2h-3.2"/></svg></button>
     </div>
   </div>
   <div class="cal-admin-notice" id="calAdminNotice" style="display:none;"></div>
@@ -4753,41 +4752,6 @@
         var THRESHOLD = 50; // minimum px to count as a swipe
 
         // Smooth slide transition helper
-        function swipeNavigate(big, dir) {
-          var grid = document.getElementById("calGrid");
-          var alt = document.getElementById("calAltView");
-          var target = (calView === "month") ? grid : alt;
-          if (!target || !target.offsetParent) target = grid; // fallback
-          var horizontal = true;
-          // For month view vertical swipe (month change) animate vertically
-          if (calView === "month" && !big) horizontal = false;
-          var prop = horizontal ? "translateX" : "translateY";
-          var dist = horizontal ? (dir > 0 ? "-100%" : "100%") : (dir > 0 ? "-60%" : "60%");
-          target.style.transition = "none";
-          target.style.transform = prop + "(0)";
-          target.style.opacity = "1";
-          // Force reflow
-          void target.offsetWidth;
-          target.style.transition = "transform 0.25s ease, opacity 0.18s ease";
-          target.style.transform = prop + "(" + dist + ")";
-          target.style.opacity = "0.3";
-          setTimeout(function () {
-            calNavigate(big, dir);
-            // After navigation re-renders, slide new content in from opposite side
-            var t2 = (calView === "month") ? document.getElementById("calGrid") : document.getElementById("calAltView");
-            if (!t2 || !t2.offsetParent) t2 = document.getElementById("calGrid");
-            var enterDist = horizontal ? (dir > 0 ? "100%" : "-100%") : (dir > 0 ? "60%" : "-60%");
-            t2.style.transition = "none";
-            t2.style.transform = prop + "(" + enterDist + ")";
-            t2.style.opacity = "0.3";
-            void t2.offsetWidth;
-            t2.style.transition = "transform 0.25s ease, opacity 0.18s ease";
-            t2.style.transform = prop + "(0)";
-            t2.style.opacity = "1";
-            setTimeout(function () { t2.style.transition = ""; t2.style.transform = ""; t2.style.opacity = ""; }, 280);
-          }, 200);
-        }
-
         calWrap.addEventListener("touchstart", function (e) {
           if (!isPhone()) return;
           var t = e.touches[0];
@@ -4799,19 +4763,19 @@
           var t = e.changedTouches[0];
           var dx = t.clientX - startX, dy = t.clientY - startY;
           var absDx = Math.abs(dx), absDy = Math.abs(dy);
-          if (absDx < THRESHOLD && absDy < THRESHOLD) return; // too short
+          if (absDx < THRESHOLD && absDy < THRESHOLD) return;
+          // Day: left/right = prev/next day
           if (calView === "day") {
-            if (absDx > absDy) swipeNavigate(false, dx < 0 ? 1 : -1);
+            if (absDx > absDy) calNavigate(false, dx < 0 ? 1 : -1);
+          // Week: left/right = prev/next week
           } else if (calView === "week") {
-            if (absDx > absDy) swipeNavigate(false, dx < 0 ? 1 : -1);
+            if (absDx > absDy) calNavigate(false, dx < 0 ? 1 : -1);
+          // Month: left/right = prev/next month
           } else if (calView === "month") {
-            if (absDx > absDy && absDx >= THRESHOLD) {
-              swipeNavigate(true, dx < 0 ? 1 : -1);   // horizontal = year
-            } else if (absDy > absDx && absDy >= THRESHOLD) {
-              swipeNavigate(false, dy < 0 ? 1 : -1);   // vertical = month
-            }
+            if (absDx > absDy) calNavigate(false, dx < 0 ? 1 : -1);
+          // Year: left/right = prev/next year
           } else if (calView === "year") {
-            if (absDx > absDy) swipeNavigate(false, dx < 0 ? 1 : -1);
+            if (absDx > absDy) calNavigate(false, dx < 0 ? 1 : -1);
           }
         }, { passive: true });
       })();
@@ -5912,9 +5876,20 @@
   function filterLearning(items, dateKey) {
     // Exclude non-learning categories; the API already filters by enabled schedules via params
     var skip = { hebdate: 1, holiday: 1, roshchodesh: 1, mevarchim: 1, molad: 1, yizkor: 1, candles: 1, havdalah: 1 };
+    // For parashat: hebcal assigns the Shabbat (Saturday) date, so show it all week
+    var d = new Date(dateKey + "T12:00:00");
+    var dow = d.getDay(); // 0=Sun
+    // This week's Shabbat: advance to Saturday
+    var satOffset = (6 - dow + 7) % 7; if (satOffset === 0 && dow === 6) satOffset = 0;
+    var sat = new Date(d); sat.setDate(sat.getDate() + satOffset);
+    var satKey = sat.getFullYear() + "-" + String(sat.getMonth() + 1).padStart(2, "0") + "-" + String(sat.getDate()).padStart(2, "0");
     var result = [];
     items.forEach(function (item) {
-      if (item.date === dateKey && !skip[item.category]) {
+      if (skip[item.category]) return;
+      if (item.category === "parashat") {
+        // Show this week's parsha on any day of that week
+        if (item.date === satKey) result.push(item);
+      } else if (item.date === dateKey) {
         result.push(item);
       }
     });
