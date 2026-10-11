@@ -1137,12 +1137,12 @@
     /* Kill body min-height so no green gap appears below the calendar */
     body[data-view="calendar"] { min-height: 0; height: calc(100vh); height: calc(100dvh); overflow: hidden; }
     .calendar-wrap { padding: 8px 6px; padding-bottom: calc(8px + env(safe-area-inset-bottom)); height: calc(100vh - var(--nav-h, 50px)); height: calc(100dvh - var(--nav-h, 50px)); overflow: hidden; }
-    .cal-main { padding: 8px; overflow: hidden; }
-    /* the bar: date on top, then the view switch, then the buttons */
-    .calendar-nav-top { flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; margin-bottom: 8px; flex-shrink: 0; }
-    .cal-nav-center { order: 1; flex-direction: row; align-items: center; gap: 6px; }
-    .cal-nav-right { order: 2; flex: 0 0 auto; }
-    .cal-nav-left { order: 3; flex: 0 0 auto; gap: 6px; }
+    .cal-main { padding: 8px; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    /* Row 1: ‹ October 2026 › 🔍   Row 2: Search Date ▾  M */
+    .calendar-nav-top { flex-direction: row; flex-wrap: wrap; align-items: flex-start; gap: 6px 4px; margin-bottom: 8px; flex-shrink: 0; }
+    .cal-nav-left { order: 1; flex: 0 0 auto; gap: 0; }
+    .cal-nav-center { order: 2; flex: 1 1 0; min-width: 0; flex-direction: column; align-items: stretch; gap: 6px; }
+    .cal-nav-right { order: 3; flex: 0 0 auto; }
     .cal-nav-date-row { flex: 1 1 0; min-width: 0; gap: 6px; }
     #calPrevYear, #calNextYear { display: none; }          /* a whole year at a time: use the Year view or Search Date */
     .cal-arrow-btn { padding: 7px 13px; font-size: 18px; line-height: 1; flex-shrink: 0; }
@@ -1153,7 +1153,7 @@
     .cal-jump-opt { padding: 11px 10px; font-size: 14.5px; }
     .cal-jump-pick .cal-filter-apply { padding: 9px 14px; }
     /* view switch becomes a dropdown button next to Search Date */
-    .cal-nav-right { order: unset; flex: 0 0 auto; }
+    .cal-nav-right { order: 3; flex: 0 0 auto; }
     .cal-view-seg { display: none; }
     .cal-view-hamburger { display: flex !important; }
     .cal-view-hamburger-menu { position: absolute; top: 100%; right: 0; background: var(--bg-raised); border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.18); z-index: 600; min-width: 140px; padding: 6px 0; margin-top: 4px; }
@@ -1163,7 +1163,7 @@
     .cal-add-event-btn { position: fixed; bottom: 18px; right: 18px; width: 54px; height: 54px; padding: 0 !important; font-size: 26px !important; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,.22); z-index: 100; }
     .cal-quick-toggle-bar.visible ~ .cal-nav-left .cal-add-event-btn,
     .calendar-wrap:has(.cal-quick-toggle-bar.visible) .cal-add-event-btn { bottom: 62px; }
-    .cal-search-events-btn { flex: 0 0 auto; width: 36px; height: 36px; padding: 0 !important; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; }
+    .cal-search-events-btn { flex: 0 0 auto; width: 32px; height: 32px; padding: 0 !important; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; margin-top: 1px; }
     .cal-search-events-btn.active { background: var(--pine-soft); border-radius: 8px; }
     .cal-search-events-btn svg { width: 16px; height: 16px; }
     /* cal-refresh-btn hidden globally via #calRefreshBtn rule above */
