@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.avenium.taskmanager',
-  appName: 'Avenium',
+  appName: 'Avenium Tasks',
   webDir: 'public',
   server: {
     url: 'https://tasks.avenium.com',

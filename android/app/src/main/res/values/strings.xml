@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Avenium</string>
-    <string name="title_activity_main">Avenium</string>
+    <string name="app_name">Avenium Tasks</string>
+    <string name="title_activity_main">Avenium Tasks</string>
     <string name="package_name">com.avenium.taskmanager</string>
     <string name="custom_url_scheme">com.avenium.taskmanager</string>
 </resources>
