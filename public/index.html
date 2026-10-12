@@ -6376,11 +6376,7 @@
     var range = calGridRange();
     var today = new Date(); today.setHours(0, 0, 0, 0);
     grid.innerHTML = "";
-    // Only as many weeks as this month needs: usually 5, sometimes 6 (a 31-day
-    // month starting Fri/Sat, or a 30-day month starting Sat), 4 for a Feb starting Sunday
-    var weeks = Math.ceil((new Date(year, month, 1).getDay() + new Date(year, month + 1, 0).getDate()) / 7);
-    grid.style.gridTemplateRows = "repeat(" + weeks + ", minmax(0, 1fr))";
-    for (var i = 0; i < weeks * 7; i++) {
+    for (var i = 0; i < 42; i++) {
       (function (date) {
         var inMonth = date.getMonth() === month;
         var isToday = date.getTime() === today.getTime();
