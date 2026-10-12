@@ -628,6 +628,11 @@
   .cal-learning-row .ll { color: var(--ink-soft); padding: 2px 0; }
   .cal-learning-row .lv { font-weight: 600; color: var(--ink); text-align: right; padding: 2px 0; }
   .cal-learning-row a { color: var(--pine); text-decoration: none; font-size: 11px; }
+  .cal-learning-panel h4 { text-transform: none; letter-spacing: 0; font-size: 13px; }
+  .cal-learning-panel .cal-learning-row .lv { text-align: left; }
+  .cal-learning-panel .cal-learning-grid { grid-template-columns: auto 1fr; column-gap: 14px; }
+  .cal-learning-panel .cal-learning-row .ll { white-space: nowrap; }
+  .cal-learning-panel .cal-learning-grid { font-size: 13.5px; }
   .cal-learning-row a:hover { text-decoration: underline; }
   .cal-day-info-loading { color: var(--ink-faint); font-size: 12px; font-style: italic; }
   /* ---- Year: twelve small months ---- */
@@ -1548,6 +1553,9 @@
     window.addEventListener("orientationchange", function () { setTimeout(setNavH, 250); });
     // Recalculate after fonts and images settle
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(setNavH);
+    // The header grows when late content arrives (e.g. the Mincha / Shkia line),
+    // so follow its real size; otherwise the calendar overflows the window.
+    if (window.ResizeObserver) new ResizeObserver(setNavH).observe(root);
   }
 })();
 </script>
@@ -1690,23 +1698,23 @@
       <h3>Limudim Settings</h3>
       <button type="button" class="cal-settings-modal-close" id="limudimModalClose">&times;</button>
     </div>
-    <div class="cal-settings-modal-body" id="calLearningSubs">
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="F" style="width:auto;cursor:pointer;" checked> Daf Yomi</label>
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="dw" style="width:auto;cursor:pointer;"> Daf-a-Week</label>
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="yyomi" style="width:auto;cursor:pointer;"> Yerushalmi Yomi <span class="opt-note">Vilna</span></label>
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="myomi" style="width:auto;cursor:pointer;"> Mishna Yomi</label>
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="nyomi" style="width:auto;cursor:pointer;"> Nach Yomi</label>
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="dty" style="width:auto;cursor:pointer;"> Tanakh Yomi</label>
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="dps" style="width:auto;cursor:pointer;"> Daily Tehillim</label>
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="dr1" style="width:auto;cursor:pointer;"> Rambam <span class="opt-note">1 ch.</span></label>
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="dr3" style="width:auto;cursor:pointer;"> Rambam <span class="opt-note">3 ch.</span></label>
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="dsm" style="width:auto;cursor:pointer;"> Sefer HaMitzvot</label>
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="dksa" style="width:auto;cursor:pointer;"> Kitzur Shulchan Arukh</label>
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="ahsy" style="width:auto;cursor:pointer;"> Arukh HaShulchan</label>
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="dcc" style="width:auto;cursor:pointer;"> Chofetz Chaim</label>
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="dshl" style="width:auto;cursor:pointer;"> Shemirat HaLashon</label>
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="o" style="width:auto;cursor:pointer;" checked> Sefirat HaOmer</label>
-      <label class="cal-learn-sub"><input type="checkbox" data-learn="s" style="width:auto;cursor:pointer;" checked> Parsha</label>
+    <div class="cal-settings-modal-body" id="calLearningSubs" dir="rtl" lang="he">
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="F" style="width:auto;cursor:pointer;" checked> דף יומי</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dw" style="width:auto;cursor:pointer;"> דף שבועי</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="yyomi" style="width:auto;cursor:pointer;"> ירושלמי יומי <span class="opt-note">וילנא</span></label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="myomi" style="width:auto;cursor:pointer;"> משנה יומית</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="nyomi" style="width:auto;cursor:pointer;"> נ״ך יומי</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dty" style="width:auto;cursor:pointer;"> תנ״ך יומי</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dps" style="width:auto;cursor:pointer;"> תהלים יומי</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dr1" style="width:auto;cursor:pointer;"> רמב״ם <span class="opt-note">פרק אחד</span></label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dr3" style="width:auto;cursor:pointer;"> רמב״ם <span class="opt-note">ג׳ פרקים</span></label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dsm" style="width:auto;cursor:pointer;"> ספר המצוות</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dksa" style="width:auto;cursor:pointer;"> קיצור שולחן ערוך</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="ahsy" style="width:auto;cursor:pointer;"> ערוך השולחן</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dcc" style="width:auto;cursor:pointer;"> חפץ חיים</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="dshl" style="width:auto;cursor:pointer;"> שמירת הלשון</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="o" style="width:auto;cursor:pointer;" checked> ספירת העומר</label>
+      <label class="cal-learn-sub"><input type="checkbox" data-learn="s" style="width:auto;cursor:pointer;" checked> פרשת השבוע</label>
     </div>
   </div>
 </div>
@@ -6018,6 +6026,25 @@
     ahsy: "rpiArukhHaShulchan", dcc: "chofetzChaim", dshl: "shemiratHaLashon",
     o: "omer", s: "parashat"
   };
+  // Hebrew names for each schedule (hebcal category names, old and new)
+  var LEARN_HE_LABELS = {
+    dafyomi: "דף יומי", dafWeekly: "דף שבועי", yerushalmi: "ירושלמי יומי", mishnayomi: "משנה יומית",
+    nachyomi: "נ״ך יומי", tanakhYomi: "תנ״ך יומי", dailyPsalms: "תהלים יומי",
+    dailyRambam1: "רמב״ם – פרק אחד", rpiRambam1: "רמב״ם – פרק אחד",
+    dailyRambam3: "רמב״ם – ג׳ פרקים", rpiRambam3: "רמב״ם – ג׳ פרקים",
+    seferHaMitzvot: "ספר המצוות", rpiSeferHaMitzvot: "ספר המצוות",
+    kitzurShulchanAruch: "קיצור שולחן ערוך", rpiKitzurShulchanArukh: "קיצור שולחן ערוך",
+    arukhHaShulchanYomi: "ערוך השולחן", rpiArukhHaShulchan: "ערוך השולחן",
+    chofetzChaim: "חפץ חיים", shemiratHaLashon: "שמירת הלשון", omer: "ספירת העומר", parashat: "פרשת השבוע"
+  };
+  // The Hebrew text of an entry; fills the few spots hebcal leaves in English
+  function learningHebrew(item) {
+    var t = item.hebrew || item.title || "";
+    if (item.category === "parashat") t = t.replace(/^פרשת\s+/, "");
+    t = t.replace(/Book II\b/g, "חלק ב׳").replace(/Book I\b/g, "חלק א׳");
+    t = t.replace(/^Day (\d+):\s*/, "יום $1: ").replace(/\bP(\d+)\b/g, "מצות עשה $1").replace(/\bN(\d+)\b/g, "מצות לא תעשה $1");
+    return t;
+  }
   function fetchDailyLearning(dateKey) {
     // Build query from enabled schedules
     var params = "";
@@ -6159,8 +6186,9 @@
 
     if (wantLearning) {
       hasPanel = true;
-      var lPanel = el("div", "cal-day-info-panel");
-      lPanel.appendChild(el("h4", "", { text: "Daily Learning" }));
+      var lPanel = el("div", "cal-day-info-panel cal-learning-panel");
+      lPanel.setAttribute("dir", "rtl"); lPanel.setAttribute("lang", "he");
+      lPanel.appendChild(el("h4", "", { text: "לימוד יומי" }));
       var lBody = el("div", "cal-learning-grid");
       lBody.innerHTML = "<span class='cal-day-info-loading' style='grid-column:1/-1'>Loading…</span>";
       lPanel.appendChild(lBody);
@@ -6168,13 +6196,12 @@
 
       fetchDailyLearning(dateKey).then(function (items) {
         lBody.innerHTML = "";
-        if (!items || !items.length) { lBody.innerHTML = "<span class='cal-day-info-loading' style='grid-column:1/-1'>No learning info for this date</span>"; return; }
+        if (!items || !items.length) { lBody.innerHTML = "<span class='cal-day-info-loading' style='grid-column:1/-1'>אין לימוד לתאריך זה</span>"; return; }
         items.forEach(function (item) {
           var row = el("div", "cal-learning-row");
-          var catLabels = { dafyomi: "Daf Yomi", dafWeekly: "Daf-a-Week", yerushalmi: "Yerushalmi Yomi", mishnayomi: "Mishna Yomi", nachyomi: "Nach Yomi", tanakhYomi: "Tanakh Yomi", dailyPsalms: "Daily Tehillim", rpiRambam1: "Rambam (1 ch.)", rpiRambam3: "Rambam (3 ch.)", rpiSeferHaMitzvot: "Sefer HaMitzvot", rpiKitzurShulchanArukh: "Kitzur SA", rpiArukhHaShulchan: "Arukh HaShulchan", chofetzChaim: "Chofetz Chaim", shemiratHaLashon: "Shemirat HaLashon", omer: "Omer", parashat: "Parsha" };
-          var label = catLabels[item.category] || item.category;
+          var label = LEARN_HE_LABELS[item.category] || item.category;
           row.appendChild(el("span", "ll", { text: label }));
-          row.appendChild(el("span", "lv", { text: item.title }));
+          row.appendChild(el("span", "lv", { text: learningHebrew(item) }));
           lBody.appendChild(row);
         });
       });
