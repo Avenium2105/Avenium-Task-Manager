@@ -568,6 +568,9 @@
   .cal-view-seg button:hover { color: var(--pine); }
   .cal-view-seg button.active { background: var(--pine); color: var(--bg-raised); font-weight: 600; }
   #calAltView { flex: 1 1 auto; min-height: 0; display: none; }
+  .cal-stage { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  .cal-stage.swiping { overflow: hidden; }
+  .cal-swipe-ghost { position: absolute !important; margin: 0 !important; pointer-events: none; z-index: 1; }
   .cal-view-hamburger { display: none; align-items: center; justify-content: center; width: 38px; height: 38px; border: 1px solid var(--line); background: var(--bg-raised); color: var(--ink-soft); border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: 700; font-family: inherit; line-height: 1; padding: 0; position: relative; }
   .cal-view-hamburger:hover { color: var(--pine); background: var(--bg); }
   .cal-day-link { cursor: pointer; border-radius: 4px; padding: 0 3px; margin-left: -3px; }
@@ -1200,7 +1203,18 @@
 
     .cal-tg-week .cal-tg-ev { padding: 1px 2px; font-size: 9.5px; }
     /* year */
-    .cal-year { gap: 8px; padding: 0 0 10px; }
+    /* Swipes: Month/Year own both directions; Day/Week keep native vertical scrolling */
+    .cal-stage[data-view="month"], .cal-stage[data-view="year"] { touch-action: none; }
+    .cal-stage[data-view="day"], .cal-stage[data-view="week"] { touch-action: pan-y; }
+    /* Year: the whole year on one screen (3 × 4) so up/down can move between years */
+    .cal-stage[data-view="year"] { min-height: calc(100dvh - var(--nav-h, 50px) - 92px); }
+    .cal-stage[data-view="year"] #calAltView { display: flex !important; flex-direction: column; flex: 1 1 auto; }
+    .cal-year { flex: 1 1 auto; height: auto; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; grid-template-rows: repeat(4, minmax(0, 1fr)); gap: 5px; padding: 0; }
+    .cal-ym { padding: 4px 3px 3px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; border-radius: 8px; }
+    .cal-ym-title { font-size: 12.5px !important; padding: 0 2px 2px !important; text-align: left; }
+    .cal-ym-grid { flex: 1 1 auto; gap: 0; grid-auto-rows: minmax(0, 1fr); }
+    .cal-ym-dow { font-size: 8.5px; }
+    .cal-ym-day { font-size: 10.5px !important; padding: 1px 0 3px !important; border-width: 1px; border-radius: 4px; }
     .cal-ym { padding: 8px 6px 8px; }
     .cal-ym-title { font-size: 14px; padding: 2px 4px 6px; }
     .cal-ym-day { font-size: 12px; padding: 4px 0 8px; }
@@ -1746,8 +1760,10 @@
   <div class="cal-grid-head">
     <span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span>
   </div>
+  <div class="cal-stage" id="calStage">
   <div class="cal-grid" id="calGrid"></div>
   <div id="calAltView"></div>
+  </div>
   <!-- Search events screen: the search box, every filter, and the results -->
   <div id="calSearchResultsOverlay" class="cal-search-results-overlay">
     <div class="cal-search-results-head">
@@ -4788,64 +4804,123 @@
         updateHebrewDatePick(val);
       };
 
-      /* ── Swipe navigation for all calendar views (mobile) ── */
+      /* ── Swipe navigation (phones) ──
+         Day   ← → next / previous day
+         Week  ← → next / previous week
+         Month ← → next / previous YEAR   ↑ ↓ next / previous month
+         Year  ← → and ↑ ↓ next / previous year
+         The page follows the finger; on release the next page is pushed in from the
+         side you swiped toward, at the speed of the flick. A new touch during the
+         animation finishes it instantly, so swipes chain smoothly. */
       (function () {
-        var calWrap = document.querySelector(".calendar-wrap");
-        if (!calWrap) return;
-        var startX = 0, startY = 0, swiping = false;
-        var THRESHOLD = 50; // minimum px to count as a swipe
+        var stage = document.getElementById("calStage");
+        if (!stage) return;
+        var g = null, anim = null;
+        var SLOP = 8, EASE = "cubic-bezier(0.22, 0.61, 0.36, 1)";
 
-        // Smooth slide transition helper
-        function swipeNavigate(direction) {
-          // direction: 1 = swiped left (go next), -1 = swiped right (go prev)
-          var grid = document.getElementById("calGrid");
-          var alt = document.getElementById("calAltView");
-          var target = (calView === "month" || calView === "year") ? grid : alt;
-          if (!target || !target.offsetParent && target.style.display === "none") {
-            // fallback — just navigate without animation
-            calNavigate(false, direction);
-            return;
-          }
-          var slideOut = direction > 0 ? "-100%" : "100%";
-          var slideIn = direction > 0 ? "100%" : "-100%";
-          // Slide the old content out
-          target.style.transition = "transform 0.25s ease, opacity 0.25s ease";
-          target.style.transform = "translateX(" + slideOut + ")";
-          target.style.opacity = "0";
-          setTimeout(function () {
-            // Navigate to new content
-            target.style.transition = "none";
-            target.style.transform = "translateX(" + slideIn + ")";
-            calNavigate(false, direction);
-            // Force reflow then slide in
-            void target.offsetWidth;
-            target.style.transition = "transform 0.25s ease, opacity 0.25s ease";
-            target.style.transform = "translateX(0)";
-            target.style.opacity = "1";
-            setTimeout(function () {
-              target.style.transition = "";
-              target.style.transform = "";
-              target.style.opacity = "";
-            }, 280);
-          }, 250);
+        function target() { return document.getElementById(calView === "month" ? "calGrid" : "calAltView"); }
+        function allowed(axis) { return axis === "x" || calView === "month" || calView === "year"; }
+        function tf(axis, v) { return axis === "x" ? "translate3d(" + v + "px,0,0)" : "translate3d(0," + v + "px,0)"; }
+        function go(axis, dir) {
+          if (calView === "month" && axis === "x") calNavigate(true, dir);   // month: sideways = a year
+          else calNavigate(false, dir);
+        }
+        function finish() {
+          if (!anim) return;
+          clearTimeout(anim.timer);
+          if (anim.ghost && anim.ghost.parentNode) anim.ghost.remove();
+          anim.el.style.transition = ""; anim.el.style.transform = ""; anim.el.style.willChange = "";
+          stage.classList.remove("swiping");
+          anim = null;
+        }
+        function blocked(e) {
+          if (!isPhone()) return true;
+          if (typeof calSearchOverlayOpen !== "undefined" && calSearchOverlayOpen) return true;
+          return !!(e.target.closest && e.target.closest("input, textarea, select, .floating-popover, .cal-filter-drop"));
         }
 
-        calWrap.addEventListener("touchstart", function (e) {
-          if (!isPhone()) return;
+        stage.addEventListener("touchstart", function (e) {
+          finish();
+          if (e.touches.length !== 1 || blocked(e)) { g = null; return; }
           var t = e.touches[0];
-          startX = t.clientX; startY = t.clientY; swiping = true;
+          g = { x0: t.clientX, y0: t.clientY, axis: null, d: 0, base: 0, samples: [] };
         }, { passive: true });
-        calWrap.addEventListener("touchend", function (e) {
-          if (!swiping || !isPhone()) return;
-          swiping = false;
-          var t = e.changedTouches[0];
-          var dx = t.clientX - startX, dy = t.clientY - startY;
-          var absDx = Math.abs(dx), absDy = Math.abs(dy);
-          if (absDx < THRESHOLD && absDy < THRESHOLD) return;
-          if (absDx > absDy) {
-            swipeNavigate(dx < 0 ? 1 : -1);
+
+        stage.addEventListener("touchmove", function (e) {
+          if (!g) return;
+          if (e.touches.length !== 1) { cancel(); return; }
+          var t = e.touches[0], dx = t.clientX - g.x0, dy = t.clientY - g.y0;
+          if (!g.axis) {
+            if (Math.abs(dx) < SLOP && Math.abs(dy) < SLOP) { if (e.cancelable && calView !== "day" && calView !== "week") e.preventDefault(); return; }
+            var axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
+            if (!allowed(axis)) { g = null; return; }   // let Day/Week scroll natively
+            var el = target();
+            if (!el) { g = null; return; }
+            g.axis = axis; g.el = el;
+            g.size = axis === "x" ? stage.clientWidth : Math.max(stage.clientHeight, el.offsetHeight);
+            g.base = axis === "x" ? dx : dy;
+            stage.classList.add("swiping");
+            el.style.transition = "none"; el.style.willChange = "transform";
           }
+          if (e.cancelable) e.preventDefault();
+          var raw = g.axis === "x" ? dx : dy;
+          g.d = raw - g.base;
+          var now = performance.now();
+          g.samples.push({ d: g.d, t: now });
+          while (g.samples.length > 2 && now - g.samples[0].t > 100) g.samples.shift();
+          g.el.style.transform = tf(g.axis, g.d);
+        }, { passive: false });
+
+        function velocity() {
+          var s = g.samples; if (s.length < 2) return 0;
+          var a = s[0], b = s[s.length - 1], dt = b.t - a.t;
+          return dt > 0 ? (b.d - a.d) / dt : 0;   // px per ms
+        }
+        function springBack() {
+          var el = g.el;
+          el.style.transition = "transform 220ms " + EASE;
+          el.style.transform = tf(g.axis, 0);
+          anim = { el: el, ghost: null, timer: setTimeout(finish, 240) };
+        }
+        function cancel() {
+          if (g && g.axis) springBack();
+          g = null;
+        }
+
+        stage.addEventListener("touchend", function () {
+          if (!g || !g.axis) { g = null; return; }
+          var v = velocity(), d = g.d, size = g.size || 1;
+          var flick = Math.abs(v) > 0.35 && Math.abs(d) > 20;
+          var dir = (flick ? v : d) < 0 ? 1 : -1;            // finger left/up → next
+          var commit = (Math.abs(d) > size * 0.2 || flick) && !(v * d < 0 && Math.abs(v) > 0.2);
+          if (!commit) { springBack(); g = null; return; }
+
+          var el = g.el, axis = g.axis;
+          // A frozen copy of the page you are leaving, so both pages move together
+          var ghost = el.cloneNode(true);
+          ghost.removeAttribute("id");
+          [].forEach.call(ghost.querySelectorAll("[id]"), function (n) { n.removeAttribute("id"); });
+          ghost.classList.add("cal-swipe-ghost");
+          ghost.style.left = el.offsetLeft + "px"; ghost.style.top = el.offsetTop + "px";
+          ghost.style.width = el.offsetWidth + "px"; ghost.style.height = el.offsetHeight + "px";
+          ghost.style.transition = "none"; ghost.style.transform = tf(axis, d);
+          stage.appendChild(ghost);
+
+          go(axis, dir);                                       // paints the new page (instant when cached)
+
+          var from = d + dir * size;
+          el.style.transition = "none"; el.style.transform = tf(axis, from);
+          void el.offsetWidth;
+          var ms = Math.round(Math.min(360, Math.max(170, Math.abs(from) / Math.max(Math.abs(v), 1.5))));
+          var tr = "transform " + ms + "ms " + EASE;
+          el.style.transition = tr; ghost.style.transition = tr;
+          el.style.transform = tf(axis, 0);
+          ghost.style.transform = tf(axis, -dir * size);
+          anim = { el: el, ghost: ghost, timer: setTimeout(finish, ms + 30) };
+          g = null;
         }, { passive: true });
+
+        stage.addEventListener("touchcancel", cancel, { passive: true });
       })();
 
       /* ── Mouse-wheel navigation for desktop calendar views ── */
@@ -5380,6 +5455,7 @@
       alt.style.display = "block";
       if (calView === "year") renderCalYear(calendarEvents); else renderCalTimeGrid(calendarEvents, calView === "day" ? 1 : 7);
     }
+    var stg = document.getElementById("calStage"); if (stg) stg.dataset.view = calView;
     document.getElementById("calMonthLabel").textContent = calViewLabel();
   }
 
@@ -6190,12 +6266,15 @@
 
   // Warm the previous/next period so the arrows feel instant (a year is too much to preload)
   function prefetchNeighbourMonths() {
-    if (calView === "year") return;
-    var view = calView, unit = view === "day" ? "week" : view;
-    [-1, 1].forEach(function (offset) {
-      var range = calRangeFor(view, calShiftDate(calViewDate, unit, offset));
-      if (calMonthCache[rangeKeyFor(range)]) return;
-      fetchRange(range).catch(function () {});
+    var view = calView;
+    // everything one swipe away: Day/Week → neighbour weeks; Month → neighbour months and the same month ±1 year; Year → neighbour years
+    var units = view === "day" ? ["week"] : view === "month" ? ["month", "year"] : [view];
+    units.forEach(function (unit) {
+      [-1, 1].forEach(function (offset) {
+        var range = calRangeFor(view, calShiftDate(calViewDate, unit, offset));
+        if (calMonthCache[rangeKeyFor(range)]) return;
+        fetchRange(range).catch(function () {});
+      });
     });
   }
 
