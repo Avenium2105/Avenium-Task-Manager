@@ -559,12 +559,32 @@ async function refreshGoogleToken(token) {
     hostname: "oauth2.googleapis.com", path: "/token", method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(params) }
   }, params);
-  if (r.body.access_token) {
-    token.accessToken = r.body.access_token;
-    token.expiresAt = new Date(Date.now() + (r.body.expires_in || 3600) * 1000).toISOString();
+  return applyRefreshResult(token, r);
+}
+
+// Records what the provider actually said, so the Calendar Settings page can
+// tell "you must sign in again" apart from "Google was briefly unreachable".
+//  - invalid_grant  = the provider no longer honours this connection (revoked,
+//    expired — e.g. a Google Cloud project left in "Testing" expires them after 7 days)
+//  - anything else  = temporary; the next request simply tries again
+function applyRefreshResult(token, r) {
+  const body = r && r.body && typeof r.body === "object" ? r.body : {};
+  if (body.access_token) {
+    token.accessToken = body.access_token;
+    if (body.refresh_token) token.refreshToken = body.refresh_token;
+    token.expiresAt = new Date(Date.now() + (body.expires_in || 3600) * 1000).toISOString();
+    token.lastRefreshAt = new Date().toISOString();
+    delete token.authError;
     persistTokens();
+    return token;
   }
-  return token;
+  const code = body.error || ("http_" + (r && r.status));
+  const err = new Error("token_refresh_failed: " + code);
+  err.needsReconnect = code === "invalid_grant" || code === "unauthorized_client" || code === "invalid_client";
+  token.authError = { code, description: String(body.error_description || "").slice(0, 300), at: new Date().toISOString(), needsReconnect: err.needsReconnect };
+  persistTokens();
+  console.warn(`[calendar] ${token.provider} token refresh failed for ${token.email || token.id}: ${code} ${body.error_description || ""}`);
+  throw err;
 }
 
 async function refreshMicrosoftToken(token) {
@@ -581,13 +601,7 @@ async function refreshMicrosoftToken(token) {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded", "Content-Length": Buffer.byteLength(params) }
   }, params);
-  if (r.body.access_token) {
-    token.accessToken = r.body.access_token;
-    if (r.body.refresh_token) token.refreshToken = r.body.refresh_token;
-    token.expiresAt = new Date(Date.now() + (r.body.expires_in || 3600) * 1000).toISOString();
-    persistTokens();
-  }
-  return token;
+  return applyRefreshResult(token, r);
 }
 
 async function freshToken(account) {
@@ -2272,6 +2286,7 @@ app.get("/auth/google", requireAuth, (req, res) => {
     access_type: "offline",
     prompt: "consent select_account"
   });
+  if (req.query.hint) params.set("login_hint", String(req.query.hint).slice(0, 200));   // "Reconnect" pre-selects the account
   res.redirect("https://accounts.google.com/o/oauth2/v2/auth?" + params);
 });
 
@@ -2316,6 +2331,7 @@ app.get("/auth/microsoft", requireAuth, (req, res) => {
     response_mode: "query",
     prompt: "select_account"
   });
+  if (req.query.hint) params.set("login_hint", String(req.query.hint).slice(0, 200));
   res.redirect(`https://login.microsoftonline.com/${MICROSOFT_TENANT_ID}/oauth2/v2.0/authorize?` + params);
 });
 
@@ -2383,8 +2399,11 @@ app.get("/api/calendar/accounts", requireAuth, async (req, res) => {
       const calendars = (await listCalendarsFor(a)).map((c) => ({ ...c, key: acct.id + "|" + c.id, visible: !hidden.has(acct.id + "|" + c.id) }));
       return { id: acct.id, provider: acct.provider, email: acct.email, calendars };
     } catch (e) {
-      // e.g. access was revoked on Google/Microsoft's side — show it so it can be reconnected
-      return { id: acct.id, provider: acct.provider, email: acct.email, calendars: [], error: true };
+      // needsReconnect: the provider refused this connection — only signing in again fixes it.
+      // Otherwise it was a temporary failure and the next load retries by itself.
+      const needsReconnect = !!(e && e.needsReconnect) || /\b401\b|invalid_grant|unauthorized/i.test(String(e && e.message));
+      return { id: acct.id, provider: acct.provider, email: acct.email, calendars: [], error: true, needsReconnect,
+        errorCode: (acct.authError && acct.authError.code) || "", errorAt: (acct.authError && acct.authError.at) || "" };
     }
   }));
   const builtin = BUILTIN_CALENDARS.map((c) => ({ ...c, key: "builtin|" + c.id, visible: !hidden.has("builtin|" + c.id) }));
