@@ -5739,7 +5739,7 @@
     stripRow.appendChild(el("div", "cal-tg-gutter", { text: "All day" }));
     days.forEach(function (d) {
       var c = el("div", "cal-tg-allday-col");
-      d.strip.sort(function (a, b) { return (a.provider === "builtin" ? 0 : 1) - (b.provider === "builtin" ? 0 : 1) || String(a.title).localeCompare(String(b.title)); })
+      d.strip.sort(calEventOrder)
         .forEach(function (ev) { c.appendChild(calEventPill(ev, true)); });
       c.addEventListener("scroll", hideCalTooltip);
       c.onclick = function () { openCalModal(null, d.key + "T09:00"); };
@@ -6309,6 +6309,24 @@
     });
   }
 
+  // Top-to-bottom order inside a day: Parsha, Jewish holidays, US holidays,
+  // birthdays / anniversaries, then everything else.
+  var US_HOLIDAY_TITLES = /^(new year'?s (day|eve)|martin luther king|mlk day|presidents'? day|washington'?s birthday|memorial day|juneteenth|independence day|fourth of july|4th of july|labor day|columbus day|indigenous peoples'? day|veterans'? day|thanksgiving|christmas|valentine'?s day|mother'?s day|father'?s day|halloween|election day|black friday|groundhog day|st\.? patrick'?s day|flag day|tax day)\b/i;
+  function calEventRank(ev) {
+    var title = String(ev.title || ""), cal = String(ev.calendarName || ""), id = String(ev.calendarId || "");
+    if (id === "parsha" || /^parash(at|as|ah)?\b|^פרשת/i.test(title) || /torah portion|parsha/i.test(cal)) return 0;
+    if (id === "jewish" || /jewish|hebrew|יהודי/i.test(cal) && /holiday|חג/i.test(cal)) return 1;
+    if (id === "usa" || /holiday/i.test(cal) || US_HOLIDAY_TITLES.test(title)) return 2;
+    if (ev.type === "occasion" || ev.birthday || /birth\s?day|\bb-?day|anniversar|yahr?t?zeit|יום הולדת|יומולדת/i.test(title)) return 3;
+    return 4;
+  }
+  function calEventOrder(a, b) {
+    return calEventRank(a) - calEventRank(b) ||
+      (a.allDay ? 0 : 1) - (b.allDay ? 0 : 1) ||
+      new Date(a.start) - new Date(b.start) ||
+      String(a.title).localeCompare(String(b.title));
+  }
+
   // Local-date key ("2026-09-22") an event falls on, so UTC times land on the right day
   function calDayKey(ev) {
     if (ev.allDay) return (ev.start || "").slice(0, 10);
@@ -6374,7 +6392,7 @@
     var byDay = {};
     events.forEach(function (ev) { var k = calDayKey(ev); (byDay[k] = byDay[k] || []).push(ev); });
     Object.keys(byDay).forEach(function (k) {
-      byDay[k].sort(function (a, b) { return (a.allDay ? 0 : 1) - (b.allDay ? 0 : 1) || new Date(a.start) - new Date(b.start); });
+      byDay[k].sort(calEventOrder);
     });
 
     var range = calGridRange();
