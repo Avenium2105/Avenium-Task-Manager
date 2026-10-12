@@ -1295,6 +1295,9 @@ app.use("/assets", express.static(path.join(__dirname, "public", "assets")));
 
 // ---- pages ----
 app.get("/login.html", (req, res) => res.sendFile(path.join(__dirname, "public", "login.html")));
+// Public pages Google's sign-in screen links to (must open without signing in)
+app.get("/privacy.html", (req, res) => res.sendFile(path.join(__dirname, "public", "privacy.html")));
+app.get("/terms.html", (req, res) => res.sendFile(path.join(__dirname, "public", "terms.html")));
 app.get(["/", "/index.html"], requireAuth, (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 // Admin is a client-side view inside index.html now, switched to via a URL
 // hash ("/#admin") rather than a real path — a hash is never sent to the
