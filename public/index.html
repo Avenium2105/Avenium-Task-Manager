@@ -725,7 +725,11 @@
   .cal-jump-pick { display: flex; gap: 6px; padding: 4px 0 2px; align-items: center; }
   .cal-jump-pick input { font-family: inherit; font-size: 12px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); outline: none; flex: 1; min-width: 0; }
   .cal-jump-pick .cal-filter-apply { flex: 0 0 auto; }
-  .cal-cell.other-month { opacity: 0.45; }
+  /* Days outside the shown month: recessed grey, no border, muted contents */
+  .cal-cell.other-month { opacity: 1; background: #E7E6DD repeating-linear-gradient(135deg, transparent 0 7px, rgba(0,0,0,0.025) 7px 8px); border-color: transparent; box-shadow: none; }
+  .cal-cell.other-month:hover { background-color: #E1E0D6; }
+  .cal-cell.other-month .cal-day-num, .cal-cell.other-month .cal-heb-date { color: #A8A99E; font-weight: 500; }
+  .cal-cell.other-month .cal-cell-events, .cal-cell.other-month .cal-candle-pill { opacity: 0.5; filter: saturate(0.45); }
   .cal-day-num { font-size: 11.5px; font-weight: 600; color: var(--ink-soft); margin-bottom: 3px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: baseline; }
   .cal-heb-date { font-size: 9.5px; font-weight: 400; color: var(--ink-faint); direction: ltr; }
   .cal-cell.today .cal-day-num { color: var(--pine); }
