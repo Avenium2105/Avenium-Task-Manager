@@ -2308,6 +2308,18 @@
   // off: there, a long press would lift a "ghost" of the element instead of
   // scrolling, and the drop never registers anyway.
   var touchOnly = !!(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches);
+  // Phones: tapping anywhere on a date or time box opens the phone's picker.
+  // Some phones (and the Android app) draw these boxes computer-style, where a
+  // tap only selects the digits for typing and no keyboard appears, so
+  // the date/time could not be changed at all. showPicker() opens the picker directly.
+  if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) {
+    document.addEventListener("click", function (e) {
+      var t = e.target;
+      if (!t || t.tagName !== "INPUT" || t.disabled || t.readOnly) return;
+      if (!/^(date|time|datetime-local|month|week)$/.test(t.type)) return;
+      try { if (t.showPicker) t.showPicker(); } catch (err) {}
+    });
+  }
   // The menus that open with a right-click on a computer ("Add to Action
   // Items" on a task or a step) open with a long press on a touch screen.
   // iPhones never send a right-click for a long press, so it's timed here;
