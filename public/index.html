@@ -4804,7 +4804,18 @@
         calNewEventBlankDate = true;
       };
       [].forEach.call(document.querySelectorAll("#calTypeRow .cal-type-btn"), function (b) {
-        b.onclick = function () { applyCalType(b.dataset.type); };
+        b.onclick = function () { calTypeTouched = true; applyCalType(b.dataset.type); };
+      });
+      ["calModalStartDate2", "calModalStartTime"].forEach(function (id) {
+        document.getElementById(id).addEventListener("change", calStartChanged);
+      });
+      ["calModalEndDate2", "calModalEndTime"].forEach(function (id) {
+        document.getElementById(id).addEventListener("change", calEndChanged);
+      });
+      // A new event titled "...Birthday" / "Anniversary" / "Yahrzeit" becomes an all-day Occasion
+      document.getElementById("calModalName").addEventListener("input", function () {
+        if (calEditingEvent || calTypeTouched || calModalType === "occasion") return;
+        if (/birth\s?day|\bb-?day|anniversar|\by[ao]h?rt?zh?e?it|יום הולדת|יומולדת|יארצייט/i.test(this.value)) applyCalType("occasion");
       });
       document.getElementById("calOccasionJewish").onchange = function () { applyOccasionMode(true, true); };
       document.getElementById("calOccasionBoth").onchange = function () { applyOccasionMode(true, true); };
@@ -6572,11 +6583,13 @@
   // Meeting / Appointment / Occasion — presets that decide the default
   // length, whether an attendee list makes sense, and timed vs whole-day.
   var CAL_TYPES = {
-    meeting:     { minutes: 60, attendees: true,  label: "Meeting" },
+    meeting:     { minutes: 30, attendees: true,  label: "Meeting" },
     appointment: { minutes: 30, attendees: false, label: "Appointment" },
     occasion:    { minutes: 0,  attendees: false, label: "Occasion" }
   };
   var calModalType = "meeting";
+  var calTypeTouched = false;   // the person picked Meeting / Appointment / Occasion themselves
+  var calDurMin = 30;           // the event's length; changing the start keeps it, changing the end resets it
 
   // ----- Occasions: birthdays, anniversaries, yahrzeits -----
   // Always all-day and repeating every year. Gregorian by default; the
@@ -6922,6 +6935,27 @@
     document.getElementById("calAllDayFields").style.display = allDay ? "" : "none";
   }
 
+  // Minutes between the Start and End boxes (null if either is blank)
+  function calCurrentDurMin() {
+    var $ = function (id) { return document.getElementById(id).value; };
+    if (!$("calModalStartDate2") || !$("calModalStartTime") || !$("calModalEndDate2") || !$("calModalEndTime")) return null;
+    var d = (new Date($("calModalEndDate2") + "T" + $("calModalEndTime")) - new Date($("calModalStartDate2") + "T" + $("calModalStartTime"))) / 60000;
+    return isFinite(d) && d > 0 ? Math.round(d) : null;
+  }
+  // Setting the start moves the end with it: a new Meeting / Appointment ends
+  // 30 minutes later; an existing event keeps its length (or the length you set).
+  function calStartChanged() {
+    if (calOccasionMode || calIsAllDay()) return;
+    var sd = document.getElementById("calModalStartDate2").value, st = document.getElementById("calModalStartTime").value;
+    if (!sd || !st) return;
+    var e2 = new Date(sd + "T" + st);
+    if (isNaN(e2)) return;
+    e2.setMinutes(e2.getMinutes() + (calDurMin || 30));
+    document.getElementById("calModalEndDate2").value = e2.getFullYear() + "-" + String(e2.getMonth() + 1).padStart(2, "0") + "-" + String(e2.getDate()).padStart(2, "0");
+    document.getElementById("calModalEndTime").value = String(e2.getHours()).padStart(2, "0") + ":" + String(e2.getMinutes()).padStart(2, "0");
+  }
+  function calEndChanged() { var d = calCurrentDurMin(); if (d) calDurMin = d; }
+
   function applyCalType(type, keepTimes) {
     calModalType = type;
     var def = CAL_TYPES[type] || CAL_TYPES.meeting;
@@ -6941,6 +6975,7 @@
         document.getElementById("calModalEndDate2").value = e2.getFullYear() + "-" + String(e2.getMonth() + 1).padStart(2, "0") + "-" + String(e2.getDate()).padStart(2, "0");
         document.getElementById("calModalEndTime").value = String(e2.getHours()).padStart(2, "0") + ":" + String(e2.getMinutes()).padStart(2, "0");
       }
+      calDurMin = def.minutes || 30;
     }
     renderCalDetailSections();
     calSyncOnline();
@@ -7174,6 +7209,7 @@
       return;
     }
     calEditingEvent = event || null;
+    calTypeTouched = !!event;
     calOccasionMode = false;
     calNewEventBlankDate = false; calOccDateBad = false;
     document.getElementById("calOccDateText").value = "";
@@ -7217,7 +7253,7 @@
     var startIso = defaultStart || "";
     if (event && !event.allDay && evStart) startIso = toLocalInput(evStart);
     var endIso = "";
-    if (defaultStart) { var de = new Date(defaultStart); de.setHours(de.getHours() + 1); endIso = toLocalInput(de.toISOString()); }
+    if (defaultStart) { var de = new Date(defaultStart); de.setMinutes(de.getMinutes() + 30); endIso = toLocalInput(de.toISOString()); }
     if (event && !event.allDay && evEnd) endIso = toLocalInput(evEnd);
     document.getElementById("calModalStartDate2").value = startIso ? startIso.slice(0, 10) : "";
     document.getElementById("calModalStartTime").value = startIso ? startIso.slice(11, 16) : "";
@@ -7256,6 +7292,7 @@
     }
 
     applyCalType(event ? (CAL_TYPES[event.eventType] && event.eventType !== "occasion" ? event.eventType : (event.attendees && event.attendees.length) ? "meeting" : "appointment") : "meeting", true);
+    calDurMin = calCurrentDurMin() || 30;
     if (event && event.kind === "occasion" && event.provider === "local" && !readOnly) {
       document.getElementById("calOccasionKind").value = event.occasionKind || (/yahr|yart|yort/i.test(event.title || "") ? "yahrzeit" : /anniversar/i.test(event.title || "") ? "anniversary" : /birthday|bday|b-day/i.test(event.title || "") ? "birthday" : "other");
       document.getElementById("calOccasionSunset").checked = !!event.afterSunset;
