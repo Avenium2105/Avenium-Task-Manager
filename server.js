@@ -1297,6 +1297,8 @@ app.use("/assets", express.static(path.join(__dirname, "public", "assets")));
 app.get("/login.html", (req, res) => res.sendFile(path.join(__dirname, "public", "login.html")));
 // Public pages Google's sign-in screen links to (must open without signing in)
 app.get("/privacy.html", (req, res) => res.sendFile(path.join(__dirname, "public", "privacy.html")));
+// Service worker for reminder notifications: served from the root so it covers the whole site
+app.get("/sw.js", (req, res) => { res.set("Cache-Control", "no-cache"); res.set("Service-Worker-Allowed", "/"); res.sendFile(path.join(__dirname, "public", "sw.js")); });
 app.get("/terms.html", (req, res) => res.sendFile(path.join(__dirname, "public", "terms.html")));
 app.get(["/", "/index.html"], requireAuth, (req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 // Admin is a client-side view inside index.html now, switched to via a URL
@@ -2437,6 +2439,205 @@ app.post("/api/calendar/show-zmanim", requireAuth, (req, res) => {
   setCalPref(req.session.userId, "showZmanim", !!show);
   res.json({ ok: true });
 });
+// ---- Reminders (Outlook-style pop-ups) ----
+// minutes: how long before a meeting / appointment it pops up (0 = off, default 30).
+// state: { reminderKey: until } — until = -1 dismissed, or a time (ms) it is snoozed until.
+// Kept per user on the server so dismissing on the computer also clears it on the phone.
+const REMINDER_CHOICES = [0, 5, 10, 15, 30, 60, 120, 1440];
+function reminderPrefs(userId) {
+  if (!calendarPrefs[userId]) calendarPrefs[userId] = { hidden: [] };
+  const p = calendarPrefs[userId];
+  if (typeof p.reminderMinutes !== "number") p.reminderMinutes = 30;
+  if (!p.reminderState || typeof p.reminderState !== "object") p.reminderState = {};
+  return p;
+}
+function pruneReminderState(p) {
+  // keys carry their event date; anything decided over 4 days ago is no longer needed
+  const cutoff = Date.now() - 4 * 24 * 3600 * 1000;
+  for (const [k, v] of Object.entries(p.reminderState)) {
+    if (!v || typeof v !== "object" || !(v.at > cutoff)) delete p.reminderState[k];
+  }
+}
+app.get("/api/calendar/reminders", requireAuth, (req, res) => {
+  const p = reminderPrefs(req.session.userId);
+  if (validTimeZone(req.query.tz) && p.reminderTz !== req.query.tz) { p.reminderTz = req.query.tz; persistCalPrefs(); }
+  const state = {};
+  for (const [k, v] of Object.entries(p.reminderState)) state[k] = v.until;
+  res.json({ minutes: p.reminderMinutes, state });
+});
+app.post("/api/calendar/reminders/settings", requireAuth, (req, res) => {
+  const m = Number((req.body || {}).minutes);
+  if (!REMINDER_CHOICES.includes(m)) return res.status(400).json({ error: "invalid_minutes" });
+  reminderPrefs(req.session.userId).reminderMinutes = m;
+  persistCalPrefs();
+  res.json({ ok: true, minutes: m });
+});
+app.post("/api/calendar/reminders/dismiss", requireAuth, (req, res) => {
+  const { keys, until } = req.body || {};
+  if (!Array.isArray(keys) || !keys.length || keys.length > 200) return res.status(400).json({ error: "invalid_request" });
+  const u = until === -1 || until == null ? -1 : Number(until);
+  if (u !== -1 && !(u > Date.now() && u < Date.now() + 7 * 24 * 3600 * 1000)) return res.status(400).json({ error: "invalid_until" });
+  const p = reminderPrefs(req.session.userId);
+  keys.forEach((k) => { if (typeof k === "string" && k.length < 600) p.reminderState[k] = { until: u, at: Date.now() }; });
+  pruneReminderState(p);
+  persistCalPrefs();
+  res.json({ ok: true });
+});
+
+// ---- Reminder schedule (shared by push notifications and the Android app) ----
+// (validTimeZone and tzParts are the shared helpers defined near the top of this file)
+// The instant when the clock in `tz` shows y-m-d h:mi
+function tzWallToMs(y, m, d, h, tz, mi = 0) {
+  const want = Date.UTC(y, m - 1, d, h, mi, 0);
+  let guess = want;
+  for (let i = 0; i < 3; i++) {
+    const p = tzParts(new Date(guess), tz);
+    guess += want - Date.UTC(p.y, p.m - 1, p.d, p.h, p.min, p.s);
+  }
+  return guess;
+}
+// An event time as an instant. Avenium-calendar times are stored as wall-clock
+// ("2026-10-26T19:15:00", no zone) in the event's own time zone; Google / Outlook
+// times carry their offset.
+function eventMs(str, tz) {
+  const s = String(str || "");
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/);
+  if (m) return tzWallToMs(+m[1], +m[2], +m[3], +m[4], tz, +m[5]);
+  return new Date(s).getTime();
+}
+function tzDayKey(ms, tz) { const p = tzParts(new Date(ms), tz); return `${p.y}-${String(p.m).padStart(2, "0")}-${String(p.d).padStart(2, "0")}`; }
+function addDaysKey(key, n) { const d = new Date(key + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+const REMIND_OCCASION_HOUR = 8;
+const OCCASION_TITLE = /birth\s?day|\bb-?day|anniversar|\by[ao]h?rt?zh?e?it|יום הולדת|יומולדת|יארצייט/i;
+function fmtTimeIn(ms, tz) { return new Date(ms).toLocaleTimeString("en-US", { timeZone: tz, hour: "numeric", minute: "2-digit" }); }
+// Every reminder for these events: when it fires, when it stops mattering,
+// and what it says. Keys match the in-app pop-up so Dismiss/Snooze apply everywhere.
+function reminderSchedule(userId, events, tz) {
+  const p = reminderPrefs(userId);
+  const out = [], seen = new Set();
+  for (const ev of events) {
+    if (!ev || ev.provider === "builtin") continue;
+    const isOcc = ev.type === "occasion" || ev.kind === "occasion" || ev.birthday || OCCASION_TITLE.test(ev.title || "");
+    if (isOcc) {
+      const day = ev.allDay ? String(ev.start).slice(0, 10) : tzDayKey(eventMs(ev.start, validTimeZone(ev.timeZone) ? ev.timeZone : tz), tz);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
+      for (const when of ["tomorrow", "today"]) {
+        const fireDay = when === "today" ? day : addDaysKey(day, -1);
+        const [y, m, d] = fireDay.split("-").map(Number);
+        const fireAt = tzWallToMs(y, m, d, REMIND_OCCASION_HOUR, tz);
+        const nd = addDaysKey(fireDay, 1).split("-").map(Number);
+        const expiresAt = tzWallToMs(nd[0], nd[1], nd[2], 0, tz);
+        out.push({ key: `o|${ev.id || ev.title}|${day}|${when}`, title: "🎂 " + (ev.title || "Occasion"), body: when === "today" ? "Today" : "Tomorrow", fireAt, expiresAt, occasion: true });
+      }
+    } else {
+      if (ev.allDay || !p.reminderMinutes) continue;
+      const evTz = validTimeZone(ev.timeZone) ? ev.timeZone : tz;
+      const st = eventMs(ev.start, evTz); if (!isFinite(st)) continue;
+      const en = ev.end ? eventMs(ev.end, evTz) : st + 30 * 60000;
+      out.push({ key: `t|${ev.id || ev.title}|${ev.start}`, title: ev.title || "Event",
+        body: `${fmtTimeIn(st, tz)} – ${fmtTimeIn(en, tz)}` + (ev.location ? ` · ${String(ev.location).slice(0, 120)}` : ""),
+        fireAt: st - p.reminderMinutes * 60000, expiresAt: Math.max(en, st + 60000), start: st, occasion: false });
+    }
+  }
+  // apply Dismiss / Snooze
+  const res = [];
+  for (const r of out) {
+    if (seen.has(r.key)) continue; seen.add(r.key);
+    const st = p.reminderState[r.key];
+    if (st && st.until === -1) continue;
+    if (st && st.until > r.fireAt) r.fireAt = st.until;
+    if (r.fireAt >= r.expiresAt) continue;
+    res.push(r);
+  }
+  return res.sort((a, b) => a.fireAt - b.fireAt);
+}
+function userTz(userId, override) { return validTimeZone(override) ? override : (reminderPrefs(userId).reminderTz || "America/New_York"); }
+
+// The Android app reads this to schedule its own alarms (they fire even when the app is closed)
+app.get("/api/calendar/reminders/upcoming", requireAuth, async (req, res) => {
+  const uid = req.session.userId, tz = userTz(uid, req.query.tz);
+  if (validTimeZone(req.query.tz)) { const p = reminderPrefs(uid); if (p.reminderTz !== req.query.tz) { p.reminderTz = req.query.tz; persistCalPrefs(); } }
+  const now = Date.now();
+  const events = await gatherUserEvents(uid, new Date(now - 86400000).toISOString(), new Date(now + 4 * 86400000).toISOString());
+  const list = reminderSchedule(uid, events, tz).filter((r) => r.expiresAt > now && r.fireAt < now + 3 * 86400000)
+    .map((r) => ({ key: r.key, title: r.title, body: r.body, fireAt: r.fireAt, expiresAt: r.expiresAt }));
+  res.json({ reminders: list, minutes: reminderPrefs(uid).reminderMinutes });
+});
+
+// ---- Push notifications (computer browsers, and Chrome on a phone) ----
+// The browser keeps a subscription; the server sends each reminder when it is
+// due, so it shows even with the site closed.
+const webpush = require("web-push");
+const VAPID_FILE = path.join(DATA_DIR, "vapid.json");
+let vapid = null;
+try { vapid = JSON.parse(fs.readFileSync(VAPID_FILE, "utf8")); } catch (e) { vapid = null; }
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) vapid = { publicKey: process.env.VAPID_PUBLIC_KEY, privateKey: process.env.VAPID_PRIVATE_KEY };
+if (!vapid) { vapid = webpush.generateVAPIDKeys(); try { fs.writeFileSync(VAPID_FILE, JSON.stringify(vapid)); } catch (e) {} }
+webpush.setVapidDetails("mailto:" + (process.env.VAPID_CONTACT || "yehudahwiesner@gmail.com"), vapid.publicKey, vapid.privateKey);
+
+const PUSH_FILE = path.join(DATA_DIR, "push-subscriptions.json");
+let pushSubs = [];
+try { pushSubs = JSON.parse(fs.readFileSync(PUSH_FILE, "utf8")); } catch (e) { pushSubs = []; }
+function persistPushSubs() { saveJsonSafely(PUSH_FILE, () => pushSubs); }
+
+app.get("/api/push/key", requireAuth, (req, res) => res.json({ publicKey: vapid.publicKey }));
+app.post("/api/push/subscribe", requireAuth, (req, res) => {
+  const sub = (req.body || {}).subscription;
+  if (!sub || typeof sub.endpoint !== "string" || !/^https:\/\//.test(sub.endpoint) || !sub.keys || !sub.keys.p256dh || !sub.keys.auth) return res.status(400).json({ error: "invalid_subscription" });
+  pushSubs = pushSubs.filter((x) => x.endpoint !== sub.endpoint);
+  pushSubs.push({ userId: req.session.userId, endpoint: sub.endpoint, keys: { p256dh: String(sub.keys.p256dh), auth: String(sub.keys.auth) }, at: Date.now(), ua: String(req.headers["user-agent"] || "").slice(0, 200) });
+  persistPushSubs();
+  if (validTimeZone((req.body || {}).tz)) { const p = reminderPrefs(req.session.userId); p.reminderTz = req.body.tz; persistCalPrefs(); }
+  res.json({ ok: true });
+});
+app.post("/api/push/unsubscribe", requireAuth, (req, res) => {
+  const ep = (req.body || {}).endpoint;
+  pushSubs = pushSubs.filter((x) => !(x.endpoint === ep && x.userId === req.session.userId));
+  persistPushSubs();
+  res.json({ ok: true });
+});
+app.get("/api/push/status", requireAuth, (req, res) => {
+  const ep = String(req.query.endpoint || "");
+  res.json({ subscribed: pushSubs.some((x) => x.endpoint === ep && x.userId === req.session.userId) });
+});
+
+let pushRunning = false;
+async function sendDueReminderPushes() {
+  if (pushRunning || !pushSubs.length) return;
+  pushRunning = true;
+  try {
+    const now = Date.now();
+    const users = [...new Set(pushSubs.map((x) => x.userId))];
+    for (const uid of users) {
+      try {
+        const p = reminderPrefs(uid);
+        if (!p.reminderSent || typeof p.reminderSent !== "object") p.reminderSent = {};
+        const tz = userTz(uid);
+        const events = await gatherUserEvents(uid, new Date(now - 86400000).toISOString(), new Date(now + 3 * 86400000).toISOString());
+        // birthdays etc. still go out later that day; a meeting reminder more than 6 hours old is not worth sending
+        const due = reminderSchedule(uid, events, tz).filter((r) => r.fireAt <= now && r.expiresAt > now && (r.occasion || r.fireAt > now - 6 * 3600000));
+        let changed = false;
+        for (const r of due) {
+          const sentKey = r.key + "|" + r.fireAt;
+          if (p.reminderSent[sentKey]) continue;
+          p.reminderSent[sentKey] = now; changed = true;
+          const payload = JSON.stringify({ title: r.title, body: r.body, key: r.key, occasion: r.occasion, url: "/#calendar" });
+          for (const sub of pushSubs.filter((x) => x.userId === uid)) {
+            try { await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, payload, { TTL: 3600, urgency: "high" }); }
+            catch (e) {
+              if (e && (e.statusCode === 404 || e.statusCode === 410)) { pushSubs = pushSubs.filter((x) => x.endpoint !== sub.endpoint); persistPushSubs(); }
+              else console.warn("[push] send failed:", e && (e.statusCode || e.message));
+            }
+          }
+        }
+        for (const [k, at] of Object.entries(p.reminderSent)) if (at < now - 4 * 86400000) { delete p.reminderSent[k]; changed = true; }
+        if (changed) persistCalPrefs();
+      } catch (e) { console.warn("[push] reminders for user failed:", e && e.message); }
+    }
+  } finally { pushRunning = false; }
+}
+setInterval(sendDueReminderPushes, 60 * 1000);
+
 app.post("/api/calendar/zmanim-location", requireAuth, (req, res) => {
   const { zip } = req.body || {};
   if (!calendarPrefs[req.session.userId]) calendarPrefs[req.session.userId] = { hidden: [] };
@@ -2476,11 +2677,11 @@ app.post("/api/calendar/learning-schedules", requireAuth, (req, res) => {
 });
 
 // Events from every calendar in every connected account, for a date range
-app.get("/api/calendar/events", requireAuth, async (req, res) => {
-  const timeMin = req.query.start ? new Date(req.query.start).toISOString() : new Date(Date.now() - 31 * 86400000).toISOString();
-  const timeMax = req.query.end ? new Date(req.query.end).toISOString() : new Date(Date.now() + 62 * 86400000).toISOString();
-  const hidden = hiddenSet(req.session.userId);
-  const accounts = listAccounts(req.session.userId);
+// Every visible event for one user in a range (builtin + connected calendars + Avenium).
+// Shared by the Calendar page and the reminder sender.
+async function gatherUserEvents(userId, timeMin, timeMax) {
+  const hidden = hiddenSet(userId);
+  const accounts = listAccounts(userId);
   const all = [];
   const rangeKey = timeMin.slice(0, 10) + ".." + timeMax.slice(0, 10);
   await Promise.all(BUILTIN_CALENDARS.filter((c) => !hidden.has("builtin|" + c.id)).map(async (def) => {
@@ -2520,7 +2721,7 @@ app.get("/api/calendar/events", requireAuth, async (req, res) => {
   if (!hidden.has("local|avenium")) {
     const startDate = timeMin.slice(0, 10);
     const endDate = timeMax.slice(0, 10);
-    const userLocal = localEvents.filter((e) => e.userId === req.session.userId);
+    const userLocal = localEvents.filter((e) => e.userId === userId);
     userLocal.forEach((ev) => {
       const instances = expandLocalEvent(ev, startDate, endDate);
       instances.forEach((inst) => all.push({
@@ -2530,6 +2731,13 @@ app.get("/api/calendar/events", requireAuth, async (req, res) => {
       }));
     });
   }
+  return all;
+}
+
+app.get("/api/calendar/events", requireAuth, async (req, res) => {
+  const timeMin = req.query.start ? new Date(req.query.start).toISOString() : new Date(Date.now() - 31 * 86400000).toISOString();
+  const timeMax = req.query.end ? new Date(req.query.end).toISOString() : new Date(Date.now() + 62 * 86400000).toISOString();
+  const all = await gatherUserEvents(req.session.userId, timeMin, timeMax);
   res.json({ events: all });
 });
 

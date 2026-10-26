@@ -460,6 +460,28 @@
   .cal-opt-toggle { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; cursor: pointer; }
   .cal-opt-settings-btn { background: none; border: none; font-size: 15px; cursor: pointer; color: var(--ink-soft); padding: 0 2px; line-height: 1; }
   .cal-opt-settings-btn:hover { color: var(--pine); }
+  .cal-opt-remind { justify-content: space-between; gap: 10px; cursor: default; }
+  .cal-opt-remind select { font-family: inherit; font-size: 12.5px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+  .cal-opt-notify { width: 100%; border: none; background: none; font-family: inherit; color: var(--pine); font-size: 12.5px; text-align: left; white-space: normal; }
+  /* ---- Reminder pop-up (Outlook-style) ---- */
+  .remind-panel { position: fixed; right: 18px; bottom: 18px; width: 380px; max-height: min(70vh, 560px); display: flex; flex-direction: column; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgba(34,38,31,.28); z-index: 1200; overflow: hidden; animation: remindIn .22s ease-out; }
+  @keyframes remindIn { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
+  .remind-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px 10px 14px; background: var(--pine); color: #fff; font-weight: 600; font-size: 13.5px; }
+  .remind-head .remind-count { flex: 1; }
+  .remind-head button { font-family: inherit; font-size: 12px; font-weight: 600; color: #fff; background: rgba(255,255,255,.16); border: none; border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+  .remind-head button:hover { background: rgba(255,255,255,.28); }
+  .remind-list { overflow-y: auto; }
+  .remind-item { padding: 11px 14px; border-top: 1px solid var(--line-soft); }
+  .remind-item:first-child { border-top: none; }
+  .remind-title { font-weight: 600; font-size: 14px; color: var(--ink); margin-bottom: 2px; word-break: break-word; }
+  .remind-when { font-size: 12.5px; color: var(--ink-soft); }
+  .remind-when .remind-due { font-weight: 600; color: var(--pine); }
+  .remind-when .remind-due.late { color: var(--brick); }
+  .remind-where { font-size: 12px; color: var(--ink-soft); margin-top: 1px; word-break: break-word; }
+  .remind-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .remind-actions button, .remind-actions select { font-family: inherit; font-size: 12.5px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); cursor: pointer; }
+  .remind-actions .remind-dismiss { margin-left: auto; border-color: var(--pine); color: var(--pine); font-weight: 600; }
+  .remind-actions button:hover, .remind-actions select:hover { border-color: var(--pine); }
   .cal-admin-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
   .cal-admin-subtitle { margin: 0 0 10px; }
   .cal-admin-subtitle { margin: 0; font-size: 15px; font-weight: 600; }
@@ -1124,6 +1146,8 @@
     .cal-toggle { padding: 5px 0; gap: 7px; }
     .cal-hebrew-toggle { font-size: 13.5px !important; padding: 2px 0; }
     .cal-options-dropdown { min-width: 180px; }
+    .remind-panel { left: 8px; right: 8px; bottom: calc(8px + env(safe-area-inset-bottom)); width: auto; max-height: 60vh; }
+    .remind-actions button, .remind-actions select { padding: 8px 12px; font-size: 13.5px; }
     .cal-settings-modal { width: 92vw; }
     .admin-wrap .add-user-btn { width: 100%; padding: 10px 14px; font-size: 13.5px; }
     .admin-wrap .activity-toggle button { font-size: 14px; padding: 10px 0; }
@@ -1645,6 +1669,14 @@
           <label class="cal-opt-drop-item"><input id="calZmanimToggle" type="checkbox" style="width:auto;cursor:pointer;"> Zmanim
             <button type="button" class="cal-opt-settings-btn" id="calZmanimSettingsBtn" style="display:none;" title="Zmanim settings">&#9881;</button>
           </label>
+          <label class="cal-opt-drop-item cal-opt-remind">Reminders
+            <select id="calReminderMinutes" title="How long before a meeting or appointment the reminder pops up">
+              <option value="0">Off</option><option value="5">5 min before</option><option value="10">10 min before</option>
+              <option value="15">15 min before</option><option value="30">30 min before</option><option value="60">1 hour before</option>
+              <option value="120">2 hours before</option><option value="1440">1 day before</option>
+            </select>
+          </label>
+          <button type="button" class="cal-opt-drop-item cal-opt-notify" id="calNotifyAllow" style="display:none;"></button>
           <label class="cal-opt-drop-item"><input id="calLearningToggle" type="checkbox" style="width:auto;cursor:pointer;"> Limudim
             <button type="button" class="cal-opt-settings-btn" id="calLimudimSettingsBtn" style="display:none;" title="Limudim settings">&#9881;</button>
           </label>
@@ -6388,6 +6420,230 @@
       new Date(a.start) - new Date(b.start) ||
       String(a.title).localeCompare(String(b.title));
   }
+
+  // ================= Reminders (Outlook-style pop-ups) =================
+  // Meetings / appointments pop up a set time before they start (Options →
+  // Reminders, default 30 min). Birthdays, anniversaries and yahrzeits pop up
+  // the day before and the day of, from 8:00 AM. Dismiss / snooze are kept on
+  // the server, so clearing one on the computer clears it on the phone too.
+  var remind = { minutes: 30, state: {}, events: [], eventsAt: 0, shown: {}, notified: {}, timer: null, chimed: {} };
+  function remindKeyDay(d) { return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function remindLoad(forceEvents) {
+    var p1 = fetch("/api/calendar/reminders?tz=" + encodeURIComponent(remindTz())).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      if (!d) return;
+      remind.minutes = typeof d.minutes === "number" ? d.minutes : 30;
+      remind.state = d.state || {};
+      var sel = document.getElementById("calReminderMinutes"); if (sel) sel.value = String(remind.minutes);
+    }).catch(function () {});
+    var p2 = Promise.resolve();
+    if (forceEvents || Date.now() - remind.eventsAt > 4 * 60 * 1000) {
+      var t0 = new Date(); t0.setHours(0, 0, 0, 0);
+      var range = { start: new Date(t0.getTime() - 24 * 3600 * 1000), end: new Date(t0.getTime() + 3 * 24 * 3600 * 1000) };
+      // 1 day before covers a "1 day before" reminder for tomorrow morning
+      p2 = fetch("/api/calendar/events?start=" + encodeURIComponent(range.start.toISOString()) + "&end=" + encodeURIComponent(range.end.toISOString()))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) { if (d && d.events) { remind.events = d.events; remind.eventsAt = Date.now(); } })
+        .catch(function () {});
+    }
+    return Promise.all([p1, p2]);
+  }
+  function remindIsOccasion(ev) { return calEventRank(ev) === 3; }
+  // Everything that should be on screen right now
+  function remindDue() {
+    var now = Date.now(), out = [], seen = {};
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var todayKey = remindKeyDay(today), tomorrowKey = remindKeyDay(new Date(today.getTime() + 36 * 3600 * 1000));
+    var eightAm = new Date(today); eightAm.setHours(8, 0, 0, 0);
+    remind.events.forEach(function (ev) {
+      if (!ev || ev.provider === "builtin") return;
+      var key, item;
+      if (remindIsOccasion(ev)) {
+        if (now < eightAm.getTime()) return;
+        var day = calDayKey(ev);
+        var when = day === todayKey ? "today" : day === tomorrowKey ? "tomorrow" : null;
+        if (!when) return;
+        key = "o|" + (ev.id || ev.title) + "|" + day + "|" + when;
+        item = { key: key, ev: ev, occasion: when, sort: when === "today" ? 0 : 1 };
+      } else {
+        if (ev.allDay || !remind.minutes) return;
+        var st = new Date(ev.start).getTime(), en = ev.end ? new Date(ev.end).getTime() : st + 30 * 60000;
+        if (!isFinite(st) || now < st - remind.minutes * 60000 || now >= Math.max(en, st + 60000)) return;
+        key = "t|" + (ev.id || ev.title) + "|" + ev.start;
+        item = { key: key, ev: ev, start: st, end: en, sort: st };
+      }
+      if (seen[key]) return; seen[key] = 1;
+      var u = remind.state[key];
+      if (u === -1 || (typeof u === "number" && u > now)) return;
+      out.push(item);
+    });
+    return out.sort(function (a, b) { return (a.occasion ? -1 : 0) - (b.occasion ? -1 : 0) || a.sort - b.sort; });
+  }
+  function remindDueText(it) {
+    if (it.occasion) return it.occasion === "today" ? "Today" : "Tomorrow";
+    var mins = Math.round((it.start - Date.now()) / 60000);
+    if (mins > 0) return "in " + (mins >= 60 ? Math.floor(mins / 60) + " hr" + (mins % 60 ? " " + (mins % 60) + " min" : "") : mins + " min");
+    if (mins >= -1) return "now";
+    return "started " + (-mins >= 60 ? Math.floor(-mins / 60) + " hr " + (-mins % 60) + " min" : -mins + " min") + " ago";
+  }
+  function remindTimeRange(it) {
+    var f = function (t) { return new Date(t).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }); };
+    return f(it.start) + " – " + f(it.end);
+  }
+  function remindSend(keys, until) {
+    keys.forEach(function (k) { remind.state[k] = until; });
+    remindRender();
+    fetch("/api/calendar/reminders/dismiss", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ keys: keys, until: until }) }).catch(function () {});
+  }
+  function remindChime() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
+      remind.ac = remind.ac || new AC();
+      var ac = remind.ac; if (ac.state === "suspended") ac.resume();
+      [[880, 0], [1175, 0.16]].forEach(function (n) {
+        var o = ac.createOscillator(), g = ac.createGain(), t = ac.currentTime + n[1];
+        o.type = "sine"; o.frequency.value = n[0];
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+        o.connect(g); g.connect(ac.destination); o.start(t); o.stop(t + 0.5);
+      });
+    } catch (e) {}
+  }
+  function remindOpen(ev) {
+    var go = function () { try { openCalModal(ev); } catch (e) {} };
+    if (document.body.dataset.view !== "calendar" && window.AveniumRouter) { window.AveniumRouter.go("#calendar"); setTimeout(go, 350); }
+    else go();
+  }
+  function remindRender() {
+    var due = remindDue();
+    var panel = document.getElementById("remindPanel");
+    if (!due.length) { if (panel) panel.remove(); return; }
+    var fresh = due.filter(function (it) { return !remind.chimed[it.key]; });
+    if (fresh.length) { fresh.forEach(function (it) { remind.chimed[it.key] = 1; }); remindChime(); }
+    if (!panel) {
+      panel = el("div", "remind-panel"); panel.id = "remindPanel";
+      panel.setAttribute("role", "alertdialog"); panel.setAttribute("aria-label", "Reminders");
+      document.body.appendChild(panel);
+    }
+    panel.innerHTML = "";
+    var head = el("div", "remind-head");
+    head.appendChild(el("span", "remind-count", { text: "🔔 " + due.length + (due.length === 1 ? " reminder" : " reminders") }));
+    if (due.length > 1) {
+      var all = el("button", "", { type: "button", text: "Dismiss all" });
+      all.onclick = function () { remindSend(due.map(function (it) { return it.key; }), -1); };
+      head.appendChild(all);
+    }
+    panel.appendChild(head);
+    var list = el("div", "remind-list");
+    due.forEach(function (it) {
+      var row = el("div", "remind-item");
+      row.appendChild(el("div", "remind-title", { text: (it.occasion ? "🎂 " : "") + (it.ev.title || "(no title)") }));
+      var when = el("div", "remind-when");
+      var dueSpan = el("span", "remind-due" + (!it.occasion && it.start < Date.now() - 60000 ? " late" : ""), { text: remindDueText(it) });
+      when.appendChild(dueSpan);
+      if (!it.occasion) when.appendChild(document.createTextNode(" · " + remindTimeRange(it)));
+      row.appendChild(when);
+      if (it.ev.location) row.appendChild(el("div", "remind-where", { text: it.ev.location }));
+      var acts = el("div", "remind-actions");
+      var open = el("button", "", { type: "button", text: "Open" });
+      open.onclick = function () { remindOpen(it.ev); };
+      acts.appendChild(open);
+      var snooze = el("select", "", { "aria-label": "Snooze" });
+      var opts = it.occasion ? [["", "Snooze…"], ["60", "1 hour"], ["240", "4 hours"], ["tomorrow", "Until tomorrow"]]
+                             : [["", "Snooze…"], ["5", "5 minutes"], ["10", "10 minutes"], ["15", "15 minutes"], ["60", "1 hour"]];
+      opts.forEach(function (o) { var op = el("option", "", { value: o[0], text: o[1] }); snooze.appendChild(op); });
+      snooze.onchange = function () {
+        if (!this.value) return;
+        var until;
+        if (this.value === "tomorrow") { var t = new Date(); t.setHours(24 + 8, 0, 0, 0); until = t.getTime(); }
+        else until = Date.now() + Number(this.value) * 60000;
+        remindSend([it.key], until);
+      };
+      acts.appendChild(snooze);
+      var dis = el("button", "remind-dismiss", { type: "button", text: "Dismiss" });
+      dis.onclick = function () { remindSend([it.key], -1); };
+      acts.appendChild(dis);
+      row.appendChild(acts);
+      list.appendChild(row);
+    });
+    panel.appendChild(list);
+  }
+  function remindTick() { remindLoad(false).then(remindRender); }
+  function remindStart() {
+    if (remind.timer) return;
+    remindLoad(true).then(remindRender);
+    remind.timer = setInterval(remindTick, 60 * 1000);
+    document.addEventListener("visibilitychange", function () { if (!document.hidden) remindTick(); });
+    // Browsers only allow sound after the page has been touched once
+    document.addEventListener("pointerdown", function once() {
+      try { var AC = window.AudioContext || window.webkitAudioContext; if (AC) { remind.ac = remind.ac || new AC(); remind.ac.resume(); } } catch (e) {}
+      document.removeEventListener("pointerdown", once);
+    });
+    var sel = document.getElementById("calReminderMinutes");
+    if (sel) sel.addEventListener("change", function () {
+      var m = Number(this.value); remind.minutes = m;
+      fetch("/api/calendar/reminders/settings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ minutes: m }) }).catch(function () {});
+      remindRender();
+    });
+    remindPushSetup();
+  }
+  function remindTz() { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; } }
+
+  // ---- Notifications even when the site is closed (computers, and Chrome on a phone) ----
+  // The Android app does this itself with phone alarms, so the switch is hidden there.
+  var remindPush = { reg: null, sub: null };
+  function remindPushSupported() {
+    return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window && !/AveniumTasksApp/.test(navigator.userAgent);
+  }
+  function remindB64ToBytes(b64) {
+    var pad = "=".repeat((4 - b64.length % 4) % 4), raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+    var out = new Uint8Array(raw.length); for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i); return out;
+  }
+  function remindPushButton() {
+    var b = document.getElementById("calNotifyAllow"); if (!b) return;
+    if (!remindPushSupported()) { b.style.display = "none"; return; }
+    b.style.display = "";
+    if (Notification.permission === "denied") { b.textContent = "Notifications are blocked for this site in your browser settings"; b.disabled = true; return; }
+    b.disabled = false;
+    b.textContent = remindPush.sub ? "✓ Pop-ups on this device even when closed — turn off" : "Turn on pop-ups on this device (even when closed)";
+  }
+  function remindPushSave(sub) {
+    return fetch("/api/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ subscription: sub.toJSON(), tz: remindTz() }) });
+  }
+  function remindPushSetup() {
+    if (!remindPushSupported()) { remindPushButton(); return; }
+    navigator.serviceWorker.register("/sw.js", { scope: "/" }).then(function (reg) {
+      remindPush.reg = reg;
+      return reg.pushManager.getSubscription();
+    }).then(function (sub) {
+      remindPush.sub = sub;
+      if (sub && Notification.permission === "granted") remindPushSave(sub).catch(function () {});   // keep the server's copy current
+      remindPushButton();
+    }).catch(function () { remindPushButton(); });
+    var b = document.getElementById("calNotifyAllow");
+    if (b) b.addEventListener("click", function (e) {
+      e.preventDefault(); e.stopPropagation();
+      if (remindPush.sub) {
+        var ep = remindPush.sub.endpoint;
+        remindPush.sub.unsubscribe().catch(function () {});
+        remindPush.sub = null; remindPushButton();
+        fetch("/api/push/unsubscribe", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: ep }) }).catch(function () {});
+        return;
+      }
+      b.textContent = "Turning on…";
+      Notification.requestPermission().then(function (perm) {
+        if (perm !== "granted") throw new Error("not allowed");
+        return fetch("/api/push/key").then(function (r) { return r.json(); });
+      }).then(function (k) {
+        return (remindPush.reg ? Promise.resolve(remindPush.reg) : navigator.serviceWorker.ready).then(function (reg) {
+          return reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: remindB64ToBytes(k.publicKey) });
+        });
+      }).then(function (sub) {
+        remindPush.sub = sub;
+        return remindPushSave(sub);
+      }).then(function () { remindPushButton(); })
+        .catch(function () { remindPush.sub = null; remindPushButton(); });
+    });
+  }
+  setTimeout(remindStart, 2500);
 
   // Local-date key ("2026-09-22") an event falls on, so UTC times land on the right day
   function calDayKey(ev) {
