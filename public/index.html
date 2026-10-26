@@ -6589,7 +6589,7 @@
   };
   var calModalType = "meeting";
   var calTypeTouched = false;   // the person picked Meeting / Appointment / Occasion themselves
-  var calDurMin = 30;           // the event's length; changing the start keeps it, changing the end resets it
+  var calEndTouched = false;    // the person set the End themselves (to a time after the Start)
 
   // ----- Occasions: birthdays, anniversaries, yahrzeits -----
   // Always all-day and repeating every year. Gregorian by default; the
@@ -6942,19 +6942,38 @@
     var d = (new Date($("calModalEndDate2") + "T" + $("calModalEndTime")) - new Date($("calModalStartDate2") + "T" + $("calModalStartTime"))) / 60000;
     return isFinite(d) && d > 0 ? Math.round(d) : null;
   }
-  // Setting the start moves the end with it: a new Meeting / Appointment ends
-  // 30 minutes later; an existing event keeps its length (or the length you set).
-  function calStartChanged() {
-    if (calOccasionMode || calIsAllDay()) return;
+  // The End can never be at or before the Start.
+  //  - Changing the Start sets the End to Start + 30 minutes, unless you set the
+  //    End yourself to a later time (then it stays, as long as it's still after the Start).
+  //  - Picking an End at or before the Start snaps it to Start + 30 minutes.
+  function calSetEndAfterStart() {
     var sd = document.getElementById("calModalStartDate2").value, st = document.getElementById("calModalStartTime").value;
     if (!sd || !st) return;
     var e2 = new Date(sd + "T" + st);
     if (isNaN(e2)) return;
-    e2.setMinutes(e2.getMinutes() + (calDurMin || 30));
+    e2.setMinutes(e2.getMinutes() + 30);
     document.getElementById("calModalEndDate2").value = e2.getFullYear() + "-" + String(e2.getMonth() + 1).padStart(2, "0") + "-" + String(e2.getDate()).padStart(2, "0");
     document.getElementById("calModalEndTime").value = String(e2.getHours()).padStart(2, "0") + ":" + String(e2.getMinutes()).padStart(2, "0");
   }
-  function calEndChanged() { var d = calCurrentDurMin(); if (d) calDurMin = d; }
+  // The End date's calendar doesn't offer days before the Start date
+  function calSyncEndMin() {
+    var sd = document.getElementById("calModalStartDate2").value;
+    var ed = document.getElementById("calModalEndDate2");
+    if (sd) ed.min = sd; else ed.removeAttribute("min");
+  }
+  function calStartChanged() {
+    calSyncEndMin();
+    if (calOccasionMode || calIsAllDay()) return;
+    if (calEndTouched && calCurrentDurMin()) return;   // your own End, still after the Start
+    calEndTouched = false;
+    calSetEndAfterStart();
+  }
+  function calEndChanged() {
+    if (calOccasionMode || calIsAllDay()) return;
+    if (calCurrentDurMin()) { calEndTouched = true; return; }
+    calEndTouched = false;
+    calSetEndAfterStart();   // at or before the Start (or blank): back to Start + 30
+  }
 
   function applyCalType(type, keepTimes) {
     calModalType = type;
@@ -6975,7 +6994,7 @@
         document.getElementById("calModalEndDate2").value = e2.getFullYear() + "-" + String(e2.getMonth() + 1).padStart(2, "0") + "-" + String(e2.getDate()).padStart(2, "0");
         document.getElementById("calModalEndTime").value = String(e2.getHours()).padStart(2, "0") + ":" + String(e2.getMinutes()).padStart(2, "0");
       }
-      calDurMin = def.minutes || 30;
+      calEndTouched = false; calSyncEndMin();
     }
     renderCalDetailSections();
     calSyncOnline();
@@ -7292,7 +7311,7 @@
     }
 
     applyCalType(event ? (CAL_TYPES[event.eventType] && event.eventType !== "occasion" ? event.eventType : (event.attendees && event.attendees.length) ? "meeting" : "appointment") : "meeting", true);
-    calDurMin = calCurrentDurMin() || 30;
+    calEndTouched = false; calSyncEndMin();
     if (event && event.kind === "occasion" && event.provider === "local" && !readOnly) {
       document.getElementById("calOccasionKind").value = event.occasionKind || (/yahr|yart|yort/i.test(event.title || "") ? "yahrzeit" : /anniversar/i.test(event.title || "") ? "anniversary" : /birthday|bday|b-day/i.test(event.title || "") ? "birthday" : "other");
       document.getElementById("calOccasionSunset").checked = !!event.afterSunset;
