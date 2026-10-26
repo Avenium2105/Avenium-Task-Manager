@@ -1,6 +1,9 @@
 package com.avenium.taskmanager;
 
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
@@ -65,6 +68,8 @@ public class MainActivity extends AppCompatActivity {
         s.setLoadWithOverviewMode(true);
         s.setUseWideViewPort(true);
         s.setMediaPlaybackRequiresUserGesture(false);
+        // Lets the website know it is inside the app (the app shows reminders itself)
+        s.setUserAgentString(s.getUserAgentString() + " AveniumTasksApp/1");
 
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
@@ -80,6 +85,12 @@ public class MainActivity extends AppCompatActivity {
                 log("Finished: " + url + " (title: " + view.getTitle() + ")");
                 if (view.getTitle() != null && view.getTitle().contains("Avenium")) {
                     view.postDelayed(() -> status.setVisibility(android.view.View.GONE), 1500);
+                }
+                // Signed in: book this phone's reminder alarms, and ask once to show notifications
+                if (url != null && url.startsWith(START_URL) && !url.contains("/login")) {
+                    CookieManager.getInstance().flush();
+                    ReminderSync.syncAsync(MainActivity.this);
+                    askForNotifications();
                 }
             }
 
@@ -160,6 +171,18 @@ public class MainActivity extends AppCompatActivity {
     protected void onPause() {
         super.onPause();
         CookieManager.getInstance().flush();
+        ReminderSync.syncAsync(this);   // pick up anything added or changed while the app was open
+    }
+
+    private boolean askedForNotifications = false;
+    private void askForNotifications() {
+        ReminderSync.ensureChannel(this);
+        ReminderSync.ensurePeriodic(this);
+        if (askedForNotifications || Build.VERSION.SDK_INT < 33) return;
+        askedForNotifications = true;
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] { Manifest.permission.POST_NOTIFICATIONS }, 7);
+        }
     }
 
     @Override
