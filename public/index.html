@@ -461,6 +461,15 @@
   .cal-opt-settings-btn { background: none; border: none; font-size: 15px; cursor: pointer; color: var(--ink-soft); padding: 0 2px; line-height: 1; }
   .cal-opt-settings-btn:hover { color: var(--pine); }
   .cal-opt-remind { justify-content: space-between; gap: 10px; cursor: default; }
+  /* ---- Microphone on every text box ---- */
+  .mic-btn { position: fixed; z-index: 2000; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg-raised); color: var(--pine); display: none; align-items: center; justify-content: center; padding: 0; cursor: pointer; box-shadow: 0 1px 4px rgba(34,38,31,.15); -webkit-tap-highlight-color: transparent; }
+  .mic-btn.show { display: inline-flex; }
+  .mic-field { padding-right: 40px !important; }
+  .mic-btn:hover { border-color: var(--pine); }
+  .mic-btn.listening { background: var(--brick); border-color: var(--brick); color: #fff; animation: micPulse 1.1s ease-in-out infinite; }
+  @keyframes micPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(178,74,60,.45); } 50% { box-shadow: 0 0 0 7px rgba(178,74,60,0); } }
+  .mic-bubble { position: fixed; z-index: 2001; max-width: min(360px, calc(100vw - 24px)); background: var(--ink); color: var(--bg-raised); font-size: 13px; line-height: 1.4; padding: 7px 11px; border-radius: 9px; box-shadow: 0 4px 16px rgba(0,0,0,.25); pointer-events: none; }
+  .mic-bubble .mic-hint { opacity: .7; }
   .cal-opt-remind select { font-family: inherit; font-size: 12.5px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
   .cal-opt-notify { width: 100%; border: none; background: none; font-family: inherit; color: var(--pine); font-size: 12.5px; text-align: left; white-space: normal; }
   /* ---- Reminder pop-up (Outlook-style) ---- */
@@ -2340,6 +2349,122 @@
   // off: there, a long press would lift a "ghost" of the element instead of
   // scrolling, and the drop never registers anyway.
   var touchOnly = !!(window.matchMedia && window.matchMedia("(hover: none) and (pointer: coarse)").matches);
+  // ================= Microphone on every text box =================
+  // Click into any text box and a mic button appears at its right edge; tap it,
+  // talk, and the words are typed where the cursor is. Computers (Chrome / Edge)
+  // use the browser's speech recognition; the Android app uses the phone's own
+  // voice typing through the app (window.AveniumNative.startSpeech).
+  (function () {
+    var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    var nativeSpeech = !!(window.AveniumNative && window.AveniumNative.startSpeech);
+    if (!Rec && !nativeSpeech) return;            // nothing to listen with (e.g. Firefox): no button
+    var TEXT_TYPES = /^(text|search|url|email|tel|)$/;
+    var btn = document.createElement("button");
+    btn.type = "button"; btn.className = "mic-btn"; btn.title = "Talk instead of typing"; btn.setAttribute("aria-label", "Dictate");
+    btn.innerHTML = '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="5.5" y="1.5" width="5" height="8.5" rx="2.5"/><path d="M3 7.5a5 5 0 0 0 10 0M8 12.5v2.5"/></svg>';
+    var bubble = null, field = null, rec = null, listening = false, startedAt = null;
+    function usable(t) {
+      if (!t || t.disabled || t.readOnly) return false;
+      if (t.tagName === "TEXTAREA") return true;
+      return t.tagName === "INPUT" && TEXT_TYPES.test((t.getAttribute("type") || "").toLowerCase()) && t.type !== "password";
+    }
+    function place() {
+      if (!field || !document.body.contains(field)) { hide(); return; }
+      var r = field.getBoundingClientRect();
+      if (!r.width || r.bottom < 0 || r.top > window.innerHeight) { btn.classList.remove("show"); return; }
+      var size = 30, top = field.tagName === "TEXTAREA" ? r.top + 5 : r.top + (r.height - size) / 2;
+      btn.style.left = Math.max(4, Math.min(window.innerWidth - size - 4, r.right - size - 5)) + "px";
+      btn.style.top = Math.max(4, top) + "px";
+      btn.classList.add("show");
+      if (bubble) { bubble.style.left = Math.max(12, Math.min(window.innerWidth - bubble.offsetWidth - 12, r.left)) + "px"; bubble.style.top = (r.top > 70 ? r.top - bubble.offsetHeight - 6 : r.bottom + 6) + "px"; }
+    }
+    function hide() { if (listening) return; btn.classList.remove("show"); if (field) field.classList.remove("mic-field"); field = null; }
+    function say(text, hint) {
+      if (!bubble) { bubble = document.createElement("div"); bubble.className = "mic-bubble"; document.body.appendChild(bubble); }
+      bubble.innerHTML = "";
+      if (text) bubble.appendChild(document.createTextNode(text + " "));
+      if (hint) { var h = document.createElement("span"); h.className = "mic-hint"; h.textContent = hint; bubble.appendChild(h); }
+      place();
+    }
+    function clearBubble() { if (bubble) { bubble.remove(); bubble = null; } }
+    // Type the words where the cursor is, with sensible spaces, and let the page react as if typed
+    function insert(t, words) {
+      words = String(words || "").trim();
+      if (!t || !words) return;
+      var v = t.value, a = t.selectionStart != null ? t.selectionStart : v.length, b = t.selectionEnd != null ? t.selectionEnd : v.length;
+      var before = v.slice(0, a), after = v.slice(b);
+      if (before && !/\s$/.test(before)) words = " " + words;
+      if (after && !/^\s/.test(after)) words = words + " ";
+      if (!before.trim()) words = words.charAt(0).toUpperCase() + words.slice(1);
+      t.focus();
+      try { t.setRangeText(words, a, b, "end"); } catch (e) { t.value = before + words + after; }
+      t.dispatchEvent(new Event("input", { bubbles: true }));
+      t.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+    function lang() { return document.documentElement.lang && document.documentElement.lang.length > 2 ? document.documentElement.lang : (navigator.language || "en-US"); }
+    function stop() { listening = false; btn.classList.remove("listening"); clearBubble(); }
+
+    // Android app: the phone's voice typing hands the words back here
+    window.__aveniumSpeechResult = function (text, err) {
+      var t = startedAt; stop();
+      if (err) { if (err !== "cancelled") { say("", "Voice typing isn't available on this phone."); setTimeout(clearBubble, 2500); } return; }
+      insert(t, text);
+      if (t) { field = t; place(); }
+    };
+
+    function start() {
+      if (!field) return;
+      startedAt = field;
+      if (nativeSpeech) {
+        listening = true; btn.classList.add("listening");
+        try { window.AveniumNative.startSpeech(lang()); } catch (e) { stop(); }
+        return;
+      }
+      rec = new Rec();
+      rec.lang = lang(); rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+      var finalText = "";
+      rec.onresult = function (e) {
+        var interim = "";
+        for (var i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) finalText += e.results[i][0].transcript; else interim += e.results[i][0].transcript;
+        }
+        say(finalText + interim, interim ? "" : "");
+      };
+      rec.onerror = function (e) {
+        var msg = e.error === "not-allowed" || e.error === "service-not-allowed" ? "Microphone is blocked. Allow it in the browser's site settings (the icon left of the address)."
+                : e.error === "no-speech" ? "Didn't hear anything. Tap the mic and try again." : e.error === "aborted" ? "" : "Couldn't listen (" + e.error + ").";
+        stop(); if (msg) { say("", msg); setTimeout(clearBubble, 3500); }
+      };
+      rec.onend = function () { var t = startedAt; var words = finalText; stop(); insert(t, words); if (t) { field = t; place(); } };
+      try { rec.start(); listening = true; btn.classList.add("listening"); say("", "Listening… speak now"); } catch (e) { stop(); }
+    }
+
+    // keep focus in the box when the mic is pressed
+    btn.addEventListener("mousedown", function (e) { e.preventDefault(); });
+    btn.addEventListener("touchstart", function (e) { e.preventDefault(); btn.click(); }, { passive: false });
+    btn.addEventListener("click", function (e) {
+      e.preventDefault(); e.stopPropagation();
+      if (listening) { if (rec) { try { rec.stop(); } catch (er) {} } else stop(); return; }
+      start();
+    });
+    document.addEventListener("focusin", function (e) {
+      if (!usable(e.target)) return;
+      if (field && field !== e.target) field.classList.remove("mic-field");
+      field = e.target;
+      if (field.getBoundingClientRect().width > 140) field.classList.add("mic-field");   // room for the button
+      if (!btn.parentNode) document.body.appendChild(btn);
+      place();
+    });
+    document.addEventListener("focusout", function (e) {
+      if (e.target !== field) return;
+      setTimeout(function () { if (document.activeElement !== field) hide(); }, 150);
+    });
+    window.addEventListener("scroll", function () { if (field) place(); }, true);
+    window.addEventListener("resize", function () { if (field) place(); });
+    // the box can move or vanish while it has focus (modals opening, lists re-drawing)
+    setInterval(function () { if (field) place(); }, 400);
+  })();
+
   // Phones: tapping anywhere on a date or time box opens the phone's picker.
   // Some phones (and the Android app) draw these boxes computer-style, where a
   // tap only selects the digits for typing and no keyboard appears, so

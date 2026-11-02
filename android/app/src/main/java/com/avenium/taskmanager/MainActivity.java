@@ -12,7 +12,11 @@ import android.net.http.SslError;
 import android.view.Gravity;
 import android.widget.FrameLayout;
 import android.widget.TextView;
+import android.speech.RecognizerIntent;
 import android.webkit.CookieManager;
+import android.webkit.JavascriptInterface;
+import org.json.JSONObject;
+import java.util.ArrayList;
 import android.webkit.SslErrorHandler;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceResponse;
@@ -27,6 +31,7 @@ import androidx.appcompat.app.AppCompatActivity;
 public class MainActivity extends AppCompatActivity {
     private static final String START_URL = "https://tasks.avenium.com";
     private static final int FILE_CHOOSER = 1001;
+    private static final int SPEECH = 1002;
     private WebView webView;
     private ValueCallback<Uri[]> fileCallback;
     private TextView status;
@@ -70,6 +75,8 @@ public class MainActivity extends AppCompatActivity {
         s.setMediaPlaybackRequiresUserGesture(false);
         // Lets the website know it is inside the app (the app shows reminders itself)
         s.setUserAgentString(s.getUserAgentString() + " AveniumTasksApp/1");
+        // The website's microphone buttons use the phone's own voice typing through this
+        webView.addJavascriptInterface(new SpeechBridge(), "AveniumNative");
 
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
@@ -152,9 +159,39 @@ public class MainActivity extends AppCompatActivity {
         webView.loadUrl(START_URL);
     }
 
+    /** window.AveniumNative.startSpeech(lang): opens Android's voice typing; the words go back to the page. */
+    private class SpeechBridge {
+        @JavascriptInterface
+        public void startSpeech(final String lang) {
+            runOnUiThread(() -> {
+                Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                if (lang != null && !lang.isEmpty()) i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang);
+                i.putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak now");
+                try {
+                    startActivityForResult(i, SPEECH);
+                } catch (Exception e) {
+                    speechResult(null, "unavailable");
+                }
+            });
+        }
+    }
+
+    private void speechResult(String text, String err) {
+        String js = "window.__aveniumSpeechResult && window.__aveniumSpeechResult(" +
+                JSONObject.quote(text == null ? "" : text) + "," + (err == null ? "null" : JSONObject.quote(err)) + ")";
+        webView.evaluateJavascript(js, null);
+    }
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == SPEECH) {
+            ArrayList<String> words = (resultCode == RESULT_OK && data != null) ? data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS) : null;
+            if (words != null && !words.isEmpty()) speechResult(words.get(0), null);
+            else speechResult(null, "cancelled");
+            return;
+        }
         if (requestCode == FILE_CHOOSER && fileCallback != null) {
             fileCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, data));
             fileCallback = null;
