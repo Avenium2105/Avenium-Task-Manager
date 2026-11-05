@@ -1379,6 +1379,16 @@
   /* ----- Phone: ONE search for the whole app (tasks + calendar), from the header ----- */
   .m-search-btn, .m-search { display: none; }
   @media (max-width: 760px) {
+    /* boards as tabs (swipe sideways for more) instead of the board menu */
+    .board-tabs { display: block !important; padding: 6px 0 0 !important; }
+    .board-hamburger-bar { display: none !important; }
+    .board-tabs-row { display: flex !important; flex-wrap: nowrap; align-items: flex-end; gap: 3px; overflow-x: auto; overflow-y: hidden; padding: 0 8px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .board-tabs-row::-webkit-scrollbar { display: none; }
+    .board-tabs-row .board-tab-wrap { flex-shrink: 0; }
+    .board-tabs-row .board-tab { flex-shrink: 0; white-space: nowrap; font-size: 13px; padding: 8px 12px; }
+    .board-tabs-row .board-tab-rename, .board-tabs-row .board-tab-delete, .board-tabs-row .board-menu-btn { padding: 6px 5px; }
+    /* All boards: no board titles between the groups, so it's more compact */
+    .board-section-head { display: none !important; }
     .board-search-phone, #calSearchBtn { display: none !important; }       /* the old separate searches */
     .m-search-btn { display: inline-flex; align-items: center; justify-content: center; position: fixed; z-index: 520; top: calc(8px + env(safe-area-inset-top)); right: 60px; width: 40px; height: 40px; border: none; border-radius: 10px; background: var(--pine-soft); color: var(--pine); cursor: pointer; }
     body[data-view="admin"] .m-search-btn { display: none; }
