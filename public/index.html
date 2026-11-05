@@ -6894,7 +6894,7 @@
           var mk = key.slice(0, 7);
           var candleData = candleCache[mk] && candleCache[mk][key];
           if (candleData) {
-            var candlePill = el("div", "cal-candle-pill", { text: "🕯️ " + candleData.time });
+            var candlePill = el("div", "cal-candle-pill", { text: "🕯️ " + String(candleData.time).replace(/\s*[AP]\.?M\.?$/i, "") });   // month view: no "PM"
             candlePill.title = "Hadlakas Neiros";
             cell.appendChild(candlePill);
           }
