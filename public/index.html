@@ -140,6 +140,8 @@
   .board-access-close { float: right; font-size: 15px; line-height: 1; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 2px 4px; }
   .board-access-close:hover { color: var(--ink); }
 
+  /* a board's ⋮ options (and delete) only show on the tab you're on */
+  .board-tab-wrap:not(.is-active) .board-menu-wrap, .board-tab-wrap:not(.is-active) .board-tab-delete { display: none; }
   .board-menu-btn { font-family: inherit; font-size: 15px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 6px 8px; border-radius: 6px; line-height: 1; }
   .board-menu-btn:hover { color: var(--pine); background: var(--bg-raised); }
   .board-menu { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 4px; min-width: 160px; }
@@ -159,7 +161,7 @@
   .board-tab-wrap.drag-over { box-shadow: inset 0 0 0 2px var(--slate); }
   .board-tab {
     font-family: inherit; font-size: 13px; font-weight: 700; color: #fff; background: rgba(255,255,255,0.18); text-shadow: 0 1px 1px rgba(20,60,40,0.35); border: none;
-    padding: 9px 18px; cursor: pointer; border-radius: 9px 9px 0 0; transition: background 0.15s, color 0.15s; margin-bottom: -2px;
+    padding: 8px 13px; cursor: pointer; border-radius: 9px 9px 0 0; transition: background 0.15s, color 0.15s; margin-bottom: -2px;
   }
   .board-tab:hover { color: #fff; background: rgba(255,255,255,0.25); }
   .board-tab.active { text-shadow: none; color: var(--pine); background: var(--bg-raised); border: 1px solid var(--line); border-bottom: none; box-shadow: 0 -1px 4px rgba(34,38,31,0.06); position: relative; z-index: 2; }
@@ -1385,7 +1387,8 @@
     .board-tabs-row { display: flex !important; flex-wrap: nowrap; align-items: flex-end; gap: 3px; overflow-x: auto; overflow-y: hidden; padding: 0 8px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
     .board-tabs-row::-webkit-scrollbar { display: none; }
     .board-tabs-row .board-tab-wrap { flex-shrink: 0; }
-    .board-tabs-row .board-tab { flex-shrink: 0; white-space: nowrap; font-size: 13px; padding: 8px 12px; }
+    .board-tabs-row .board-tab { flex-shrink: 0; white-space: nowrap; font-size: 12.5px; padding: 7px 9px; }
+    .board-tabs-row { gap: 2px; }
     .board-tabs-row .board-tab-rename, .board-tabs-row .board-tab-delete, .board-tabs-row .board-menu-btn { padding: 6px 5px; }
     /* All boards: no board titles between the groups, so it's more compact */
     .board-section-head { display: none !important; }
@@ -2751,7 +2754,7 @@
 
     var isAdmin = currentUser && currentUser.role === "admin";
     boardsInTabOrder().forEach(function (b) {
-      var wrap = el("span", "board-tab-wrap", { title: "Drag to reorder tabs" });
+      var wrap = el("span", "board-tab-wrap" + (selectedBoardId === b.id ? " is-active" : ""), { title: "Drag to reorder tabs" });
       makeDragSource(wrap, "board-tab", b.id);
       makeDropTarget(wrap, "board-tab", b.id, function (srcId, targetId) { socket.emit("swapBoardTabOrder", { idA: srcId, idB: targetId }); });
       var tab = el("button", "board-tab" + (selectedBoardId === b.id ? " active" : ""), { type: "button", text: b.name });
