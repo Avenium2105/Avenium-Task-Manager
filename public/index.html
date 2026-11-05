@@ -191,7 +191,11 @@
   .group-name { font-weight: 600; font-size: 15px; color: var(--ink); background: transparent; border: none; outline: none; padding: 3px 2px; border-radius: 5px; flex: 1; min-width: 0; font-family: inherit; }
   .group-name:hover, .group-name:focus { background: var(--line-soft); }
   .lock-icon { flex-shrink: 0; color: var(--ink-faint); display: flex; align-items: center; }
-  .group-add-btn { display: none; }
+  /* "+" on the right of each group header opens its "Add a task" box (phone and computer) */
+  .group-add-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 30px; height: 30px; border: none; border-radius: 8px; background: var(--pine-soft); color: var(--pine); cursor: pointer; padding: 0; }
+  .group-add-btn:hover { background: var(--pine); color: #fff; }
+  .group-add-btn svg { width: 14px; height: 14px; }
+  .add-row:not(.m-open) { display: none; }
   .group-del { flex-shrink: 0; width: 32px; height: 32px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
   .group-del svg { width: 15px; height: 15px; }
   .group-del:hover { background: var(--brick-soft); color: var(--brick); }
