@@ -6846,7 +6846,12 @@
     var range = calGridRange();
     var today = new Date(); today.setHours(0, 0, 0, 0);
     grid.innerHTML = "";
-    for (var i = 0; i < 42; i++) {
+    // only the weeks the month needs (5, or 6 when it spills over): no extra row of next month's days
+    var lastOfMonth = new Date(year, month + 1, 0);
+    var nCells = Math.ceil((Math.round((lastOfMonth - range.start) / 86400000) + 1) / 7) * 7;
+    nCells = Math.max(28, Math.min(42, nCells));
+    grid.style.gridTemplateRows = "repeat(" + (nCells / 7) + ", minmax(0, 1fr))";
+    for (var i = 0; i < nCells; i++) {
       (function (date) {
         var inMonth = date.getMonth() === month;
         var isToday = date.getTime() === today.getTime();
