@@ -1365,6 +1365,11 @@
     .cal-arrow-btn { padding: 5px 6px; }
     .cal-view-hamburger { width: 30px; }
   }
+  /* Today is light blue in Year, Month and Week, so it's easy to spot */
+  .cal-cell.today, .cal-cell.today:hover { background: #dbeafe !important; border-color: #60a5fa !important; }
+  .cal-ym-day.today, .cal-ym-day.today.has, .cal-ym-day.today.has.busy { background: #dbeafe !important; border-color: #60a5fa !important; }
+  .cal-tg-week .cal-tg-col.today, .cal-tg-week .cal-tg-allday-col.today { background-color: #e8f1fd !important; }
+  .cal-tg-week .cal-tg-dayhead.today { background: #dbeafe; border-radius: 6px 6px 0 0; }
 </style>
 </head>
 <body>
@@ -5957,7 +5962,7 @@
     var stripRow = el("div", "cal-tg-row"); stripRow.style.gridTemplateColumns = cols;
     stripRow.appendChild(el("div", "cal-tg-gutter", { text: "All day" }));
     days.forEach(function (d) {
-      var c = el("div", "cal-tg-allday-col");
+      var c = el("div", "cal-tg-allday-col" + (d.key === todayKey ? " today" : ""));
       d.strip.sort(calEventOrder)
         .forEach(function (ev) { c.appendChild(calEventPill(ev, true)); });
       c.addEventListener("scroll", hideCalTooltip);
