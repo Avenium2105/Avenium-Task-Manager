@@ -189,6 +189,7 @@
   .group-name { font-weight: 600; font-size: 15px; color: var(--ink); background: transparent; border: none; outline: none; padding: 3px 2px; border-radius: 5px; flex: 1; min-width: 0; font-family: inherit; }
   .group-name:hover, .group-name:focus { background: var(--line-soft); }
   .lock-icon { flex-shrink: 0; color: var(--ink-faint); display: flex; align-items: center; }
+  .group-add-btn { display: none; }
   .group-del { flex-shrink: 0; width: 32px; height: 32px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
   .group-del svg { width: 15px; height: 15px; }
   .group-del:hover { background: var(--brick-soft); color: var(--brick); }
@@ -1058,29 +1059,34 @@
     /* ---- task list ---- */
     .board-section-title { font-size: 18px; }
     .board-section-drag-handle, .group-drag-handle { display: none; }   /* dragging to reorder is a mouse thing */
-    .group { margin-bottom: 14px; border-radius: 12px; }
-    .group-head { padding: 12px 10px 12px 8px; gap: 8px; }
+    .group { margin-bottom: 10px; border-radius: 10px; }
+    .group-head { padding: 7px 6px 7px 6px; gap: 6px; }
     .group-head .chevron { margin-left: 2px; }
-    .group-del { width: 38px; height: 38px; }
-    .item { padding: 10px 10px 9px 6px; }
-    .item-main { flex-wrap: wrap; row-gap: 7px; align-items: flex-start; }
+    .group-head .group-name { flex: 0 1 auto; field-sizing: content; min-width: 3ch; max-width: calc(100% - 100px); }
+    .group-add-btn { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 30px; height: 30px; margin-right: auto; border: none; border-radius: 8px; background: var(--pine-soft); color: var(--pine); cursor: pointer; padding: 0; }
+    .group-add-btn svg { width: 14px; height: 14px; }
+    .group-del { width: 32px; height: 32px; }
+    .add-row:not(.m-open) { display: none; }
+    .item { padding: 5px 6px 5px 4px; }
+    .item-main { flex-wrap: nowrap; gap: 5px; align-items: center; }
     .item-collapse-btn { width: 30px; height: 30px; }
     .item-collapse-btn svg { width: 14px; height: 14px; }
     /* long titles wrap instead of being cut off; tap the text to edit it */
     .m-wrap { display: block; min-width: 0; }
-    .m-wrap.m-title { flex: 1 1 calc(100% - 40px); }
+    .m-wrap.m-title { flex: 1 1 auto; }
     .m-wrap.m-step { flex: 1 1 0; }
     .m-mirror { display: block; padding: 4px 4px; border-radius: 5px; word-break: break-word; overflow-wrap: anywhere; cursor: text; }
-    .m-title .m-mirror { font-size: 15px; line-height: 1.35; color: var(--ink); }
+    .m-title .m-mirror { font-size: 14px; line-height: 1.3; color: var(--ink); padding: 3px 2px; }
     .m-step .m-mirror { font-size: 14px; line-height: 1.35; color: var(--ink-soft); padding: 7px 4px; }
     .m-wrap:not(.editing) > input { display: none; }
     .m-wrap.editing > .m-mirror { display: none; }
     .m-wrap.editing > input { display: block; width: 100%; background: var(--bg); }
     .item.is-done .m-title .m-mirror, .step-row.done .m-step .m-mirror { color: var(--ink-faint); text-decoration: line-through; }
-    .item-main > .details-btn { margin-left: 38px; }                    /* second line starts under the title */
-    .details-btn, .task-archive-btn, .priority-tag { padding: 8px 13px; font-size: 12.5px; }
+    /* one line per task: title, then Details and the priority on the right */
+    .details-btn, .task-archive-btn, .priority-tag { padding: 4px 8px; font-size: 11.5px; flex-shrink: 0; }
     .priority-tag { display: inline-block; }
-    .item-del { opacity: 1; margin-left: auto; width: 36px; height: 34px; }
+    .item-del { opacity: 1; width: 28px; height: 28px; flex-shrink: 0; }
+    .item-collapse-btn { width: 24px !important; height: 24px !important; flex-shrink: 0; }
     .step-checklist { padding: 4px 0 4px 38px; width: 100%; gap: 4px; }
     .step-row { align-items: flex-start; gap: 6px; }
     .step-row-update-btn { padding: 8px 12px; margin-top: 1px; }
@@ -1088,7 +1094,7 @@
     .step-add-row { flex-wrap: wrap; }
     .step-add-row input { flex: 1 1 100%; }
     .step-add-row button { flex: 1 1 0; padding: 10px 14px; }
-    .add-row { padding: 12px 10px 14px 12px; }
+    .add-row { padding: 6px 8px 8px 10px; }
     .add-group-btn { width: 100%; justify-content: center; padding: 14px; }
     .new-group-form { flex-wrap: wrap; }
     .new-group-form input[type=text] { flex: 1 1 100%; padding: 10px; }
@@ -2092,6 +2098,17 @@
   var openNewBoardForm = false; // true while the "+ new board" popover form is showing
   var messageRecipients = {}; // "board:id" / "item:id" -> { all: bool, ids: [] } — who a new message goes to
   var openMessageEdits = {}; // messageId -> true while inline-editing that message
+  var mAddFocus = null;       // phone: the group whose add box should keep the keyboard after a redraw
+  // phone: tapping anywhere else closes an empty "Add a task" box
+  document.addEventListener("click", function (e) {
+    if (e.target.closest && e.target.closest(".add-row, .group-add-btn")) return;
+    mAddFocus = null;
+    [].forEach.call(document.querySelectorAll(".add-row.m-open"), function (row) {
+      var inp = row.querySelector(".add-input");
+      if (inp && !inp.value.trim()) { row.classList.remove("m-open"); delete mAddOpen[inp.dataset.group]; }
+    });
+  });
+  var mAddOpen = {};          // phone: groups whose "Add a task" box is showing (opened with the + by the name)
   var selectedItemId = null; // when set, the right-side panel shows this task's notes/files/chat instead of board chat
 
   // ----- Phone layout -----
@@ -3234,6 +3251,19 @@
       nameInput.addEventListener("change", function () { updateGroup(g.id, { name: nameInput.value.trim() || "Untitled" }); });
       head.appendChild(nameInput);
 
+      // phone: the "+" to add a task sits right after the group's name
+      var gAddBtn = el("button", "group-add-btn", { type: "button", "aria-label": "Add a task", title: "Add a task" });
+      gAddBtn.innerHTML = plusSvg();
+      gAddBtn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        mAddOpen[g.id] = true;
+        var c = getCollapsed(), key = selectedBoardId + ":" + g.id;
+        if (c[key]) { c[key] = false; setCollapsed(c); }
+        render();
+        var inp = document.querySelector('.add-input[data-group="' + g.id + '"]'); if (inp) inp.focus();
+      });
+      head.appendChild(gAddBtn);
+
       if (!allGroupItems.length) {
         var delBtn = el("button", "group-del", { "aria-label": "Delete group", type: "button" });
         delBtn.innerHTML = xSvg();
@@ -3253,13 +3283,16 @@
       var body = el("div", "group-body");
       groupItems.forEach(function (item) { body.appendChild(renderItem(item)); });
 
-      var addRow = el("form", "add-row");
+      var addRow = el("form", "add-row" + (mAddOpen[g.id] ? " m-open" : ""));
       var plus = el("div", "plus"); plus.innerHTML = plusSvg(); addRow.appendChild(plus);
-      var addInput = el("input", "add-input", { placeholder: "Add a task", type: "text", enterkeyhint: "done" });
+      var addInput = el("input", "add-input", { placeholder: "Add a task", type: "text", enterkeyhint: "done", "data-group": g.id });
       addRow.appendChild(addInput);
+      if (mAddFocus === g.id) setTimeout(function () { if (mAddFocus === g.id && addInput.isConnected) { addInput.focus(); } }, 0);   // keep typing the next task after the list redraws
+      // phone: the box shows after tapping "+", and goes away again when left empty
+      addInput.addEventListener("blur", function () { setTimeout(function () { if (!addInput.value.trim() && document.activeElement !== addInput) { delete mAddOpen[g.id]; addRow.classList.remove("m-open"); } }, 150); });
       addRow.addEventListener("submit", function (e) {
         e.preventDefault();
-        if (addInput.value.trim()) { addItem(g.id, addInput.value.trim(), groupItems.length); addInput.value = ""; addInput.focus(); }
+        if (addInput.value.trim()) { mAddFocus = g.id; addItem(g.id, addInput.value.trim(), groupItems.length); addInput.value = ""; addInput.focus(); }
       });
       body.appendChild(addRow);
 
