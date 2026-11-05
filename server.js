@@ -419,20 +419,20 @@ function expandLocalEvent(ev, startDate, endDate) {
 // Jewish holidays come from Hebcal's free public API — no account or key.
 // Major + minor holidays, fast days and special Shabbatot, diaspora dates.
 // Titles only: Hebcal's "memo" descriptions are deliberately dropped.
-const NOT_JEWISH_HOLIDAYS = /^(Sigd|Yom HaAliyah|Herzl Day|Jabotinsky Day|Ben-Gurion Day|Yitzhak Rabin Memorial Day|Family Day|Hebrew Language Day|Chag HaBanot)\b/i;
+const NOT_JEWISH_HOLIDAYS = /^(Sigd|Yom HaShoah|Yom HaZikaron|Yom HaAtzma.ut|Yom Yerushalayim|Yom HaAliyah|Herzl Day|Jabotinsky Day|Ben-Gurion Day|Yitzhak Rabin Memorial Day|Family Day|Hebrew Language Day|Chag HaBanot)\b/i;
 async function fetchJewishHolidays(timeMin, timeMax) {
   const start = String(timeMin).slice(0, 10);
   const end = String(timeMax).slice(0, 10);
   const r = await httpsRequest({
     hostname: "www.hebcal.com",
-    path: `/hebcal?v=1&cfg=json&maj=on&min=on&mod=on&nx=on&ss=on&mf=on&c=off&s=off&start=${start}&end=${end}`,
+    path: `/hebcal?v=1&cfg=json&maj=on&min=on&mod=off&nx=on&ss=on&mf=on&c=off&s=off&start=${start}&end=${end}`,
     method: "GET",
     headers: { Accept: "application/json", "User-Agent": "AveniumTasks/1.0" }
   });
   if (!r.body || !r.body.items) return [];
   return r.body.items
     .filter((it) => it.category === "holiday" || it.category === "roshchodesh" || it.category === "fast")
-    // Hebcal's "modern" list includes Israeli civic days that aren't Jewish holidays (Sigd, Herzl Day...)
+    // Israeli national days are not Jewish holidays: Hebcal's "modern" list is off, and these are dropped if they still come
     .filter((it) => !NOT_JEWISH_HOLIDAYS.test(it.title || ""))
     .map((it) => ({
       externalId: "hebcal_" + it.date + "_" + (it.title || "").replace(/\W+/g, ""),
