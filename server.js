@@ -419,6 +419,7 @@ function expandLocalEvent(ev, startDate, endDate) {
 // Jewish holidays come from Hebcal's free public API — no account or key.
 // Major + minor holidays, fast days and special Shabbatot, diaspora dates.
 // Titles only: Hebcal's "memo" descriptions are deliberately dropped.
+const NOT_JEWISH_HOLIDAYS = /^(Sigd|Yom HaAliyah|Herzl Day|Jabotinsky Day|Ben-Gurion Day|Yitzhak Rabin Memorial Day|Family Day|Hebrew Language Day|Chag HaBanot)\b/i;
 async function fetchJewishHolidays(timeMin, timeMax) {
   const start = String(timeMin).slice(0, 10);
   const end = String(timeMax).slice(0, 10);
@@ -431,6 +432,8 @@ async function fetchJewishHolidays(timeMin, timeMax) {
   if (!r.body || !r.body.items) return [];
   return r.body.items
     .filter((it) => it.category === "holiday" || it.category === "roshchodesh" || it.category === "fast")
+    // Hebcal's "modern" list includes Israeli civic days that aren't Jewish holidays (Sigd, Herzl Day...)
+    .filter((it) => !NOT_JEWISH_HOLIDAYS.test(it.title || ""))
     .map((it) => ({
       externalId: "hebcal_" + it.date + "_" + (it.title || "").replace(/\W+/g, ""),
       title: it.title || "", start: String(it.date).slice(0, 10), end: String(it.date).slice(0, 10),
