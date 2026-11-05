@@ -36,7 +36,7 @@ const MICROSOFT_REDIRECT = PUBLIC_URL + "/auth/microsoft/callback";
 const CALENDAR_ENABLED = !!(GOOGLE_CLIENT_ID && MICROSOFT_CLIENT_ID);
 
 
-const GROUP_COLORS = ["#3C5A46", "#C68A2E", "#7D6BAE", "#4C7A9E", "#B24A3C"];
+const GROUP_COLORS = ["#3D7B5C", "#C68A2E", "#7D6BAE", "#4C7A9E", "#B24A3C"];
 const DEFAULT_GROUPS = ["Today", "This week", "Someday"];
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB per file
 
@@ -2729,7 +2729,7 @@ async function gatherUserEvents(userId, timeMin, timeMax) {
       const instances = expandLocalEvent(ev, startDate, endDate);
       instances.forEach((inst) => all.push({
         ...inst, provider: "local", accountId: "local", accountEmail: "",
-        calendarId: "avenium", calendarName: "Avenium", color: "#3C5A46", canEdit: true,
+        calendarId: "avenium", calendarName: "Avenium", color: "#3D7B5C", canEdit: true,
         externalId: ev.id
       }));
     });
@@ -2813,7 +2813,7 @@ app.get("/api/calendar/search", requireAuth, async (req, res) => {
       const type = eventTypeOf(ev, "local");
       expandLocalEvent(ev, startDate, endDate).filter(inRange).forEach((inst) => found.push({
         ...inst, provider: "local", accountId: "local", accountEmail: "",
-        calendarId: "avenium", calendarName: "Avenium", color: "#3C5A46", canEdit: true,
+        calendarId: "avenium", calendarName: "Avenium", color: "#3D7B5C", canEdit: true,
         externalId: ev.id, type
       }));
     });
@@ -3037,7 +3037,7 @@ app.get("/api/calendar/occasions", requireAuth, async (req, res) => {
         if (!(turning > 0)) turning = null;
         rows.push({
           event: { ...inst, provider: "local", accountId: "local", accountEmail: "",
-            calendarId: "avenium", calendarName: "Avenium", color: "#3C5A46", canEdit: true, externalId: ev.id },
+            calendarId: "avenium", calendarName: "Avenium", color: "#3D7B5C", canEdit: true, externalId: ev.id },
           next, later: next > windowEnd,
           kind: ev.occasionKind ? (ev.occasionKind === "birthday" ? "birthday" : "other") : kindOf(ev.title),
           calendar: "Avenium", account: "", jewish, hebrew: h ? h.day + " " + h.monthName : null, turning

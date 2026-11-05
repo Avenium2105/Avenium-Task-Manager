@@ -10,7 +10,7 @@
 <style>
   :root {
     --bg: #F3F3EE; --bg-raised: #FBFBF8; --ink: #22261F; --ink-soft: #63685C; --ink-faint: #9A9C8F;
-    --line: #E2E1D5; --line-soft: #EAE9DE; --pine: #3C5A46; --pine-soft: #E4ECE4;
+    --line: #E2E1D5; --line-soft: #EAE9DE; --pine: #3D7B5C; --pine-soft: #E4F1EB;
     --ochre: #C68A2E; --ochre-soft: #F5E8D2; --slate: #4C7A9E; --slate-soft: #E1EAF1;
     --brick: #B24A3C; --brick-soft: #F5E1DC; --grey-pill: #E6E5DA; --grey-pill-ink: #6C6F62;
     --shadow: 0 1px 3px rgba(34,38,31,0.07); --radius: 12px;
@@ -55,13 +55,13 @@
   .topbar { gap: 14px; }
   /* Inactive buttons sit in a muted green; the selected one is much darker
      with a light ring around it, so which view you're on is obvious at a glance. */
-  .topbar a, .topbar button.link { color: var(--bg-raised); background: #6b8f79; text-decoration: none; border: none; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; padding: 7px 16px; border-radius: 8px; line-height: 1; transition: background 0.12s, box-shadow 0.12s; }
+  .topbar a, .topbar button.link { color: var(--bg-raised); background: #70B894; text-decoration: none; border: none; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; padding: 7px 16px; border-radius: 8px; line-height: 1; transition: background 0.12s, box-shadow 0.12s; }
   .topbar a:hover, .topbar button.link:hover { background: #4a6e57; color: var(--bg-raised); }
   .topbar a.active { background: #22362a; font-weight: 700; box-shadow: 0 0 0 2px var(--bg-raised), 0 0 0 4px #22362a; }
   .topbar a.active:hover { background: #22362a; }
   .topbar button.logout { background: var(--brick); }
   .topbar button.logout:hover { background: #9a3e32; }
-  .nav-hamburger { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; background: #6b8f79; color: #fff; border-radius: 8px; cursor: pointer; font-size: 22px; line-height: 1; padding: 0; }
+  .nav-hamburger { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; background: #70B894; color: #fff; border-radius: 8px; cursor: pointer; font-size: 22px; line-height: 1; padding: 0; }
   .nav-hamburger:hover { background: #4a6e57; }
   .topbar .dot { display: none; }
 
@@ -153,16 +153,16 @@
   .board-head .quote-line { color: var(--ink-faint); font-size: 13px; font-style: italic; margin: 6px 0 0; }
 
   /* board tabs — a modern segmented control instead of underlined text tabs */
-  .board-tabs { display: flex; align-items: flex-end; gap: 3px; flex-wrap: wrap; margin: 0; background: #6b8f79; border-bottom: 2px solid #5a7e68; padding: 10px 32px 0; position: sticky; top: var(--nav-h, 67px); z-index: 400; }
+  .board-tabs { display: flex; align-items: flex-end; gap: 3px; flex-wrap: wrap; margin: 0; background: #70B894; border-bottom: 2px solid #5FA583; padding: 10px 32px 0; position: sticky; top: var(--nav-h, 67px); z-index: 400; }
   .board-tab-wrap { display: inline-flex; align-items: center; border-radius: 9px 9px 0 0; cursor: grab; position: relative; }
   .board-tab-wrap:active { cursor: grabbing; }
   .board-tab-wrap.drag-over { box-shadow: inset 0 0 0 2px var(--slate); }
   .board-tab {
-    font-family: inherit; font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.15); border: none;
+    font-family: inherit; font-size: 13px; font-weight: 700; color: #fff; background: rgba(255,255,255,0.18); text-shadow: 0 1px 1px rgba(20,60,40,0.35); border: none;
     padding: 9px 18px; cursor: pointer; border-radius: 9px 9px 0 0; transition: background 0.15s, color 0.15s; margin-bottom: -2px;
   }
   .board-tab:hover { color: #fff; background: rgba(255,255,255,0.25); }
-  .board-tab.active { color: var(--pine); background: var(--bg-raised); border: 1px solid var(--line); border-bottom: none; box-shadow: 0 -1px 4px rgba(34,38,31,0.06); position: relative; z-index: 2; }
+  .board-tab.active { text-shadow: none; color: var(--pine); background: var(--bg-raised); border: 1px solid var(--line); border-bottom: none; box-shadow: 0 -1px 4px rgba(34,38,31,0.06); position: relative; z-index: 2; }
   .board-tab.add-board { color: rgba(255,255,255,0.7); font-weight: 700; background: transparent; border: none; }
   .board-tab.add-board:hover { color: #fff; background: rgba(255,255,255,0.2); }
   .board-tab-rename { font-family: inherit; font-size: 14px; color: rgba(255,255,255,0.6); background: none; border: none; cursor: pointer; padding: 6px 6px; border-radius: 6px; }
@@ -571,7 +571,7 @@
   /* One screen, no page scrolling: the view is exactly the height left under
      the nav bar, the grid fills whatever is left after the header, and a busy
      day scrolls inside its own box instead of growing the page. */
-  .calendar-wrap { max-width: none; margin: 0; padding: 14px 22px 10px; height: calc(100vh - var(--nav-h, 67px)); box-sizing: border-box; overflow: hidden; background: #6b8f79; }
+  .calendar-wrap { max-width: none; margin: 0; padding: 14px 22px 10px; height: calc(100vh - var(--nav-h, 67px)); box-sizing: border-box; overflow: hidden; background: #70B894; }
   .cal-layout { display: flex; gap: 0; height: 100%; align-items: stretch; }
   .cal-side { display: none; }
   .cal-main { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; background: var(--bg); border-radius: var(--radius); padding: 10px 16px; box-sizing: border-box; overflow: hidden; }
@@ -630,7 +630,7 @@
   .cal-tg-hours { position: relative; }
   .cal-tg-hour { position: absolute; right: 6px; font-size: 10.5px; color: var(--ink-faint); transform: translateY(-50%); white-space: nowrap; }
   .cal-tg-col { position: relative; border-left: 1px solid var(--line-soft); cursor: pointer; background-image: linear-gradient(to bottom, var(--line-soft) 1px, transparent 1px); }
-  .cal-tg-col.today { background-color: rgba(60, 90, 70, 0.045); }
+  .cal-tg-col.today { background-color: rgba(61, 123, 92, 0.045); }
   .cal-tg-ev { position: absolute; box-sizing: border-box; border-radius: 5px; padding: 2px 6px; color: #fff; font-size: 11.5px; line-height: 1.3; overflow: hidden; cursor: pointer; border: 1px solid var(--bg-raised); }
   .cal-tg-ev:hover { filter: brightness(1.08); z-index: 2; }
   .cal-tg-ev b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -685,7 +685,7 @@
   .cal-ym-day { position: relative; font-family: inherit; font-size: 11.5px; color: var(--ink-soft); background: none; border: 2px solid transparent; border-radius: 6px; padding: 2px 0 7px; cursor: pointer; text-align: center; }
   .cal-ym-day:hover { border-color: var(--line); }
   .cal-ym-day.has { color: var(--ink); font-weight: 600; background: var(--pine-soft); }
-  .cal-ym-day.has.busy { background: #c5d9c8; }
+  .cal-ym-day.has.busy { background: #C2E2D2; }
   .cal-ym-day.has::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--pine); }
   .cal-ym-day.today { border-color: var(--pine); }
   .cal-ym-day.jumped { border-color: var(--ochre); background: var(--ochre-soft); }
@@ -1006,7 +1006,7 @@
     a, button, label, input, select, textarea { touch-action: manipulation; }
     /* tick boxes big enough for a finger (the Occasion "Repeats on" choice is drawn as buttons, so not those) */
     input[type="checkbox"], input[type="radio"]:not([name="calOccasionCal"]) { width: 20px !important; height: 20px !important; flex: 0 0 auto; accent-color: var(--pine); }
-    * { -webkit-tap-highlight-color: rgba(60,90,70,0.12); }
+    * { -webkit-tap-highlight-color: rgba(61, 123, 92,0.12); }
 
     /* ---- header: one compact row — the leaf mark, then the hamburger ---- */
     .topnav { grid-template-columns: auto 1fr; gap: 8px; padding: 8px 10px; padding-top: calc(8px + env(safe-area-inset-top)); min-height: 50px; }
@@ -2685,7 +2685,7 @@
     msgTooltipEl = tip;
   }
 
-  var AVATAR_COLORS = ["#C68A2E", "#4C7A9E", "#7D6BAE", "#B24A3C", "#3C5A46", "#B5860B", "#5E7CE2", "#9C4F96"];
+  var AVATAR_COLORS = ["#C68A2E", "#4C7A9E", "#7D6BAE", "#B24A3C", "#3D7B5C", "#B5860B", "#5E7CE2", "#9C4F96"];
   function initialsFor(name) {
     var parts = String(name || "?").trim().split(/\s+/);
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
@@ -3235,7 +3235,7 @@
       var isCollapsed = !!collapsed[selectedBoardId + ":" + g.id];
 
       var groupEl = el("section", "group" + (isCollapsed ? " collapsed" : ""));
-      groupEl.style.setProperty("--accent", g.color || "#3C5A46");
+      groupEl.style.setProperty("--accent", g.color || "#3D7B5C");
 
       var head = el("div", "group-head");
 
@@ -4510,7 +4510,7 @@
   // several calendars, so we ignore those and give every calendar its own
   // colour from this palette instead. Same order every load, so colours stay put.
   var CAL_PALETTE = [
-    "#1a73e8", "#B24A3C", "#3C5A46", "#C68A2E", "#7D6BAE", "#0F8B8D",
+    "#1a73e8", "#B24A3C", "#3D7B5C", "#C68A2E", "#7D6BAE", "#0F8B8D",
     "#D4568A", "#4C7A9E", "#8A6A3B", "#2E8B77", "#9C4F96", "#C25E00",
     "#5B6ABF", "#6E8B1F", "#A03E52", "#00796B"
   ];
