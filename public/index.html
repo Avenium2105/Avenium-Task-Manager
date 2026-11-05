@@ -1371,10 +1371,41 @@
   .cal-ym-day.today, .cal-ym-day.today.has, .cal-ym-day.today.has.busy { background: #dbeafe !important; border-color: #60a5fa !important; }
   .cal-tg-week .cal-tg-col.today, .cal-tg-week .cal-tg-allday-col.today { background-color: #e8f1fd !important; }
   .cal-tg-week .cal-tg-dayhead.today { background: #dbeafe; border-radius: 6px 6px 0 0; }
+  /* ----- Phone: ONE search for the whole app (tasks + calendar), from the header ----- */
+  .m-search-btn, .m-search { display: none; }
+  @media (max-width: 760px) {
+    .board-search-phone, #calSearchBtn { display: none !important; }       /* the old separate searches */
+    .m-search-btn { display: inline-flex; align-items: center; justify-content: center; position: fixed; z-index: 520; top: calc(8px + env(safe-area-inset-top)); right: 60px; width: 40px; height: 40px; border: none; border-radius: 10px; background: var(--pine-soft); color: var(--pine); cursor: pointer; }
+    body[data-view="admin"] .m-search-btn { display: none; }
+    .m-search.open { display: flex; flex-direction: column; position: fixed; inset: 0; z-index: 900; background: var(--bg); }
+    .m-search-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; padding-top: calc(10px + env(safe-area-inset-top)); background: var(--bg-raised); border-bottom: 1px solid var(--line); }
+    .m-search-field { flex: 1 1 auto; position: relative; display: flex; align-items: center; }
+    .m-search-field svg { position: absolute; left: 11px; color: var(--ink-faint); pointer-events: none; }
+    .m-search-field input { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 16px; padding: 10px 12px 10px 34px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); outline: none; }
+    .m-search-field input:focus { border-color: var(--pine); }
+    .m-search-close { flex-shrink: 0; font-family: inherit; font-size: 14px; font-weight: 600; color: var(--pine); background: none; border: none; padding: 8px 4px; cursor: pointer; }
+    .m-search-list { flex: 1 1 auto; overflow-y: auto; padding: 4px 12px calc(16px + env(safe-area-inset-bottom)); }
+    .m-search-sec { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-faint); margin: 16px 2px 6px; }
+    .m-search-row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font-family: inherit; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 6px; cursor: pointer; color: var(--ink); }
+    .m-search-row .sw { flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--pine); }
+    .m-search-row .tx { flex: 1 1 auto; min-width: 0; }
+    .m-search-row .t1 { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .m-search-row .t2 { font-size: 12px; color: var(--ink-soft); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .m-search-note { font-size: 13px; color: var(--ink-soft); padding: 8px 2px; }
+  }
 </style>
 </head>
 <body>
 <div class="topnav" id="topnav"></div>
+<button id="mSearchBtn" class="m-search-btn" type="button" title="Search tasks and calendar" aria-label="Search"><svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg></button>
+<div id="mSearch" class="m-search" role="dialog" aria-label="Search">
+  <div class="m-search-head">
+    <div class="m-search-field"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>
+      <input id="mSearchInput" type="text" placeholder="Search tasks and calendar" autocomplete="off" spellcheck="false"></div>
+    <button id="mSearchClose" class="m-search-close" type="button">Cancel</button>
+  </div>
+  <div id="mSearchList" class="m-search-list"></div>
+</div>
 <script>
 // Top nav bar. This used to be a separate /nav.js file fetched with
 // <script src="/nav.js">, shared between index.html and the old standalone
@@ -6638,6 +6669,84 @@
       });
     } catch (e) {}
   }
+  // ----- Phone: one search for the whole app — tasks (every board) and every calendar -----
+  var mSearchTimer = null, mSearchToken = 0, mSearchCal = null;   // mSearchCal: { q, events, loading, failed }
+  function mSearchOpen() {
+    document.getElementById("mSearch").classList.add("open");
+    document.getElementById("mSearchInput").focus(); mSearchRender();
+  }
+  function mSearchClose() { document.getElementById("mSearch").classList.remove("open"); document.getElementById("mSearchInput").blur(); }
+  function mSearchTasks(q) {
+    var boardOf = {}; state.groups.forEach(function (g) { boardOf[g.id] = g.boardId; });
+    var boardName = {}; state.boards.forEach(function (b) { boardName[b.id] = b.name; });
+    return state.items.filter(function (i) {
+      var hay = [(i.title || "")].concat((i.steps || []).map(function (x) { return x.text || ""; }), (i.notesList || []).map(function (n) { return n.text || ""; })).join(" ").toLowerCase();
+      return hay.indexOf(q) >= 0;
+    }).sort(function (a, b) { return (a.archived ? 1 : 0) - (b.archived ? 1 : 0); }).slice(0, 40)
+      .map(function (i) { return { item: i, boardId: boardOf[i.groupId], board: boardName[boardOf[i.groupId]] || "" }; });
+  }
+  function mSearchRender() {
+    var list = document.getElementById("mSearchList"), raw = document.getElementById("mSearchInput").value.trim(), q = raw.toLowerCase();
+    list.innerHTML = "";
+    if (!q) { list.appendChild(el("div", "m-search-note", { text: "Search your tasks and every calendar." })); return; }
+    list.appendChild(el("div", "m-search-sec", { text: "Tasks" }));
+    var tasks = mSearchTasks(q);
+    if (!tasks.length) list.appendChild(el("div", "m-search-note", { text: "No tasks match." }));
+    tasks.forEach(function (t) {
+      var row = el("button", "m-search-row", { type: "button" });
+      row.appendChild(el("span", "sw"));
+      var tx = el("span", "tx");
+      tx.appendChild(el("div", "t1", { text: t.item.title || "Untitled task" }));
+      tx.appendChild(el("div", "t2", { text: (t.board || "Task") + (t.item.archived ? " · archived" : "") }));
+      row.appendChild(tx);
+      row.onclick = function () {
+        mSearchClose();
+        if (t.boardId) { selectedBoardId = t.boardId; localStorage.setItem("daily-board-selected-board", selectedBoardId); }
+        selectedItemId = t.item.id;
+        if (document.body.dataset.view !== "boards" && window.AveniumRouter) window.AveniumRouter.go("/");
+        mobileShowTask(); render();
+      };
+      list.appendChild(row);
+    });
+    list.appendChild(el("div", "m-search-sec", { text: "Calendar" }));
+    var c = mSearchCal && mSearchCal.q === raw ? mSearchCal : null;
+    if (!c || c.loading) { list.appendChild(el("div", "m-search-note", { text: "Searching every calendar…" })); return; }
+    if (c.failed) { list.appendChild(el("div", "m-search-note", { text: "The calendar search didn't work. Try again." })); return; }
+    if (!c.events.length) { list.appendChild(el("div", "m-search-note", { text: "No events match." })); return; }
+    var todayKey = calTodayKey();
+    var up = c.events.filter(function (e) { return calDayKey(e) >= todayKey; }).sort(function (a, b) { return new Date(a.start) - new Date(b.start); });
+    var past = c.events.filter(function (e) { return calDayKey(e) < todayKey; }).sort(function (a, b) { return new Date(b.start) - new Date(a.start); });
+    up.concat(past).slice(0, 60).forEach(function (ev) {
+      var row = el("button", "m-search-row", { type: "button" });
+      var sw = el("span", "sw"); sw.style.background = colorForEvent(ev); row.appendChild(sw);
+      var tx = el("span", "tx");
+      tx.appendChild(el("div", "t1", { text: ev.title || ev.summary || "(no title)" }));
+      var d = new Date(calDayKey(ev) + "T12:00:00");
+      tx.appendChild(el("div", "t2", { text: d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" }) + " · " + (ev.allDay ? "All day" : new Date(ev.start).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })) }));
+      row.appendChild(tx);
+      row.onclick = function () { mSearchClose(); remindOpen(ev); };
+      list.appendChild(row);
+    });
+  }
+  function mSearchTyped() {
+    var raw = document.getElementById("mSearchInput").value.trim();
+    clearTimeout(mSearchTimer);
+    if (raw) {
+      mSearchCal = { q: raw, loading: true, events: [] };
+      var token = ++mSearchToken;
+      mSearchTimer = setTimeout(function () {
+        fetch("/api/calendar/search?q=" + encodeURIComponent(raw)).then(function (r) { if (!r.ok) throw new Error("x"); return r.json(); })
+          .then(function (d) { if (token === mSearchToken) { mSearchCal = { q: raw, events: d.events || [] }; mSearchRender(); } })
+          .catch(function () { if (token === mSearchToken) { mSearchCal = { q: raw, events: [], failed: true }; mSearchRender(); } });
+      }, 300);
+    }
+    mSearchRender();
+  }
+  document.getElementById("mSearchBtn").onclick = mSearchOpen;
+  document.getElementById("mSearchClose").onclick = mSearchClose;
+  document.getElementById("mSearchInput").addEventListener("input", mSearchTyped);
+  document.getElementById("mSearchInput").addEventListener("keydown", function (e) { if (e.key === "Escape") mSearchClose(); });
+
   function remindOpen(ev) {
     var go = function () { try { openCalModal(ev); } catch (e) {} };
     if (document.body.dataset.view !== "calendar" && window.AveniumRouter) { window.AveniumRouter.go("#calendar"); setTimeout(go, 350); }
