@@ -1,4 +1,4 @@
-// Avenium Task Manager — standalone server
+// Avenium Workspace — standalone server
 // Express + Socket.IO app: multi-board task tracking with per-user private
 // groups, assignees, a status pipeline, turn notifications, and optional
 // email send/receive via SMTP + IMAP (Outlook / Microsoft 365 by default).
@@ -167,6 +167,19 @@ try { localEvents = JSON.parse(fs.readFileSync(LOCAL_EVENTS_FILE, "utf8")); } ca
 function persistLocalEvents() {
   saveJsonSafely(LOCAL_EVENTS_FILE, () => localEvents);
 }
+
+// ---- Tombstones for deleted local events (delta-sync support) ----
+// Each entry: { id, userId, deletedAt }
+const LOCAL_TOMBSTONES_FILE = path.join(DATA_DIR, "local-event-tombstones.json");
+let localEventTombstones = [];
+try { localEventTombstones = JSON.parse(fs.readFileSync(LOCAL_TOMBSTONES_FILE, "utf8")); } catch (e) { localEventTombstones = []; }
+function persistTombstones() {
+  saveJsonSafely(LOCAL_TOMBSTONES_FILE, () => localEventTombstones);
+}
+// Prune tombstones older than 90 days on startup
+const TOMBSTONE_MAX_AGE = 90 * 24 * 60 * 60 * 1000;
+localEventTombstones = localEventTombstones.filter((t) => Date.now() - new Date(t.deletedAt).getTime() < TOMBSTONE_MAX_AGE);
+persistTombstones();
 
 // ---- Hebrew date conversion ----
 // Uses the browser/Node built-in Intl.DateTimeFormat with the Hebrew calendar,
@@ -1446,7 +1459,7 @@ app.post("/api/invite/set-password", async (req, res) => {
     u.mfaCode = makeCode();
     u.mfaCodeExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
     saveUsers();
-    const sent = await sendMail(u.email, "Your verification code", `Your Avenium Task Manager verification code is ${u.mfaCode}. It expires in 10 minutes.`);
+    const sent = await sendMail(u.email, "Your verification code", `Your Avenium Workspace verification code is ${u.mfaCode}. It expires in 10 minutes.`);
     // If actual delivery failed (e.g. the mailbox rejects SMTP auth), don't strand the
     // person with a code they can never receive — surface it directly as a fallback.
     return res.json({ ok: true, mfaRequired: true, emailed: sent, codeFallback: sent ? undefined : u.mfaCode });
@@ -1484,7 +1497,7 @@ app.post("/api/invite/resend-code", async (req, res) => {
   u.mfaCode = makeCode();
   u.mfaCodeExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
   saveUsers();
-  const sent = await sendMail(u.email, "Your verification code", `Your Avenium Task Manager verification code is ${u.mfaCode}. It expires in 10 minutes.`);
+  const sent = await sendMail(u.email, "Your verification code", `Your Avenium Workspace verification code is ${u.mfaCode}. It expires in 10 minutes.`);
   res.json({ ok: true, emailed: sent, codeFallback: sent ? undefined : u.mfaCode });
 });
 
@@ -1517,7 +1530,7 @@ app.post("/api/users", requireAuth, requireAdmin, async (req, res) => {
   persist();
   broadcastTeam();
   const link = inviteLink(token);
-  const emailed = await sendMail(newUser.email, "You've been invited to Avenium Task Manager", `You've been invited to join Avenium Task Manager. Set up your account here:\n\n${link}\n\nThis link expires in 7 days.`);
+  const emailed = await sendMail(newUser.email, "You've been invited to Avenium Workspace", `You've been invited to join Avenium Workspace. Set up your account here:\n\n${link}\n\nThis link expires in 7 days.`);
   res.json({ ok: true, user: publicUser(newUser), inviteLink: link, emailed });
 });
 
@@ -1529,7 +1542,7 @@ app.post("/api/users/:id/resend-invite", requireAuth, requireAdmin, async (req, 
   u.actionTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
   saveUsers();
   const link = inviteLink(token);
-  const emailed = await sendMail(u.email, "You've been invited to Avenium Task Manager", `You've been invited to join Avenium Task Manager. Set up your account here:\n\n${link}\n\nThis link expires in 7 days.`);
+  const emailed = await sendMail(u.email, "You've been invited to Avenium Workspace", `You've been invited to join Avenium Workspace. Set up your account here:\n\n${link}\n\nThis link expires in 7 days.`);
   res.json({ ok: true, inviteLink: link, emailed });
 });
 
@@ -1541,7 +1554,7 @@ app.post("/api/users/:id/reset-password", requireAuth, requireAdmin, async (req,
   u.actionTokenExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   saveUsers();
   const link = inviteLink(token);
-  const emailed = await sendMail(u.email, "Reset your Avenium Task Manager password", `Set a new password here:\n\n${link}\n\nThis link expires in 24 hours.`);
+  const emailed = await sendMail(u.email, "Reset your Avenium Workspace password", `Set a new password here:\n\n${link}\n\nThis link expires in 24 hours.`);
   res.json({ ok: true, inviteLink: link, emailed });
 });
 
@@ -2823,6 +2836,27 @@ app.get("/api/calendar/events", requireAuth, async (req, res) => {
   res.json({ events: all });
 });
 
+// ---- Delta sync for mobile calendar caching ----
+// Returns only local events created/updated after `since`, plus tombstones
+// for deleted local events, and a serverTime for the client's next sync.
+// Google/Outlook/builtin events are always fetched fresh (60s server cache)
+// so only local events benefit from delta sync.
+app.get("/api/calendar/events/since", requireAuth, (req, res) => {
+  const since = req.query.t ? new Date(req.query.t).toISOString() : new Date(0).toISOString();
+  const userId = req.session.userId;
+  const updated = localEvents.filter((e) =>
+    e.userId === userId && (e.updatedAt || e.createdAt) > since
+  );
+  const deleted = localEventTombstones.filter((t) =>
+    t.userId === userId && t.deletedAt > since
+  );
+  res.json({
+    updated,
+    deleted: deleted.map((t) => ({ id: t.id, deletedAt: t.deletedAt })),
+    serverTime: new Date().toISOString()
+  });
+});
+
 // Search every visible calendar the user has (Avenium, Google, Outlook) for
 // events whose title, description or location contain every word typed.
 // Independent of whatever month the grid is showing. No result cap.
@@ -3151,7 +3185,8 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
       id, userId: req.session.userId, title, start, end: end || start, allDay: !!allDay,
       description: description || "", location: location || "",
       attendees: attendees || [], repeat: repeat || "none",
-      repeatUntil: repeatUntil || "", createdAt: new Date().toISOString()
+      repeatUntil: repeatUntil || "", createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
     if (hebrewDay) ev.hebrewDay = hebrewDay;
     if (hebrewMonth) ev.hebrewMonth = hebrewMonth;
@@ -3175,7 +3210,7 @@ app.post("/api/calendar/events", requireAuth, async (req, res) => {
         title: base, start: day, end: day, allDay: true,
         description: ev.description, location: ev.location, attendees: [],
         repeat: "yearly", repeatUntil: "", createdAt: ev.createdAt,
-        kind: "occasion", afterSunset: false
+        updatedAt: ev.updatedAt, kind: "occasion", afterSunset: false
       };
       if (ev.occasionKind) secular.occasionKind = ev.occasionKind;
       if (ev.timeZone) secular.timeZone = ev.timeZone;
@@ -3256,6 +3291,8 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "jewish_repeat_avenium_only" });
     }
 
+    ev.updatedAt = new Date().toISOString();
+
     if (moveTarget && moveTarget.accountId !== "local") {
       // Moving from local to Google/Outlook — create there and delete local
       const acct2 = getAccount(req.session.userId, moveTarget.accountId);
@@ -3267,6 +3304,9 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
           ? await googleApiRequest(a2.accessToken, "POST", `/calendar/v3/calendars/${encodeURIComponent(moveTarget.calendarId)}/events`, googleEventBody(evBody))
           : await graphRequest(a2.accessToken, "POST", `/me/calendars/${encodeURIComponent(moveTarget.calendarId)}/events`, microsoftEventBody(evBody));
         if (r2.status >= 300) return res.status(502).json({ error: "provider_rejected", message: providerError(a2.provider === "google" ? "Google" : "Outlook", r2).message });
+        // tombstone the moved-away local event so mobile caches know to drop it
+        localEventTombstones.push({ id: eventId, userId: req.session.userId, deletedAt: new Date().toISOString() });
+        persistTombstones();
         localEvents = localEvents.filter((e) => e.id !== eventId);
         persistLocalEvents();
         invalidateCalendarCache(`ev:${a2.id}:`);
@@ -3291,7 +3331,8 @@ app.put("/api/calendar/events", requireAuth, async (req, res) => {
       const moved = {
         id, userId: req.session.userId, title: title || "", start: start || "", end: end || start || "", allDay: !!allDay,
         description: description || "", location: location || "", attendees: attendees || [],
-        repeat: repeat || "none", repeatUntil: repeatUntil || "", createdAt: new Date().toISOString()
+        repeat: repeat || "none", repeatUntil: repeatUntil || "", createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
       };
       if (hebrewDay) moved.hebrewDay = hebrewDay;
       if (hebrewMonth) moved.hebrewMonth = hebrewMonth;
@@ -3333,6 +3374,9 @@ app.delete("/api/calendar/events", requireAuth, async (req, res) => {
   if (accountId === "local") {
     const idx = localEvents.findIndex((e) => e.id === eventId && e.userId === req.session.userId);
     if (idx === -1) return res.status(404).json({ error: "not_found" });
+    // tombstone so mobile caches know to drop this event
+    localEventTombstones.push({ id: eventId, userId: req.session.userId, deletedAt: new Date().toISOString() });
+    persistTombstones();
     localEvents.splice(idx, 1);
     persistLocalEvents();
     return res.json({ ok: true });
@@ -3437,5 +3481,5 @@ app.get("/api/calendar/candle-lighting", requireAuth, async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log("Avenium Task Manager running at http://localhost:" + PORT);
+  console.log("Avenium Workspace running at http://localhost:" + PORT);
 });

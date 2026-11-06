@@ -6372,6 +6372,128 @@
   var calLoadToken = 0;
   var hebrewDateCache = {}; // "2026-09-01" => { day: 7, month: "Tishrei", year: 5787 }
 
+  // ---- IndexedDB calendar cache (Android app only) ----
+  // Persists calendar events across app restarts so the calendar opens instantly.
+  // Local events use delta sync; provider/builtin events use range-based caching.
+  var isAndroidApp = /AveniumTasksApp\/1/i.test(navigator.userAgent);
+  var calIDB = null;
+  var calIDBReady = false;
+  var calLastSync = null; // ISO string — last delta sync time for local events
+
+  if (isAndroidApp && window.indexedDB) {
+    (function initCalIDB() {
+      var req = indexedDB.open("AveniumCalendarCache", 1);
+      req.onupgradeneeded = function (e) {
+        var db = e.target.result;
+        // range-based cache: stores full event arrays keyed by rangeKey
+        if (!db.objectStoreNames.contains("ranges")) {
+          db.createObjectStore("ranges");
+        }
+        // local events cache: stores individual local events by ID for delta sync
+        if (!db.objectStoreNames.contains("localEvents")) {
+          db.createObjectStore("localEvents", { keyPath: "id" });
+        }
+        // meta store: lastSync timestamp, etc.
+        if (!db.objectStoreNames.contains("meta")) {
+          db.createObjectStore("meta");
+        }
+      };
+      req.onsuccess = function (e) {
+        calIDB = e.target.result;
+        calIDBReady = true;
+        // Load last sync time
+        try {
+          var tx = calIDB.transaction("meta", "readonly");
+          var get = tx.objectStore("meta").get("lastSync");
+          get.onsuccess = function () { calLastSync = get.result || null; };
+        } catch (ex) {}
+      };
+      req.onerror = function () { calIDBReady = false; };
+    })();
+  }
+
+  // Save a range's events to IndexedDB (fire-and-forget)
+  function idbSaveRange(rangeKey, events) {
+    if (!calIDBReady || !calIDB) return;
+    try {
+      var tx = calIDB.transaction("ranges", "readwrite");
+      tx.objectStore("ranges").put({ events: events, savedAt: Date.now() }, rangeKey);
+    } catch (ex) {}
+  }
+
+  // Load a range's events from IndexedDB
+  function idbLoadRange(rangeKey) {
+    if (!calIDBReady || !calIDB) return Promise.resolve(null);
+    return new Promise(function (resolve) {
+      try {
+        var tx = calIDB.transaction("ranges", "readonly");
+        var get = tx.objectStore("ranges").get(rangeKey);
+        get.onsuccess = function () {
+          var row = get.result;
+          if (!row) return resolve(null);
+          // Accept cached data up to 7 days old
+          if (Date.now() - row.savedAt > 7 * 24 * 60 * 60 * 1000) return resolve(null);
+          resolve(row.events);
+        };
+        get.onerror = function () { resolve(null); };
+      } catch (ex) { resolve(null); }
+    });
+  }
+
+  // Save all local events to IndexedDB for delta sync
+  function idbSaveLocalEvents(events, serverTime) {
+    if (!calIDBReady || !calIDB) return;
+    try {
+      var tx = calIDB.transaction(["localEvents", "meta"], "readwrite");
+      var store = tx.objectStore("localEvents");
+      events.forEach(function (ev) { store.put(ev); });
+      if (serverTime) {
+        tx.objectStore("meta").put(serverTime, "lastSync");
+        calLastSync = serverTime;
+      }
+    } catch (ex) {}
+  }
+
+  // Apply delta: upsert updated events and remove deleted ones
+  function idbApplyDelta(updated, deleted, serverTime) {
+    if (!calIDBReady || !calIDB) return;
+    try {
+      var tx = calIDB.transaction(["localEvents", "meta"], "readwrite");
+      var store = tx.objectStore("localEvents");
+      updated.forEach(function (ev) { store.put(ev); });
+      deleted.forEach(function (d) { store.delete(d.id); });
+      if (serverTime) {
+        tx.objectStore("meta").put(serverTime, "lastSync");
+        calLastSync = serverTime;
+      }
+    } catch (ex) {}
+  }
+
+  // Load all local events from IndexedDB
+  function idbLoadLocalEvents() {
+    if (!calIDBReady || !calIDB) return Promise.resolve([]);
+    return new Promise(function (resolve) {
+      try {
+        var tx = calIDB.transaction("localEvents", "readonly");
+        var req = tx.objectStore("localEvents").getAll();
+        req.onsuccess = function () { resolve(req.result || []); };
+        req.onerror = function () { resolve([]); };
+      } catch (ex) { resolve([]); }
+    });
+  }
+
+  // Run a delta sync for local events in the background
+  function deltaSync() {
+    if (!isAndroidApp || !calIDBReady) return Promise.resolve();
+    var since = calLastSync || new Date(0).toISOString();
+    return fetch("/api/calendar/events/since?t=" + encodeURIComponent(since))
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        idbApplyDelta(d.updated || [], d.deleted || [], d.serverTime);
+      })
+      .catch(function () {});
+  }
+
   // start AND end: a week and a month can begin on the same Sunday
   function rangeKeyFor(range) { return range.start.toISOString().slice(0, 10) + ".." + range.end.toISOString().slice(0, 10); }
 
@@ -6725,6 +6847,15 @@
       .then(function (d) {
         var evs = d.events || [];
         calMonthCache[rangeKeyFor(range)] = evs;
+        // Persist to IndexedDB on Android for instant startup
+        if (isAndroidApp) {
+          idbSaveRange(rangeKeyFor(range), evs);
+          // Also save all local events from this batch for delta sync
+          var locals = evs.filter(function (e) { return e.accountId === "local"; });
+          if (locals.length) idbSaveLocalEvents(locals, null);
+          // Run delta sync to keep local events cache up to date
+          deltaSync();
+        }
         return evs;
       });
   }
@@ -6744,6 +6875,20 @@
     if (cached) {
       calendarEvents = cached;
       renderCalendarBody();
+    } else if (isAndroidApp && calIDBReady) {
+      // On Android app cold start: try IndexedDB before showing empty grid
+      calendarEvents = [];
+      renderCalendarBody();
+      setCalLoading(true);
+      idbLoadRange(key).then(function (idbEvs) {
+        if (token !== calLoadToken) return;
+        if (idbEvs && idbEvs.length) {
+          calMonthCache[key] = idbEvs;
+          calendarEvents = idbEvs;
+          renderCalendarBody();
+          setCalLoading(false);
+        }
+      });
     } else {
       calendarEvents = [];
       renderCalendarBody();
@@ -6778,6 +6923,16 @@
       .then(function () { return fetchCalendarAccounts(); })
       .then(function () {
         calMonthCache = {};
+        // Clear IndexedDB cache on manual refresh
+        if (isAndroidApp && calIDBReady && calIDB) {
+          try {
+            var tx = calIDB.transaction(["ranges", "localEvents", "meta"], "readwrite");
+            tx.objectStore("ranges").clear();
+            tx.objectStore("localEvents").clear();
+            tx.objectStore("meta").delete("lastSync");
+            calLastSync = null;
+          } catch (ex) {}
+        }
         if (calSearchQuery) { calSearchResults = null; runCalSearch(); }
         calOccChanged();
         return loadCalendarEvents();
