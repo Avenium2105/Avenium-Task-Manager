@@ -7,8 +7,9 @@ android {
         applicationId "com.avenium.taskmanager"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // each automatic build gets a higher number, so phones install it as an update
+        versionCode((System.getenv("APP_VERSION_CODE") ?: "1") as Integer)
+        versionName(System.getenv("APP_VERSION_NAME") ?: "1.0")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,8 +17,22 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // One fixed signing key (kept with the project), so every build — on a PC or the
+    // automatic GitHub build — installs over the last one instead of needing an uninstall.
+    signingConfigs {
+        avenium {
+            storeFile file("avenium-app.keystore")
+            storePassword "avenium-app"
+            keyAlias "avenium"
+            keyPassword "avenium-app"
+        }
+    }
     buildTypes {
+        debug {
+            signingConfig signingConfigs.avenium
+        }
         release {
+            signingConfig signingConfigs.avenium
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

@@ -1,0 +1,38 @@
+# Builds the Android app (APK) whenever the app's code changes, and puts it on the
+# "Android app" release page so it can be downloaded straight to a phone or tablet.
+name: Android app
+on:
+  push:
+    branches: [main]
+    paths: ["android/**", "package.json", "package-lock.json", ".github/workflows/android.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20" }
+      - uses: android-actions/setup-android@v3
+      - name: Install Capacitor (the Android project uses it from node_modules)
+        run: npm ci --ignore-scripts
+      - name: Build the APK
+        working-directory: android
+        env:
+          APP_VERSION_CODE: ${{ github.run_number }}
+          APP_VERSION_NAME: "1.${{ github.run_number }}"
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+          cp app/build/outputs/apk/debug/app-debug.apk ../Avenium-Workspace.apk
+      - name: Publish to the "Android app" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view android-latest >/dev/null 2>&1 || gh release create android-latest --title "Android app" --notes "The latest Avenium Workspace app for Android. Download Avenium-Workspace.apk on the phone or tablet and open it to install or update."
+          gh release upload android-latest Avenium-Workspace.apk --clobber
+          gh release edit android-latest --notes "The latest Avenium Workspace app for Android (version 1.${{ github.run_number }}, built $(date -u +'%Y-%m-%d %H:%M UTC')). Download Avenium-Workspace.apk on the phone or tablet and open it to install or update."
