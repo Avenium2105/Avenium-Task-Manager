@@ -1263,10 +1263,53 @@ if (EMAIL_RECEIVE_ENABLED) {
 const app = express();
 app.use(express.json());
 
+// Sign-ins are saved to disk (sessions.json next to users.json), so restarting the
+// server — every update does — no longer signs everyone out. The memory-only default
+// forgot every sign-in on each restart.
+class FileSessionStore extends session.Store {
+  constructor(file) {
+    super();
+    this.file = file; this.timer = null;
+    try { this.data = JSON.parse(fs.readFileSync(file, "utf8")) || {}; } catch (e) { this.data = {}; }
+    this.prune();
+  }
+  prune() {
+    const now = Date.now();
+    for (const [sid, sess] of Object.entries(this.data)) {
+      const exp = sess && sess.cookie && sess.cookie.expires ? new Date(sess.cookie.expires).getTime() : 0;
+      if (exp && exp < now) delete this.data[sid];
+    }
+  }
+  persist() {
+    if (this.timer) return;
+    this.timer = setTimeout(() => {
+      this.timer = null;
+      try { const tmp = this.file + ".tmp"; fs.writeFileSync(tmp, JSON.stringify(this.data)); fs.renameSync(tmp, this.file); } catch (e) { console.error("Could not save sign-ins:", e.message); }
+    }, 1000);
+  }
+  flush() { if (this.timer) { clearTimeout(this.timer); this.timer = null; } try { fs.writeFileSync(this.file, JSON.stringify(this.data)); } catch (e) {} }
+  get(sid, cb) {
+    const sess = this.data[sid];
+    if (!sess) return cb(null, null);
+    const exp = sess.cookie && sess.cookie.expires ? new Date(sess.cookie.expires).getTime() : 0;
+    if (exp && exp < Date.now()) { delete this.data[sid]; this.persist(); return cb(null, null); }
+    cb(null, sess);
+  }
+  set(sid, sess, cb) { this.data[sid] = JSON.parse(JSON.stringify(sess)); this.persist(); cb && cb(null); }
+  touch(sid, sess, cb) { if (this.data[sid]) { this.data[sid].cookie = JSON.parse(JSON.stringify(sess.cookie)); this.persist(); } cb && cb(null); }
+  destroy(sid, cb) { delete this.data[sid]; this.persist(); cb && cb(null); }
+}
+const sessionStore = new FileSessionStore(path.join(DATA_DIR, "sessions.json"));
+setInterval(() => { sessionStore.prune(); sessionStore.persist(); }, 6 * 60 * 60 * 1000).unref();
+// write any last sign-in before the server stops for an update
+["SIGTERM", "SIGINT"].forEach((sig) => process.on(sig, () => { sessionStore.flush(); process.exit(0); }));
+
 const sessionMiddleware = session({
   secret: loadOrCreateSecret(),
+  store: sessionStore,
   resave: false,
   saveUninitialized: false,
+  rolling: true,   // each visit pushes the 30 days forward, so someone who uses the app stays signed in
   cookie: { maxAge: 1000 * 60 * 60 * 24 * 30 }
 });
 app.use(sessionMiddleware);

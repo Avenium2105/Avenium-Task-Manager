@@ -36,11 +36,26 @@ public class MainActivity extends AppCompatActivity {
     private ValueCallback<Uri[]> fileCallback;
     private TextView status;
 
+    // Loading details are kept for troubleshooting but never shown on screen.
+    private final StringBuilder logText = new StringBuilder();
     private void log(String msg) {
+        synchronized (logText) {
+            logText.append(msg).append("\n");
+            if (logText.length() > 20000) logText.delete(0, logText.length() - 20000);
+        }
+    }
+
+    // Only when the page itself can't load (no internet, or the server restarting after an
+    // update): a short friendly note, and the app tries again by itself. A hiccup on one
+    // background request (the live connection, a reminder check) is never shown.
+    private boolean retrying = false;
+    private void pageProblem() {
         runOnUiThread(() -> {
-            status.append(msg + "\n");
-            if (msg.startsWith("ERROR") || msg.startsWith("SSL") || msg.startsWith("HTTP 5"))
-                status.setVisibility(android.view.View.VISIBLE);
+            status.setText("Can't reach Avenium right now. Trying again\u2026");
+            status.setVisibility(android.view.View.VISIBLE);
+            if (retrying) return;
+            retrying = true;
+            webView.postDelayed(() -> { retrying = false; webView.reload(); }, 5000);
         });
     }
 
@@ -50,20 +65,20 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         webView = new WebView(this);
-        webView.setBackgroundColor(Color.parseColor("#6b8f79"));
+        webView.setBackgroundColor(Color.parseColor("#70B894"));
         WebView.setWebContentsDebuggingEnabled(true);
         FrameLayout root = new FrameLayout(this);
         root.addView(webView);
         status = new TextView(this);
         status.setTextColor(Color.WHITE);
-        status.setBackgroundColor(Color.parseColor("#CC000000"));
-        status.setTextSize(13);
-        status.setPadding(32, 120, 32, 32);
+        status.setBackgroundColor(Color.parseColor("#70B894"));
+        status.setTextSize(15);
+        status.setGravity(Gravity.CENTER);
+        status.setPadding(32, 28, 32, 28);
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP);
+            FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM);
         root.addView(status, lp);
         setContentView(root);
-        status.setText("Avenium Tasks could not load. Details:\n");
         status.setVisibility(android.view.View.GONE);
 
         WebSettings s = webView.getSettings();
@@ -91,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
             public void onPageFinished(WebView view, String url) {
                 log("Finished: " + url + " (title: " + view.getTitle() + ")");
                 if (view.getTitle() != null && view.getTitle().contains("Avenium")) {
-                    view.postDelayed(() -> status.setVisibility(android.view.View.GONE), 1500);
+                    status.setVisibility(android.view.View.GONE);
                 }
                 // Signed in: book this phone's reminder alarms, and ask once to show notifications
                 if (url != null && url.startsWith(START_URL) && !url.contains("/login")) {
@@ -104,17 +119,20 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onReceivedError(WebView view, WebResourceRequest req, WebResourceError err) {
                 log("ERROR " + err.getErrorCode() + ": " + err.getDescription() + " @ " + req.getUrl());
+                if (req.isForMainFrame()) pageProblem();
             }
 
             @Override
             public void onReceivedHttpError(WebView view, WebResourceRequest req, WebResourceResponse resp) {
                 log("HTTP " + resp.getStatusCode() + " " + resp.getReasonPhrase() + " @ " + req.getUrl());
+                if (req.isForMainFrame() && resp.getStatusCode() >= 500) pageProblem();
             }
 
             @Override
             public void onReceivedSslError(WebView view, SslErrorHandler handler, SslError error) {
                 log("SSL ERROR " + error.getPrimaryError() + " @ " + error.getUrl());
                 handler.cancel();
+                if (error.getUrl() != null && error.getUrl().equals(view.getUrl())) pageProblem();
             }
 
             @Override
