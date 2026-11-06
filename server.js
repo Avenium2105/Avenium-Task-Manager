@@ -427,7 +427,7 @@ async function fetchJewishHolidays(timeMin, timeMax) {
     hostname: "www.hebcal.com",
     path: `/hebcal?v=1&cfg=json&maj=on&min=on&mod=off&nx=on&ss=on&mf=on&c=off&s=off&start=${start}&end=${end}`,
     method: "GET",
-    headers: { Accept: "application/json", "User-Agent": "AveniumTasks/1.0" }
+    headers: { Accept: "application/json", "User-Agent": "AveniumWorkspace/1.0" }
   });
   if (!r.body || !r.body.items) return [];
   return r.body.items
@@ -450,7 +450,7 @@ async function fetchParsha(timeMin, timeMax) {
     hostname: "www.hebcal.com",
     path: `/hebcal?v=1&cfg=json&s=on&maj=off&min=off&mod=off&nx=off&ss=off&mf=off&c=off&start=${start}&end=${end}`,
     method: "GET",
-    headers: { Accept: "application/json", "User-Agent": "AveniumTasks/1.0" }
+    headers: { Accept: "application/json", "User-Agent": "AveniumWorkspace/1.0" }
   });
   if (!r.body || !r.body.items) return [];
   return r.body.items
@@ -473,7 +473,7 @@ async function fetchUSHolidays(timeMin, timeMax) {
     try {
       const r = await httpsRequest({
         hostname: "date.nager.at", path: `/api/v3/PublicHolidays/${y}/US`, method: "GET",
-        headers: { Accept: "application/json", "User-Agent": "AveniumTasks/1.0" }
+        headers: { Accept: "application/json", "User-Agent": "AveniumWorkspace/1.0" }
       });
       return Array.isArray(r.body) ? r.body : [];
     } catch (e) { return []; }
@@ -3415,7 +3415,7 @@ app.get("/api/calendar/candle-lighting", requireAuth, async (req, res) => {
       hostname: "www.hebcal.com",
       path: `/hebcal?v=1&cfg=json&c=on&b=18&maj=on&min=off&mod=off&nx=off&ss=off&mf=off&s=off&start=${start}&end=${end}${locQuery}`,
       method: "GET",
-      headers: { Accept: "application/json", "User-Agent": "AveniumTasks/1.0" }
+      headers: { Accept: "application/json", "User-Agent": "AveniumWorkspace/1.0" }
     });
     const items = (r.body && r.body.items) || [];
     const result = {};

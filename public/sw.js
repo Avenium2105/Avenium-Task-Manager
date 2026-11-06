@@ -1,4 +1,4 @@
-// Avenium Tasks — reminder notifications.
+// Avenium Workspace — reminder notifications.
 // The server sends a push when a meeting / appointment / birthday reminder is
 // due; this shows it even when the site is closed. Snooze and Dismiss on the
 // notification are saved to the server, so they apply on every device.
