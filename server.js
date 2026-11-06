@@ -1368,7 +1368,9 @@ function isValidEmail(s) { return typeof s === "string" && /^[^\s@]+@[^\s@]+\.[^
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: "missing_fields" });
-  const u = users.find((x) => x.username.toLowerCase() === String(username).toLowerCase());
+  const who = String(username).trim().toLowerCase();
+  // sign in with either the username or the email address
+  const u = users.find((x) => (x.username || "").toLowerCase() === who) || users.find((x) => (x.email || "").toLowerCase() === who);
   if (!u || u.status === "pending" || !u.passwordHash || !bcrypt.compareSync(password, u.passwordHash)) {
     return res.status(401).json({ error: "invalid_credentials" });
   }
