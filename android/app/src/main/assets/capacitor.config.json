@@ -1,0 +1,13 @@
+{
+	"appId": "com.avenium.taskmanager",
+	"appName": "Workspace",
+	"webDir": "public",
+	"server": {
+		"url": "https://tasks.avenium.com",
+		"cleartext": false
+	},
+	"android": {
+		"backgroundColor": "#6b8f79",
+		"allowMixedContent": false
+	}
+}
