@@ -65,13 +65,13 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         webView = new WebView(this);
-        webView.setBackgroundColor(Color.parseColor("#70B894"));
+        webView.setBackgroundColor(Color.parseColor("#0A142B"));
         WebView.setWebContentsDebuggingEnabled(true);
         FrameLayout root = new FrameLayout(this);
         root.addView(webView);
         status = new TextView(this);
         status.setTextColor(Color.WHITE);
-        status.setBackgroundColor(Color.parseColor("#70B894"));
+        status.setBackgroundColor(Color.parseColor("#0A142B"));
         status.setTextSize(15);
         status.setGravity(Gravity.CENTER);
         status.setPadding(32, 28, 32, 28);

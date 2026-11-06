@@ -9,11 +9,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #F3F3EE; --bg-raised: #FBFBF8; --ink: #22261F; --ink-soft: #63685C; --ink-faint: #9A9C8F;
-    --line: #E2E1D5; --line-soft: #EAE9DE; --pine: #3D7B5C; --pine-soft: #E4F1EB;
+    --bg: #F7F8FB; --bg-raised: #FFFFFF; --ink: #0A142B; --ink-soft: #5C6E76; --ink-faint: #8C97A8;
+    --line: #D8DDE8; --line-soft: #E8EBF2; --pine: #1B397E; --pine-soft: #E3E9F7;
     --ochre: #C68A2E; --ochre-soft: #F5E8D2; --slate: #4C7A9E; --slate-soft: #E1EAF1;
-    --brick: #B24A3C; --brick-soft: #F5E1DC; --grey-pill: #E6E5DA; --grey-pill-ink: #6C6F62;
-    --shadow: 0 1px 3px rgba(34,38,31,0.07); --radius: 12px;
+    --brick: #B24A3C; --brick-soft: #F5E1DC; --grey-pill: #E8EBF2; --grey-pill-ink: #5C6E76;
+    --shadow: 0 1px 3px rgba(10,20,43,0.07); --radius: 12px;
   }
   /* Always light — intentionally ignores the device's dark-mode setting so the app looks the same on mobile as on desktop. */
   * { box-sizing: border-box; }
@@ -43,7 +43,7 @@
      the exact same header; now that Admin lives inside this same page, there's
      only one document that needs it, so a shared file no longer buys anything
      and was just one more thing that could fail. */
-  .topnav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 16px 32px; background: var(--bg-raised); border-bottom: 1px solid var(--line); box-shadow: 0 1px 3px rgba(34,38,31,0.04); position: sticky; top: 0; z-index: 500; }
+  .topnav { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 16px 32px; background: var(--bg-raised); border-bottom: 1px solid var(--line); box-shadow: 0 1px 3px rgba(10,20,43,0.04); position: sticky; top: 0; z-index: 500; }
   .topnav .nav-date { font-size: 13px; color: var(--ink-soft); justify-self: start; }
   .nav-date-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; justify-self: start; }
   .nav-zmanim-row { display: flex; gap: 12px; font-size: 11px; color: var(--ink-soft); white-space: nowrap; width: 100%; }
@@ -55,14 +55,14 @@
   .topbar { gap: 14px; }
   /* Inactive buttons sit in a muted green; the selected one is much darker
      with a light ring around it, so which view you're on is obvious at a glance. */
-  .topbar a, .topbar button.link { color: var(--bg-raised); background: #70B894; text-decoration: none; border: none; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; padding: 7px 16px; border-radius: 8px; line-height: 1; transition: background 0.12s, box-shadow 0.12s; }
-  .topbar a:hover, .topbar button.link:hover { background: #4a6e57; color: var(--bg-raised); }
-  .topbar a.active { background: #22362a; font-weight: 700; box-shadow: 0 0 0 2px var(--bg-raised), 0 0 0 4px #22362a; }
-  .topbar a.active:hover { background: #22362a; }
+  .topbar a, .topbar button.link { color: var(--bg-raised); background: #0A142B; text-decoration: none; border: none; font-family: inherit; font-size: 13px; font-weight: 500; cursor: pointer; padding: 7px 16px; border-radius: 8px; line-height: 1; transition: background 0.12s, box-shadow 0.12s; }
+  .topbar a:hover, .topbar button.link:hover { background: #182643; color: var(--bg-raised); }
+  .topbar a.active { background: #2C57BA; font-weight: 700; box-shadow: 0 0 0 2px var(--bg-raised), 0 0 0 4px #2C57BA; }
+  .topbar a.active:hover { background: #2C57BA; }
   .topbar button.logout { background: var(--brick); }
   .topbar button.logout:hover { background: #9a3e32; }
-  .nav-hamburger { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; background: #70B894; color: #fff; border-radius: 8px; cursor: pointer; font-size: 22px; line-height: 1; padding: 0; }
-  .nav-hamburger:hover { background: #5FA583; }
+  .nav-hamburger { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; background: #0A142B; color: #fff; border-radius: 8px; cursor: pointer; font-size: 22px; line-height: 1; padding: 0; }
+  .nav-hamburger:hover { background: #182643; }
   .topbar .dot { display: none; }
 
   .page { display: flex; align-items: flex-start; justify-content: center; gap: 28px; max-width: 1800px; margin: 0 auto; padding: 0 28px; }
@@ -100,7 +100,7 @@
   .todo-add-row .todo-add-btns button.cancel { background: none; color: var(--ink-soft); flex: 0 0 auto; }
   .todo-share-btn { font-family: inherit; font-size: 12px; font-weight: 500; color: var(--ink-soft); background: var(--line-soft); border: none; border-radius: 20px; padding: 7px 12px; cursor: pointer; white-space: nowrap; }
   .todo-share-btn.chosen { color: var(--bg-raised); background: var(--slate); }
-  .todo-share-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 8px 10px; min-width: 190px; max-height: 260px; overflow-y: auto; }
+  .todo-share-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(10,20,43,0.15); padding: 8px 10px; min-width: 190px; max-height: 260px; overflow-y: auto; }
 
   /* task-mode and all-mode no longer need width overrides — the three columns (to-do / tasks / chat) are all equal flex: 1 1 0 */
   .board-chat-head { padding: 14px 16px; border-bottom: 1px solid var(--line-soft); font-weight: 600; font-size: 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -115,7 +115,7 @@
   .chat-list-row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font-family: inherit; background: none; border: none; border-radius: 10px; padding: 8px; cursor: pointer; color: var(--ink); }
   .chat-list-row:hover { background: var(--bg); }
   .chat-list-row.active { background: var(--pine-soft); }
-  .chat-avatar { flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; background: #70B894; color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; letter-spacing: .02em; }
+  .chat-avatar { flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%; background: #0A142B; color: #fff; font-size: 13px; font-weight: 700; display: flex; align-items: center; justify-content: center; letter-spacing: .02em; }
   .chat-list-mid { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .chat-list-top, .chat-list-bottom { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .chat-list-name { flex: 1 1 auto; min-width: 0; font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -123,7 +123,7 @@
   .chat-list-preview { flex: 1 1 auto; min-width: 0; font-size: 12.5px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .chat-list-row.unread .chat-list-preview { color: var(--ink); font-weight: 600; }
   .chat-list-row.unread .chat-list-time { color: var(--pine); font-weight: 600; }
-  .chat-list-badge { flex-shrink: 0; min-width: 20px; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: 10px; background: #70B894; color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .chat-list-badge { flex-shrink: 0; min-width: 20px; height: 20px; padding: 0 6px; box-sizing: border-box; border-radius: 10px; background: #0A142B; color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
   .all-boards-links-col.chat-list { flex-basis: 175px; gap: 2px; padding-right: 10px; }
   .chat-back-btn { display: none; }
   .board-chat-link-list { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
@@ -147,7 +147,7 @@
   }
 
   .board-access-wrap { display: inline-flex; }
-  .board-access-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 10px; min-width: 220px; }
+  .board-access-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(10,20,43,0.15); padding: 10px; min-width: 220px; }
   .board-access-popover label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 5px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
   .board-access-popover label:hover { background: var(--line-soft); }
   .board-access-popover hr { border: none; border-top: 1px solid var(--line-soft); margin: 6px 0; }
@@ -159,7 +159,7 @@
   .board-tab-wrap:not(.is-active) .board-menu-wrap, .board-tab-wrap:not(.is-active) .board-tab-delete { display: none; }
   .board-menu-btn { font-family: inherit; font-size: 15px; color: var(--ink-faint); background: none; border: none; cursor: pointer; padding: 6px 8px; border-radius: 6px; line-height: 1; }
   .board-menu-btn:hover { color: var(--pine); background: var(--bg-raised); }
-  .board-menu { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 4px; min-width: 160px; }
+  .board-menu { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(10,20,43,0.15); padding: 4px; min-width: 160px; }
   .board-menu button { display: block; width: 100%; text-align: left; font-family: inherit; font-size: 13px; color: var(--ink); background: none; border: none; padding: 9px 11px; border-radius: 5px; cursor: pointer; }
   .board-menu button:hover { background: var(--line-soft); }
 
@@ -170,16 +170,16 @@
   .board-head .quote-line { color: var(--ink-faint); font-size: 13px; font-style: italic; margin: 6px 0 0; }
 
   /* board tabs — a modern segmented control instead of underlined text tabs */
-  .board-tabs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; background: #70B894; border-bottom: none; padding: 8px 32px; position: sticky; top: var(--nav-h, 67px); z-index: 400; }
+  .board-tabs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; background: #0A142B; border-bottom: none; padding: 8px 32px; position: sticky; top: var(--nav-h, 67px); z-index: 400; }
   .board-tab-wrap { display: inline-flex; align-items: center; border-radius: 999px; cursor: grab; position: relative; }
   .board-tab-wrap:active { cursor: grabbing; }
   .board-tab-wrap.drag-over { box-shadow: inset 0 0 0 2px var(--slate); }
   .board-tab {
-    font-family: inherit; font-size: 13px; font-weight: 600; color: #fff; background: rgba(255,255,255,0.2); text-shadow: 0 1px 1px rgba(20,60,40,0.3); border: none;
+    font-family: inherit; font-size: 13px; font-weight: 600; color: #fff; background: rgba(255,255,255,0.2); text-shadow: 0 1px 1px rgba(5,10,25,0.3); border: none;
     padding: 6px 14px; cursor: pointer; border-radius: 999px; transition: background 0.15s, color 0.15s, box-shadow 0.15s;
   }
   .board-tab:hover { color: #fff; background: rgba(255,255,255,0.32); }
-  .board-tab.active { text-shadow: none; color: var(--pine); font-weight: 700; background: #fff; box-shadow: 0 1px 3px rgba(20,60,40,0.18); position: relative; z-index: 2; }
+  .board-tab.active { text-shadow: none; color: var(--pine); font-weight: 700; background: #fff; box-shadow: 0 1px 3px rgba(5,10,25,0.18); position: relative; z-index: 2; }
   .board-tab.add-board { color: #fff; font-weight: 700; background: transparent; border: 1px dashed rgba(255,255,255,0.6); padding: 5px 11px; }
   .board-tab.add-board:hover { color: #fff; background: rgba(255,255,255,0.2); }
   .board-tab-rename { font-family: inherit; font-size: 14px; color: rgba(255,255,255,0.6); background: none; border: none; cursor: pointer; padding: 6px 6px; border-radius: 6px; }
@@ -194,8 +194,8 @@
   .board-section-drag-handle:hover { background: var(--line-soft); color: var(--ink); }
   .board-section-drag-handle:active { cursor: grabbing; }
 
-  .group { margin-bottom: 20px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(34,38,31,0.05), 0 1px 8px rgba(34,38,31,0.04); transition: box-shadow 0.15s, background 0.1s; }
-  .group:hover { box-shadow: 0 2px 4px rgba(34,38,31,0.06), 0 4px 14px rgba(34,38,31,0.06); }
+  .group { margin-bottom: 20px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: 0 1px 2px rgba(10,20,43,0.05), 0 1px 8px rgba(10,20,43,0.04); transition: box-shadow 0.15s, background 0.1s; }
+  .group:hover { box-shadow: 0 2px 4px rgba(10,20,43,0.06), 0 4px 14px rgba(10,20,43,0.06); }
   .group.drag-over { background: var(--slate-soft); }
   .group-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 14px 0; cursor: pointer; user-select: none; border-left: 4px solid var(--accent, var(--pine)); }
   .group-drag-handle { flex-shrink: 0; width: 30px; height: 30px; margin-left: 6px; display: flex; align-items: center; justify-content: center; color: var(--ink-faint); cursor: grab; border-radius: 6px; }
@@ -244,7 +244,7 @@
   .assignee-avatar:first-child { margin-left: 0; }
   .assignee-picker-btn { flex-shrink: 0; font-size: 11.5px; font-family: inherit; color: var(--grey-pill-ink); background: var(--grey-pill); border: none; border-radius: 20px; padding: 3px 8px; cursor: pointer; white-space: nowrap; }
   .assignee-picker-btn:hover { background: var(--line-soft); }
-  .assignee-popover-list { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 6px; min-width: 170px; max-height: 220px; overflow-y: auto; }
+  .assignee-popover-list { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(10,20,43,0.15); padding: 6px; min-width: 170px; max-height: 220px; overflow-y: auto; }
   .assignee-popover-list label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 5px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
   .assignee-popover-list label:hover { background: var(--line-soft); }
 
@@ -276,7 +276,7 @@
   .step-add-link:hover { color: var(--pine); }
 
   .floating-popover { position: fixed; z-index: 1000; }
-  .step-menu { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 4px; min-width: 170px; }
+  .step-menu { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(10,20,43,0.15); padding: 4px; min-width: 170px; }
   .step-menu button { display: block; width: 100%; text-align: left; font-family: inherit; font-size: 13px; color: var(--ink); background: none; border: none; padding: 9px 11px; border-radius: 5px; cursor: pointer; }
   .step-menu button:hover:not(:disabled) { background: var(--line-soft); }
   .step-menu button:disabled { color: var(--ink-faint); cursor: default; }
@@ -302,7 +302,7 @@
   .note-head .chevron { flex-shrink: 0; width: 14px; height: 14px; color: var(--ink-faint); transition: transform 0.12s; }
   .note-item.open .note-head .chevron { transform: rotate(90deg); }
   .note-preview { flex: 1; min-width: 0; font-size: 12.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; }
-  .note-preview[title]:hover::after { content: attr(title); position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 900; background: var(--ink); color: var(--bg-raised); font-size: 12.5px; line-height: 1.6; padding: 12px 16px; border-radius: 10px; max-width: 340px; white-space: pre-wrap; word-break: break-word; box-shadow: 0 6px 24px rgba(34,38,31,0.35); pointer-events: none; }
+  .note-preview[title]:hover::after { content: attr(title); position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 900; background: var(--ink); color: var(--bg-raised); font-size: 12.5px; line-height: 1.6; padding: 12px 16px; border-radius: 10px; max-width: 340px; white-space: pre-wrap; word-break: break-word; box-shadow: 0 6px 24px rgba(10,20,43,0.35); pointer-events: none; }
   .note-item.open .note-preview { display: none; }
   .note-meta { flex-shrink: 0; font-size: 11px; color: var(--ink-faint); white-space: nowrap; }
   .note-del { flex-shrink: 0; width: 20px; height: 20px; border: none; background: transparent; color: var(--ink-faint); cursor: pointer; border-radius: 5px; display: flex; align-items: center; justify-content: center; }
@@ -353,10 +353,10 @@
   .chat-send-btn { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; padding: 8px 18px; border: none; border-radius: 20px; background: var(--slate); color: var(--bg-raised); cursor: pointer; }
   .chat-send-btn:disabled { background: var(--line-soft); color: var(--ink-faint); cursor: not-allowed; }
 
-  .msg-tooltip { background: var(--ink); color: var(--bg-raised); border-radius: 7px; padding: 8px 10px; font-size: 11.5px; line-height: 1.5; max-width: 240px; box-shadow: 0 4px 16px rgba(34,38,31,0.25); }
+  .msg-tooltip { background: var(--ink); color: var(--bg-raised); border-radius: 7px; padding: 8px 10px; font-size: 11.5px; line-height: 1.5; max-width: 240px; box-shadow: 0 4px 16px rgba(10,20,43,0.25); }
   .msg-tooltip .faint { opacity: 0.75; }
 
-  .read-receipt-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 8px 10px; min-width: 170px; font-size: 12px; }
+  .read-receipt-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(10,20,43,0.15); padding: 8px 10px; min-width: 170px; font-size: 12px; }
   .read-receipt-title { font-weight: 600; color: var(--ink); margin-bottom: 4px; }
   .read-receipt-line { display: flex; justify-content: space-between; gap: 10px; color: var(--ink-soft); padding: 2px 0; }
   .read-receipt-time { color: var(--ink-faint); white-space: nowrap; }
@@ -373,7 +373,7 @@
   .chat-to-btn { flex-shrink: 0; font-family: inherit; font-size: 12px; font-weight: 500; color: var(--ink-soft); background: var(--line-soft); border: none; border-radius: 20px; padding: 8px 14px; cursor: pointer; white-space: nowrap; }
   .chat-to-btn.chosen { color: var(--bg-raised); background: var(--slate); }
   .chat-to-btn:hover { background: var(--slate); color: var(--bg-raised); }
-  .recipient-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 8px 10px; min-width: 190px; max-height: 260px; overflow-y: auto; }
+  .recipient-popover { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(10,20,43,0.15); padding: 8px 10px; min-width: 190px; max-height: 260px; overflow-y: auto; }
   .recipient-popover label { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 5px 6px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
   .recipient-popover label:hover { background: var(--line-soft); }
   .recipient-popover hr { border: none; border-top: 1px solid var(--line-soft); margin: 4px 0; }
@@ -460,7 +460,7 @@
 
 
   /* ---- New event: type presets ---- */
-  .cal-filter-drop { position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(34,38,31,0.15); padding: 8px 10px; min-width: 180px; z-index: 600; display: flex; flex-direction: column; gap: 6px; }
+  .cal-filter-drop { position: absolute; top: 100%; right: 0; margin-top: 4px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(10,20,43,0.15); padding: 8px 10px; min-width: 180px; z-index: 600; display: flex; flex-direction: column; gap: 6px; }
   .cal-filter-opt { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink); cursor: pointer; padding: 3px 0; }
   .cal-filter-opt input { width: auto !important; margin: 0; accent-color: var(--pine); cursor: pointer; }
   .cal-filter-apply { font-family: inherit; font-size: 12px; font-weight: 600; padding: 5px 14px; border: none; border-radius: 6px; background: var(--pine); color: var(--bg-raised); cursor: pointer; flex: 1; }
@@ -484,7 +484,7 @@
   .cal-opt-settings-btn:hover { color: var(--pine); }
   .cal-opt-remind { justify-content: space-between; gap: 10px; cursor: default; }
   /* ---- Microphone on every text box ---- */
-  .mic-btn { position: fixed; z-index: 2000; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg-raised); color: var(--pine); display: none; align-items: center; justify-content: center; padding: 0; cursor: pointer; box-shadow: 0 1px 4px rgba(34,38,31,.15); -webkit-tap-highlight-color: transparent; }
+  .mic-btn { position: fixed; z-index: 2000; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--bg-raised); color: var(--pine); display: none; align-items: center; justify-content: center; padding: 0; cursor: pointer; box-shadow: 0 1px 4px rgba(10,20,43,.15); -webkit-tap-highlight-color: transparent; }
   .mic-btn.show { display: inline-flex; }
   .mic-field { padding-right: 40px !important; }
   .mic-btn:hover { border-color: var(--pine); }
@@ -495,7 +495,7 @@
   .cal-opt-remind select { font-family: inherit; font-size: 12.5px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
   .cal-opt-notify { width: 100%; border: none; background: none; font-family: inherit; color: var(--pine); font-size: 12.5px; text-align: left; white-space: normal; }
   /* ---- Reminder pop-up (Outlook-style) ---- */
-  .remind-panel { position: fixed; right: 18px; bottom: 18px; width: 380px; max-height: min(70vh, 560px); display: flex; flex-direction: column; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgba(34,38,31,.28); z-index: 1200; overflow: hidden; animation: remindIn .22s ease-out; }
+  .remind-panel { position: fixed; right: 18px; bottom: 18px; width: 380px; max-height: min(70vh, 560px); display: flex; flex-direction: column; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgba(10,20,43,.28); z-index: 1200; overflow: hidden; animation: remindIn .22s ease-out; }
   @keyframes remindIn { from { transform: translateY(16px); opacity: 0; } to { transform: none; opacity: 1; } }
   .remind-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px 10px 14px; background: var(--pine); color: #fff; font-weight: 600; font-size: 13.5px; }
   .remind-head .remind-count { flex: 1; }
@@ -592,7 +592,7 @@
   /* One screen, no page scrolling: the view is exactly the height left under
      the nav bar, the grid fills whatever is left after the header, and a busy
      day scrolls inside its own box instead of growing the page. */
-  .calendar-wrap { max-width: none; margin: 0; padding: 14px 22px 10px; height: calc(100vh - var(--nav-h, 67px)); box-sizing: border-box; overflow: hidden; background: #70B894; }
+  .calendar-wrap { max-width: none; margin: 0; padding: 14px 22px 10px; height: calc(100vh - var(--nav-h, 67px)); box-sizing: border-box; overflow: hidden; background: #0A142B; }
   .cal-layout { display: flex; gap: 0; height: 100%; align-items: stretch; }
   .cal-side { display: none; }
   .cal-main { position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; height: 100%; background: var(--bg); border-radius: var(--radius); padding: 10px 16px; box-sizing: border-box; overflow: hidden; }
@@ -651,7 +651,7 @@
   .cal-tg-hours { position: relative; }
   .cal-tg-hour { position: absolute; right: 6px; font-size: 10.5px; color: var(--ink-faint); transform: translateY(-50%); white-space: nowrap; }
   .cal-tg-col { position: relative; border-left: 1px solid var(--line-soft); cursor: pointer; background-image: linear-gradient(to bottom, var(--line-soft) 1px, transparent 1px); }
-  .cal-tg-col.today { background-color: rgba(61, 123, 92, 0.045); }
+  .cal-tg-col.today { background-color: rgba(27, 57, 126, 0.045); }
   .cal-tg-ev { position: absolute; box-sizing: border-box; border-radius: 5px; padding: 2px 6px; color: #fff; font-size: 11.5px; line-height: 1.3; overflow: hidden; cursor: pointer; border: 1px solid var(--bg-raised); }
   .cal-tg-ev:hover { filter: brightness(1.08); z-index: 2; }
   .cal-tg-ev b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -706,7 +706,7 @@
   .cal-ym-day { position: relative; font-family: inherit; font-size: 11.5px; color: var(--ink-soft); background: none; border: 2px solid transparent; border-radius: 6px; padding: 2px 0 7px; cursor: pointer; text-align: center; }
   .cal-ym-day:hover { border-color: var(--line); }
   .cal-ym-day.has { color: var(--ink); font-weight: 600; background: var(--pine-soft); }
-  .cal-ym-day.has.busy { background: #C2E2D2; }
+  .cal-ym-day.has.busy { background: #BECBE9; }
   .cal-ym-day.has::after { content: ""; position: absolute; left: 50%; bottom: 2px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: var(--pine); }
   .cal-ym-day.today { border-color: var(--pine); }
   .cal-ym-day.jumped { border-color: var(--ochre); background: var(--ochre-soft); }
@@ -784,9 +784,9 @@
   .cal-jump-pick input { font-family: inherit; font-size: 12px; padding: 5px 7px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); outline: none; flex: 1; min-width: 0; }
   .cal-jump-pick .cal-filter-apply { flex: 0 0 auto; }
   /* Days outside the shown month: recessed grey, no border, muted contents */
-  .cal-cell.other-month { opacity: 1; background: #E7E6DD repeating-linear-gradient(135deg, transparent 0 7px, rgba(0,0,0,0.025) 7px 8px); border-color: transparent; box-shadow: none; }
-  .cal-cell.other-month:hover { background-color: #E1E0D6; }
-  .cal-cell.other-month .cal-day-num, .cal-cell.other-month .cal-heb-date { color: #A8A99E; font-weight: 500; }
+  .cal-cell.other-month { opacity: 1; background: #EDF0F6 repeating-linear-gradient(135deg, transparent 0 7px, rgba(0,0,0,0.025) 7px 8px); border-color: transparent; box-shadow: none; }
+  .cal-cell.other-month:hover { background-color: #E6EAF2; }
+  .cal-cell.other-month .cal-day-num, .cal-cell.other-month .cal-heb-date { color: #A3ACBA; font-weight: 500; }
   .cal-cell.other-month .cal-cell-events, .cal-cell.other-month .cal-candle-pill { opacity: 0.5; filter: saturate(0.45); }
   .cal-day-num { font-size: 11.5px; font-weight: 600; color: var(--ink-soft); margin-bottom: 3px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: baseline; }
   .cal-heb-date { font-size: 9.5px; font-weight: 400; color: var(--ink-faint); direction: ltr; }
@@ -796,12 +796,12 @@
   .cal-cell-events::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
   .cal-event-pill { font-size: 11px; line-height: 1.4; padding: 2px 6px; border-radius: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; color: #fff; flex-shrink: 0; max-width: 100%; }
   .cal-grid .cal-event-pill { font-size: 10px; line-height: 1.35; padding: 1px 4px; border-radius: 3px; }   /* month: tighter, so more of each title shows */
-  .cal-tooltip { position: fixed; z-index: 900; background: var(--ink); color: var(--bg-raised); font-size: 12px; line-height: 1.55; padding: 10px 12px; border-radius: 9px; max-width: 300px; white-space: pre-wrap; word-break: break-word; box-shadow: 0 6px 24px rgba(34,38,31,0.35); pointer-events: none; }
+  .cal-tooltip { position: fixed; z-index: 900; background: var(--ink); color: var(--bg-raised); font-size: 12px; line-height: 1.55; padding: 10px 12px; border-radius: 9px; max-width: 300px; white-space: pre-wrap; word-break: break-word; box-shadow: 0 6px 24px rgba(10,20,43,0.35); pointer-events: none; }
   .cal-tooltip b { display: block; font-size: 12.5px; margin-bottom: 3px; }
   .cal-tooltip .dim { opacity: 0.75; }
   .cal-more { font-size: 10.5px; color: var(--ink-faint); cursor: pointer; }
-  .cal-event-modal { position: fixed; inset: 0; background: rgba(34,38,31,0.45); z-index: 800; display: flex; align-items: center; justify-content: center; }
-  .cal-event-modal-box { background: var(--bg-raised); border-radius: 12px; box-shadow: 0 8px 32px rgba(34,38,31,0.25); width: 420px; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); display: flex; flex-direction: column; overflow: hidden; }
+  .cal-event-modal { position: fixed; inset: 0; background: rgba(10,20,43,0.45); z-index: 800; display: flex; align-items: center; justify-content: center; }
+  .cal-event-modal-box { background: var(--bg-raised); border-radius: 12px; box-shadow: 0 8px 32px rgba(10,20,43,0.25); width: 420px; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); display: flex; flex-direction: column; overflow: hidden; }
   .cal-event-modal-box.cal-wide { width: 560px; }   /* a meeting with people / details gets room to read */
   .cal-event-modal-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 15px; }
   .cal-event-modal-head button { background: none; border: none; font-size: 16px; cursor: pointer; color: var(--ink-faint); padding: 2px 6px; border-radius: 5px; }
@@ -913,7 +913,7 @@
   .cal-event-modal-foot button { font-family: inherit; font-size: 13px; font-weight: 500; padding: 8px 18px; border: none; border-radius: 7px; cursor: pointer; }
   #calModalSave { background: var(--pine); color: var(--bg-raised); }
   /* small "which one?" dialog (e.g. delete this occurrence or the whole series) */
-  .cal-choice-overlay { position: fixed; inset: 0; background: rgba(34,38,31,0.45); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .cal-choice-overlay { position: fixed; inset: 0; background: rgba(10,20,43,0.45); z-index: 900; display: flex; align-items: center; justify-content: center; padding: 16px; }
   .cal-choice-box { background: var(--bg-raised); border-radius: var(--radius); width: 100%; max-width: 380px; padding: 20px; box-shadow: 0 12px 40px rgba(0,0,0,0.25); }
   .cal-choice-title { font-size: 15px; font-weight: 600; color: var(--ink); margin-bottom: 6px; word-break: break-word; }
   .cal-choice-text { font-size: 13px; line-height: 1.45; color: var(--ink-soft); margin-bottom: 14px; }
@@ -977,10 +977,10 @@
     .board-chat.task-mode .board-chat-head .head-title { white-space: normal; }
     body[data-mpane="todo"] .board-search-input, body[data-mpane="chat"] .board-search-input { visibility: hidden; }   /* it searches tasks */
 
-    .m-panes { display: flex; justify-content: center; position: fixed; left: 0; right: 0; bottom: 0; z-index: 450; gap: 6px; padding: 6px 8px; padding-bottom: calc(6px + env(safe-area-inset-bottom)); background: var(--bg-raised); border-top: 1px solid var(--line); box-shadow: 0 -2px 10px rgba(34,38,31,0.08); }
+    .m-panes { display: flex; justify-content: center; position: fixed; left: 0; right: 0; bottom: 0; z-index: 450; gap: 6px; padding: 6px 8px; padding-bottom: calc(6px + env(safe-area-inset-bottom)); background: var(--bg-raised); border-top: 1px solid var(--line); box-shadow: 0 -2px 10px rgba(10,20,43,0.08); }
     .m-panes button { flex: 1 1 0; min-width: 0; max-width: 260px; font-family: inherit; font-size: 13px; font-weight: 600; padding: 11px 4px; border: none; border-radius: 9px; background: transparent; color: var(--ink-soft); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .m-panes button:hover { background: var(--line-soft); }
-    .m-panes button.active, .m-panes button.active:hover { background: #70B894; color: #fff; }   /* same logo green as the header buttons and tab bar */
+    .m-panes button.active, .m-panes button.active:hover { background: #0A142B; color: #fff; }   /* same logo green as the header buttons and tab bar */
     .m-badge { display: inline-block; min-width: 18px; margin-left: 5px; padding: 1px 5px; border-radius: 10px; font-size: 11px; font-weight: 700; line-height: 1.45; background: var(--line); color: var(--ink-soft); vertical-align: 1px; }
     .m-panes button.active .m-badge { background: rgba(255,255,255,0.25); color: var(--bg-raised); }
     .m-badge.alert { background: var(--brick); color: #fff; }
@@ -1027,14 +1027,14 @@
     a, button, label, input, select, textarea { touch-action: manipulation; }
     /* tick boxes big enough for a finger (the Occasion "Repeats on" choice is drawn as buttons, so not those) */
     input[type="checkbox"], input[type="radio"]:not([name="calOccasionCal"]) { width: 20px !important; height: 20px !important; flex: 0 0 auto; accent-color: var(--pine); }
-    * { -webkit-tap-highlight-color: rgba(61, 123, 92,0.12); }
+    * { -webkit-tap-highlight-color: rgba(27, 57, 126,0.12); }
 
     /* ---- header: one compact row — the leaf mark, then the hamburger ---- */
     .topnav { grid-template-columns: auto 1fr; gap: 8px; padding: 8px 10px; padding-top: calc(8px + env(safe-area-inset-top)); min-height: 50px; }
     .topnav .brand-logo { height: 32px; width: auto; }   /* show full wordmark now that nav buttons are in hamburger */
     .topnav .topbar { gap: 0; position: relative; }
     .topbar a, .topbar button.link { padding: 12px 11px; font-size: 13px; white-space: nowrap; }
-    .topbar a.active { box-shadow: 0 0 0 1.5px var(--bg-raised), 0 0 0 3px #22362a; }
+    .topbar a.active { box-shadow: 0 0 0 1.5px var(--bg-raised), 0 0 0 3px #2C57BA; }
     /* hide the inline nav links on phones; show the hamburger instead */
     .topbar > a, .topbar > button.link { display: none; }
     .nav-hamburger { display: flex !important; }
@@ -1422,15 +1422,15 @@
     /* All boards: no board titles between the groups, so it's more compact */
     .board-section-head { display: none !important; }
     .board-search-phone, #calSearchBtn { display: none !important; }       /* the old separate searches */
-    .m-search-btn { display: inline-flex; align-items: center; justify-content: center; position: fixed; z-index: 520; top: calc(8px + env(safe-area-inset-top)); right: 60px; width: 40px; height: 40px; border: none; border-radius: 8px; background: #70B894; color: #fff; cursor: pointer; }
+    .m-search-btn { display: inline-flex; align-items: center; justify-content: center; position: fixed; z-index: 520; top: calc(8px + env(safe-area-inset-top)); right: 60px; width: 40px; height: 40px; border: none; border-radius: 8px; background: #0A142B; color: #fff; cursor: pointer; }
     body[data-view="admin"] .m-search-btn { display: none; }
     .m-search.open { display: flex; flex-direction: column; position: fixed; inset: 0; z-index: 900; background: var(--bg); }
     .m-search-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; padding-top: calc(10px + env(safe-area-inset-top)); background: var(--bg-raised); border-bottom: 1px solid var(--line); }
     .m-search-field { flex: 1 1 auto; position: relative; display: flex; align-items: center; }
-    .m-search-field svg { position: absolute; left: 11px; color: #70B894; pointer-events: none; }
-    .m-search-field input { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 16px; padding: 10px 12px 10px 34px; border: 1.5px solid #B7DCC9; border-radius: 999px; background: #fff; color: var(--ink); outline: none; }
-    .m-search-field input:focus { border-color: #70B894; box-shadow: 0 0 0 3px rgba(112,184,148,0.18); }
-    .m-search-close { flex-shrink: 0; font-family: inherit; font-size: 14px; font-weight: 600; color: #5FA583; background: none; border: none; padding: 8px 4px; cursor: pointer; }
+    .m-search-field svg { position: absolute; left: 11px; color: #0A142B; pointer-events: none; }
+    .m-search-field input { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 16px; padding: 10px 12px 10px 34px; border: 1.5px solid #BECBE9; border-radius: 999px; background: #fff; color: var(--ink); outline: none; }
+    .m-search-field input:focus { border-color: #0A142B; box-shadow: 0 0 0 3px rgba(27,57,126,0.18); }
+    .m-search-close { flex-shrink: 0; font-family: inherit; font-size: 14px; font-weight: 600; color: #182643; background: none; border: none; padding: 8px 4px; cursor: pointer; }
     .m-search-list { flex: 1 1 auto; overflow-y: auto; padding: 4px 12px calc(16px + env(safe-area-inset-bottom)); }
     .m-search-sec { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-faint); margin: 16px 2px 6px; }
     .m-search-row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font-family: inherit; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 6px; cursor: pointer; color: var(--ink); }
@@ -2720,7 +2720,7 @@
     msgTooltipEl = tip;
   }
 
-  var AVATAR_COLORS = ["#C68A2E", "#4C7A9E", "#7D6BAE", "#B24A3C", "#3D7B5C", "#B5860B", "#5E7CE2", "#9C4F96"];
+  var AVATAR_COLORS = ["#C68A2E", "#4C7A9E", "#7D6BAE", "#B24A3C", "#1B397E", "#B5860B", "#5E7CE2", "#9C4F96"];
   function initialsFor(name) {
     var parts = String(name || "?").trim().split(/\s+/);
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
@@ -3270,7 +3270,7 @@
       var isCollapsed = !!collapsed[selectedBoardId + ":" + g.id];
 
       var groupEl = el("section", "group" + (isCollapsed ? " collapsed" : ""));
-      groupEl.style.setProperty("--accent", g.color || "#3D7B5C");
+      groupEl.style.setProperty("--accent", g.color || "#1B397E");
 
       var head = el("div", "group-head");
 
@@ -4571,7 +4571,7 @@
   // several calendars, so we ignore those and give every calendar its own
   // colour from this palette instead. Same order every load, so colours stay put.
   var CAL_PALETTE = [
-    "#1a73e8", "#B24A3C", "#3D7B5C", "#C68A2E", "#7D6BAE", "#0F8B8D",
+    "#1a73e8", "#B24A3C", "#1B397E", "#C68A2E", "#7D6BAE", "#0F8B8D",
     "#D4568A", "#4C7A9E", "#8A6A3B", "#2E8B77", "#9C4F96", "#C25E00",
     "#5B6ABF", "#6E8B1F", "#A03E52", "#00796B"
   ];

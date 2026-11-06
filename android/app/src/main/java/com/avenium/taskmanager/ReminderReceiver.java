@@ -117,7 +117,7 @@ public class ReminderReceiver extends BroadcastReceiver {
         String body = intent.getStringExtra("body");
         NotificationCompat.Builder b = new NotificationCompat.Builder(ctx, ReminderSync.CHANNEL)
                 .setSmallIcon(R.drawable.ic_stat_notify)
-                .setColor(0xFF3C5A46)
+                .setColor(0xFF1B397E)
                 .setContentTitle(title == null ? "Reminder" : title)
                 .setContentText(body == null ? "" : body)
                 .setStyle(new NotificationCompat.BigTextStyle().bigText(body == null ? "" : body))
