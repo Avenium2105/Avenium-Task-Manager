@@ -1427,10 +1427,10 @@
     .m-search.open { display: flex; flex-direction: column; position: fixed; inset: 0; z-index: 900; background: var(--bg); }
     .m-search-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; padding-top: calc(10px + env(safe-area-inset-top)); background: var(--bg-raised); border-bottom: 1px solid var(--line); }
     .m-search-field { flex: 1 1 auto; position: relative; display: flex; align-items: center; }
-    .m-search-field svg { position: absolute; left: 11px; color: var(--ink-faint); pointer-events: none; }
-    .m-search-field input { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 16px; padding: 10px 12px 10px 34px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--ink); outline: none; }
-    .m-search-field input:focus { border-color: var(--pine); }
-    .m-search-close { flex-shrink: 0; font-family: inherit; font-size: 14px; font-weight: 600; color: var(--pine); background: none; border: none; padding: 8px 4px; cursor: pointer; }
+    .m-search-field svg { position: absolute; left: 11px; color: #70B894; pointer-events: none; }
+    .m-search-field input { width: 100%; box-sizing: border-box; font-family: inherit; font-size: 16px; padding: 10px 12px 10px 34px; border: 1.5px solid #B7DCC9; border-radius: 999px; background: #fff; color: var(--ink); outline: none; }
+    .m-search-field input:focus { border-color: #70B894; box-shadow: 0 0 0 3px rgba(112,184,148,0.18); }
+    .m-search-close { flex-shrink: 0; font-family: inherit; font-size: 14px; font-weight: 600; color: #5FA583; background: none; border: none; padding: 8px 4px; cursor: pointer; }
     .m-search-list { flex: 1 1 auto; overflow-y: auto; padding: 4px 12px calc(16px + env(safe-area-inset-bottom)); }
     .m-search-sec { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-faint); margin: 16px 2px 6px; }
     .m-search-row { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; font-family: inherit; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-bottom: 6px; cursor: pointer; color: var(--ink); }
