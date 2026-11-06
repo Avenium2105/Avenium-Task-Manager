@@ -20,6 +20,8 @@ jobs:
       # the GitHub Ubuntu machines already have the Android SDK (ANDROID_HOME)
       - name: Install Capacitor (the Android project uses it from node_modules)
         run: npm ci --ignore-scripts
+      - name: Prepare the Android project (Capacitor's generated plugin files)
+        run: npx cap sync android
       - name: Build the APK
         working-directory: android
         env:
