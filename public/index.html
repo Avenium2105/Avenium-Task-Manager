@@ -638,7 +638,7 @@
   .cal-arrow-btn:hover { border-color: var(--pine); color: var(--pine); }
   .cal-arrow-sm { font-size: 14px; padding: 4px 7px; }
   #calMonthLabel { font-size: 18px; font-weight: 600; color: var(--ink); min-width: 190px; text-align: center; white-space: nowrap; }
-  #calHebrewMonthLabel { font-size: 12px; color: var(--ink-soft); font-weight: 500; text-align: center; display: block; direction: rtl; }
+  #calHebrewMonthLabel { font-size: 12px; color: var(--ink-soft); font-weight: 500; text-align: center; display: block; direction: rtl; margin-top: 2px; }
   .cal-bottom-tabs { display: none; }
   /* ---- Day / Week / Month / Year switch ---- */
   .cal-view-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg-raised); }
@@ -1260,8 +1260,8 @@
     .cal-view-hamburger-menu { display: none !important; }
     /* divider under nav bar */
     .calendar-nav-top { border-bottom: 1px solid var(--line); padding-bottom: 8px; }
-    /* Hebrew month subtitle under the secular label */
-    #calHebrewMonthLabel { display: block; font-size: 11px; color: var(--ink-soft); font-weight: 500; text-align: center; margin-top: 1px; direction: rtl; }
+    /* Hebrew month subtitle — sits right of the secular label on mobile */
+    #calHebrewMonthLabel { display: inline; font-size: 12px; color: var(--ink-soft); font-weight: 500; direction: rtl; margin-left: 6px; }
     /* bottom tab bar for view switching */
     .cal-bottom-tabs { display: flex !important; position: fixed; bottom: 0; left: 0; right: 0; z-index: 95; background: var(--bg-raised); border-top: 1px solid var(--line); padding: 0 0 calc(env(safe-area-inset-bottom)); }
     .cal-bottom-tabs button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 8px 2px 7px; border: none; background: none; color: var(--ink-faint); font-family: inherit; font-size: 10px; font-weight: 500; cursor: pointer; white-space: nowrap; }
@@ -1924,10 +1924,10 @@
         <button id="calPrevYear" type="button" class="cal-arrow-btn cal-arrow-sm" title="Previous year">&laquo;</button>
         <button id="calPrevBtn" type="button" class="cal-arrow-btn" title="Previous month">&lsaquo;</button>
         <span id="calMonthLabel"></span>
-        <span id="calHebrewMonthLabel" style="display:none;"></span>
         <button id="calNextBtn" type="button" class="cal-arrow-btn" title="Next month">&rsaquo;</button>
         <button id="calNextYear" type="button" class="cal-arrow-btn cal-arrow-sm" title="Next year">&raquo;</button>
       </div>
+      <span id="calHebrewMonthLabel" style="display:none;"></span>
       <div class="cal-nav-view-row">
         <div class="cal-jump-wrap">
           <button id="calJumpBtn" type="button" class="cal-pill-btn">Search Date &#9662;</button>
@@ -2157,11 +2157,11 @@
   </div>
   <!-- Bottom tab bar (mobile only) — Hebrew calendar style -->
   <div class="cal-bottom-tabs" id="calBottomTabs" style="display:none;">
-    <button type="button" data-tab="hebrew-month"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16"/><path d="M6 3v14M10 3v14M14 3v14"/><path d="M2 10.5h16M2 14h16"/></svg>חודש עברי</button>
-    <button type="button" data-tab="secular-month" class="active"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16"/><path d="M6 3v14M10 3v14M14 3v14"/><path d="M2 10.5h16M2 14h16"/></svg>חודש לועזי</button>
-    <button type="button" data-tab="day"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="2"/><path d="M3 8h14"/><path d="M7 2v3M13 2v3"/></svg>יום</button>
-    <button type="button" data-tab="info"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 9v4.5"/><circle cx="10" cy="6.5" r=".75" fill="currentColor" stroke="none"/></svg>מידע</button>
-    <button type="button" data-tab="zmanim"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 5.5v5l3.5 2"/></svg>זמנים</button>
+    <button type="button" data-tab="hebrew-month"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16"/><path d="M6 3v14M10 3v14M14 3v14"/><path d="M2 10.5h16M2 14h16"/></svg>Hebrew</button>
+    <button type="button" data-tab="secular-month" class="active"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16"/><path d="M6 3v14M10 3v14M14 3v14"/><path d="M2 10.5h16M2 14h16"/></svg>Secular</button>
+    <button type="button" data-tab="day"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="2"/><path d="M3 8h14"/><path d="M7 2v3M13 2v3"/></svg>Day</button>
+    <button type="button" data-tab="info"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 9v4.5"/><circle cx="10" cy="6.5" r=".75" fill="currentColor" stroke="none"/></svg>Info</button>
+    <button type="button" data-tab="zmanim"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 5.5v5l3.5 2"/></svg>Zmanim</button>
   </div>
 </div>
 
@@ -5174,12 +5174,18 @@
           b.addEventListener("click", function () {
             calBottomActiveTab = b.dataset.tab;
             syncBottomActive();
-            if (b.dataset.tab === "day") {
-              setCalView("day");
-            } else if (b.dataset.tab === "secular-month" || b.dataset.tab === "hebrew-month") {
+            if (b.dataset.tab === "secular-month" || b.dataset.tab === "hebrew-month") {
               setCalView("month");
+            } else if (b.dataset.tab === "day") {
+              dayViewMode = "cal";
+              setCalView("day");
+            } else if (b.dataset.tab === "zmanim") {
+              dayViewMode = "zmanim";
+              setCalView("day");
+            } else if (b.dataset.tab === "info") {
+              dayViewMode = "learning";
+              setCalView("day");
             }
-            // info and zmanim panels — future feature
           });
         });
       })();
