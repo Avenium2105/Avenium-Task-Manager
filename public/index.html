@@ -2393,8 +2393,11 @@
   // Task-level (title-only) collapse used to live only in memory and forgot itself on
   // every reload — group collapse already persisted via localStorage, so this now
   // follows the exact same pattern for consistency.
-  function getCollapsedItems() { try { var raw = localStorage.getItem(collapsedItemsKey); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; } }
-  function setCollapsedItems(map) { try { localStorage.setItem(collapsedItemsKey, JSON.stringify(map)); } catch (e) {} }
+  // Opened tasks are remembered only while the app (or browser tab) stays open: a fresh
+  // start shows every task collapsed again.
+  try { localStorage.removeItem(collapsedItemsKey); } catch (e) {}
+  function getCollapsedItems() { try { var raw = sessionStorage.getItem(collapsedItemsKey); return raw ? JSON.parse(raw) : {}; } catch (e) { return {}; } }
+  function setCollapsedItems(map) { try { sessionStorage.setItem(collapsedItemsKey, JSON.stringify(map)); } catch (e) {} }
 
   function fmtDate(now) { return now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" }); }
   function greetingWord(now) { var h = now.getHours(); if (h < 12) return "Good morning"; if (h < 18) return "Good afternoon"; return "Good evening"; }
