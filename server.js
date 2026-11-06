@@ -1364,6 +1364,20 @@ function requireAdmin(req, res, next) {
   return res.redirect("/");
 }
 
+// ---- Android App Links verification (public, no auth) ----
+app.get("/.well-known/assetlinks.json", (req, res) => {
+  res.json([{
+    relation: ["delegate_permission/common.handle_all_urls"],
+    target: {
+      namespace: "android_app",
+      package_name: "com.avenium.taskmanager",
+      sha256_cert_fingerprints: [
+        "AA:33:8C:6A:9A:A2:8F:B1:19:CD:74:5E:3A:33:66:FE:D9:CC:98:89:74:E5:77:E2:C7:12:C9:6E:3D:18:51:7B"
+      ]
+    }
+  }]);
+});
+
 // ---- static brand assets (logo etc. — public, needed on pre-auth pages too) ----
 app.use("/assets", express.static(path.join(__dirname, "public", "assets")));
 
