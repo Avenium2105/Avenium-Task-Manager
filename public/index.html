@@ -1264,7 +1264,7 @@
     #calHebrewMonthLabel { display: block; font-size: 11px; color: var(--ink-soft); font-weight: 500; text-align: center; margin-top: 1px; direction: rtl; }
     /* bottom tab bar for view switching */
     .cal-bottom-tabs { display: flex !important; position: fixed; bottom: 0; left: 0; right: 0; z-index: 95; background: var(--bg-raised); border-top: 1px solid var(--line); padding: 0 0 calc(env(safe-area-inset-bottom)); }
-    .cal-bottom-tabs button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 8px 4px 7px; border: none; background: none; color: var(--ink-faint); font-family: inherit; font-size: 11px; font-weight: 500; cursor: pointer; }
+    .cal-bottom-tabs button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 8px 2px 7px; border: none; background: none; color: var(--ink-faint); font-family: inherit; font-size: 10px; font-weight: 500; cursor: pointer; white-space: nowrap; }
     .cal-bottom-tabs button.active { color: var(--pine); font-weight: 700; }
     .cal-bottom-tabs button svg { width: 20px; height: 20px; }
     /* adjust FAB and quick-toggle to sit above bottom tabs */
@@ -2155,12 +2155,13 @@
       </div>
     </div>
   </div>
-  <!-- Bottom view-switcher tab bar (mobile only) -->
+  <!-- Bottom tab bar (mobile only) — Hebrew calendar style -->
   <div class="cal-bottom-tabs" id="calBottomTabs" style="display:none;">
-    <button type="button" data-view="day"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="2"/><path d="M3 8h14"/><path d="M7 2v3M13 2v3"/></svg>Day</button>
-    <button type="button" data-view="week"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M2 8h16"/><path d="M6.5 4v13M10 4v13M13.5 4v13"/></svg>Week</button>
-    <button type="button" data-view="month" class="active"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16"/><path d="M6 3v14M10 3v14M14 3v14"/><path d="M2 10.5h16M2 14h16"/></svg>Month</button>
-    <button type="button" data-view="year"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="7" height="6" rx="1"/><rect x="11" y="3" width="7" height="6" rx="1"/><rect x="2" y="11" width="7" height="6" rx="1"/><rect x="11" y="11" width="7" height="6" rx="1"/></svg>Year</button>
+    <button type="button" data-tab="hebrew-month"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16"/><path d="M6 3v14M10 3v14M14 3v14"/><path d="M2 10.5h16M2 14h16"/></svg>חודש עברי</button>
+    <button type="button" data-tab="secular-month" class="active"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16"/><path d="M6 3v14M10 3v14M14 3v14"/><path d="M2 10.5h16M2 14h16"/></svg>חודש לועזי</button>
+    <button type="button" data-tab="day"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="2"/><path d="M3 8h14"/><path d="M7 2v3M13 2v3"/></svg>יום</button>
+    <button type="button" data-tab="info"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 9v4.5"/><circle cx="10" cy="6.5" r=".75" fill="currentColor" stroke="none"/></svg>מידע</button>
+    <button type="button" data-tab="zmanim"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7.5"/><path d="M10 5.5v5l3.5 2"/></svg>זמנים</button>
   </div>
 </div>
 
@@ -5154,6 +5155,7 @@
         document.addEventListener("click", function () { closeMenu(); });
       })();
       // Bottom tab bar (mobile): show when phone-sized, wire click handlers
+      var calBottomActiveTab = "secular-month";
       (function () {
         var tabs = document.getElementById("calBottomTabs");
         if (!tabs) return;
@@ -5163,8 +5165,22 @@
         }
         updateTabsVisibility();
         window.addEventListener("resize", updateTabsVisibility);
+        function syncBottomActive() {
+          [].forEach.call(tabs.querySelectorAll("button"), function (b) {
+            b.classList.toggle("active", b.dataset.tab === calBottomActiveTab);
+          });
+        }
         [].forEach.call(tabs.querySelectorAll("button"), function (b) {
-          b.addEventListener("click", function () { setCalView(b.dataset.view); });
+          b.addEventListener("click", function () {
+            calBottomActiveTab = b.dataset.tab;
+            syncBottomActive();
+            if (b.dataset.tab === "day") {
+              setCalView("day");
+            } else if (b.dataset.tab === "secular-month" || b.dataset.tab === "hebrew-month") {
+              setCalView("month");
+            }
+            // info and zmanim panels — future feature
+          });
         });
       })();
       // keep the "now" line in Day / Week moving
@@ -6013,30 +6029,30 @@
 
   // Hebrew month subtitle in the nav bar (shows e.g. "חשון-כסלו ה׳תשפ״ז")
   function updateHebrewMonthLabel() {
-    var el = document.getElementById("calHebrewMonthLabel");
-    if (!el) return;
-    if (!showHebrewDates || calView === "year") { el.style.display = "none"; return; }
+    var lbl = document.getElementById("calHebrewMonthLabel");
+    if (!lbl) return;
+    if (!showHebrewDates || calView === "year") { lbl.style.display = "none"; return; }
     // Get Hebrew months for the first and last visible day of the current view
     var range = calGridRange();
     var startKey = range.start.getFullYear() + "-" + String(range.start.getMonth() + 1).padStart(2, "0") + "-" + String(range.start.getDate()).padStart(2, "0");
     var endD = new Date(range.end); endD.setDate(endD.getDate() - 1);
     var endKey = endD.getFullYear() + "-" + String(endD.getMonth() + 1).padStart(2, "0") + "-" + String(endD.getDate()).padStart(2, "0");
     var s = hebrewDateCache[startKey], e = hebrewDateCache[endKey];
-    if (!s || !e) { el.style.display = "none"; return; }
-    var hebrewYear = function (y) {
-      var digits = String(y);
-      return digits.slice(0, 1) + "׳" + digits.slice(1);
-    };
+    if (!s || !e) { lbl.style.display = "none"; return; }
+    var sMonth = hebMonthHe[s.month] || s.month;
+    var eMonth = hebMonthHe[e.month] || e.month;
+    // Hebrew year in gematria-style: ה׳תשפ״ז
+    var fmtYear = function (y) { return String(y); };
     var label;
     if (s.month === e.month && s.year === e.year) {
-      label = s.month + " " + hebrewYear(s.year);
+      label = sMonth + " " + fmtYear(s.year);
     } else if (s.year === e.year) {
-      label = s.month + "–" + e.month + " " + hebrewYear(s.year);
+      label = sMonth + "–" + eMonth + " " + fmtYear(s.year);
     } else {
-      label = s.month + " " + hebrewYear(s.year) + " – " + e.month + " " + hebrewYear(e.year);
+      label = sMonth + " " + fmtYear(s.year) + " – " + eMonth + " " + fmtYear(e.year);
     }
-    el.textContent = label;
-    el.style.display = "";
+    lbl.textContent = label;
+    lbl.style.display = "";
   }
 
   function renderCalendarLegend() {
@@ -6190,8 +6206,10 @@
   }
   function calSyncViewUi() {
     [].forEach.call(document.querySelectorAll("#calViewSeg button"), function (b) { b.classList.toggle("active", b.dataset.view === calView); });
-    // bottom tab bar (mobile)
-    [].forEach.call(document.querySelectorAll("#calBottomTabs button"), function (b) { b.classList.toggle("active", b.dataset.view === calView); });
+    // bottom tab bar (mobile) — sync active based on current calBottomActiveTab
+    if (typeof calBottomActiveTab !== "undefined") {
+      [].forEach.call(document.querySelectorAll("#calBottomTabs button"), function (b) { b.classList.toggle("active", b.dataset.tab === calBottomActiveTab); });
+    }
     var big = { day: "week", week: "month", month: "year", year: "10 years" }[calView];
     var set = function (id, t) { var e = document.getElementById(id); if (e) e.title = t; };
     set("calPrevBtn", "Previous " + calView); set("calNextBtn", "Next " + calView);
@@ -6301,7 +6319,12 @@
       if (nDays > 1) { h.type = "button"; h.title = "Open this day"; h.onclick = function () { calViewDate = d.date; setCalView("day"); }; }
       h.appendChild(el("span", "dow", { text: d.date.toLocaleDateString(undefined, { weekday: nDays > 1 ? "short" : "long" }) }));
       h.appendChild(el("span", "num", { text: String(d.date.getDate()) }));
-      if (showHebrewDates && hebrewDateCache[d.key]) h.appendChild(el("span", "heb", { text: hebrewDateCache[d.key].day + " " + hebrewDateCache[d.key].month }));
+      if (showHebrewDates && hebrewDateCache[d.key]) {
+        var _hd = hebrewDateCache[d.key];
+        var _hSpan = el("span", "heb", { text: (hebDayNum[_hd.day] || _hd.day) + " " + (hebMonthHe[_hd.month] || _hd.month) });
+        _hSpan.style.direction = "rtl";
+        h.appendChild(_hSpan);
+      }
       headRow.appendChild(h);
     });
     top.appendChild(headRow);
@@ -6436,6 +6459,25 @@
   var calMonthCache = {};
   var calLoadToken = 0;
   var hebrewDateCache = {}; // "2026-09-01" => { day: 7, month: "Tishrei", year: 5787 }
+  // English month name -> Hebrew
+  var hebMonthHe = {
+    "Tishri": "תשרי", "Tishrei": "תשרי",
+    "Heshvan": "חשוון", "Cheshvan": "חשוון",
+    "Kislev": "כסלו",
+    "Tevet": "טבת",
+    "Shevat": "שבט",
+    "Adar": "אדר", "Adar I": "אדר א׳", "Adar II": "אדר ב׳",
+    "Nisan": "ניסן",
+    "Iyar": "אייר",
+    "Sivan": "סיוון",
+    "Tamuz": "תמוז", "Tammuz": "תמוז",
+    "Av": "אב",
+    "Elul": "אלול"
+  };
+  // Hebrew numerals for days 1-30
+  var hebDayNum = ["", "א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ז׳", "ח׳", "ט׳", "י׳",
+    "י״א", "י״ב", "י״ג", "י״ד", "ט״ו", "ט״ז", "י״ז", "י״ח", "י״ט", "כ׳",
+    "כ״א", "כ״ב", "כ״ג", "כ״ד", "כ״ה", "כ״ו", "כ״ז", "כ״ח", "כ״ט", "ל׳"];
 
   // ---- IndexedDB calendar cache (Android app only) ----
   // Persists calendar events across app restarts so the calendar opens instantly.
@@ -7443,8 +7485,10 @@
         if (showHebrewDates) {
           var heb = hebrewDateCache[key];
           if (heb) {
-            // phones: "26 Tis" — the full month name doesn't fit a 50px box
-            var hebSpan = el("span", "cal-heb-date", { text: heb.day + " " + (isPhone() ? String(heb.month).slice(0, 3) : heb.month) });
+            var hDay = hebDayNum[heb.day] || String(heb.day);
+            var hMon = hebMonthHe[heb.month] || heb.month;
+            var hebSpan = el("span", "cal-heb-date", { text: hDay + " " + hMon });
+            hebSpan.style.direction = "rtl";
             dayNumRow.appendChild(hebSpan);
           }
         }
