@@ -61,15 +61,58 @@ public final class ReminderSync {
         }
     }
 
-    static synchronized void sync(Context ctx) throws Exception {
+    /** The reminder-only key from the server (kept while the app is closed and signed out). */
+    static String deviceToken(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("deviceToken", "");
+    }
+
+    /** After each sign-in: get a fresh reminder-only key (the old one is retired). */
+    static void refreshDeviceTokenAsync(Context ctx) {
+        final Context app = ctx.getApplicationContext();
+        new Thread(() -> {
+            String ck = cookie();
+            if (ck.isEmpty()) return;
+            HttpURLConnection c = null;
+            try {
+                JSONObject body = new JSONObject();
+                body.put("old", deviceToken(app));
+                byte[] bytes = body.toString().getBytes(StandardCharsets.UTF_8);
+                c = (HttpURLConnection) new URL(BASE + "/api/device-token").openConnection();
+                c.setRequestMethod("POST");
+                c.setDoOutput(true);
+                c.setConnectTimeout(15000);
+                c.setReadTimeout(20000);
+                c.setInstanceFollowRedirects(false);
+                c.setRequestProperty("Cookie", ck);
+                c.setRequestProperty("Content-Type", "application/json");
+                try (OutputStream os = c.getOutputStream()) { os.write(bytes); }
+                if (c.getResponseCode() == 200) {
+                    String t = new JSONObject(readAll(c.getInputStream())).optString("token", "");
+                    if (!t.isEmpty()) app.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("deviceToken", t).apply();
+                }
+            } catch (Throwable ignored) {
+            } finally {
+                if (c != null) c.disconnect();
+            }
+        }, "device-key").start();
+    }
+
+    /** Sign-in for background reminder calls: the device key, else the app's session. */
+    private static void authorize(Context ctx, HttpURLConnection c) {
+        String t = deviceToken(ctx);
+        if (!t.isEmpty()) c.setRequestProperty("X-Device-Token", t);
         String ck = cookie();
-        if (ck.isEmpty()) return;
+        if (!ck.isEmpty()) c.setRequestProperty("Cookie", ck);
+    }
+
+    static synchronized void sync(Context ctx) throws Exception {
+        if (cookie().isEmpty() && deviceToken(ctx).isEmpty()) return;
         String tz = URLEncoder.encode(TimeZone.getDefault().getID(), "UTF-8");
         HttpURLConnection c = (HttpURLConnection) new URL(BASE + "/api/calendar/reminders/upcoming?tz=" + tz).openConnection();
         c.setInstanceFollowRedirects(false);   // signed out = redirect to the sign-in page
         c.setConnectTimeout(15000);
         c.setReadTimeout(30000);
-        c.setRequestProperty("Cookie", ck);
+        authorize(ctx, c);
         c.setRequestProperty("Accept", "application/json");
         int code = c.getResponseCode();
         if (code != 200) { c.disconnect(); return; }
@@ -172,9 +215,8 @@ public final class ReminderSync {
     }
 
     /** Dismiss (until = -1) or snooze (until = a time) on the server, so every device agrees. */
-    static void postChoice(String key, long until) {
-        String ck = cookie();
-        if (ck.isEmpty()) return;
+    static void postChoice(Context ctx, String key, long until) {
+        if (cookie().isEmpty() && deviceToken(ctx).isEmpty()) return;
         HttpURLConnection c = null;
         try {
             JSONObject body = new JSONObject();
@@ -186,7 +228,7 @@ public final class ReminderSync {
             c.setDoOutput(true);
             c.setConnectTimeout(15000);
             c.setReadTimeout(20000);
-            c.setRequestProperty("Cookie", ck);
+            authorize(ctx, c);
             c.setRequestProperty("Content-Type", "application/json");
             try (OutputStream os = c.getOutputStream()) { os.write(bytes); }
             c.getResponseCode();

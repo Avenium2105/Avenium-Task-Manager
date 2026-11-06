@@ -39,7 +39,7 @@ public class ReminderReceiver extends BroadcastReceiver {
                 final String key = intent.getStringExtra("key");
                 cancelShown(ctx, key);
                 final PendingResult pr = goAsync();
-                new Thread(() -> { try { ReminderSync.postChoice(key, -1); } finally { pr.finish(); } }).start();
+                new Thread(() -> { try { ReminderSync.postChoice(ctx, key, -1); } finally { pr.finish(); } }).start();
                 break;
             }
             case ACTION_SNOOZE: {
@@ -58,7 +58,7 @@ public class ReminderReceiver extends BroadcastReceiver {
                 sp.edit().putStringSet("scheduled", codes).apply();
                 // ...and tell the server, so the computer snoozes it too
                 final PendingResult pr = goAsync();
-                new Thread(() -> { try { ReminderSync.postChoice(key, until); } finally { pr.finish(); } }).start();
+                new Thread(() -> { try { ReminderSync.postChoice(ctx, key, until); } finally { pr.finish(); } }).start();
                 break;
             }
             case ACTION_SYNC: {

@@ -95,6 +95,13 @@ public class MainActivity extends AppCompatActivity {
 
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true);
+        // Closing the app signs you out: a fresh start (not coming back from the background)
+        // drops the sign-in, so the app asks for the password again. Reminders keep working
+        // with the reminder-only device key (see ReminderSync).
+        if (savedInstanceState == null) {
+            CookieManager.getInstance().removeAllCookies(null);
+            CookieManager.getInstance().flush();
+        }
 
         webView.setWebViewClient(new WebViewClient() {
             @Override
@@ -111,6 +118,7 @@ public class MainActivity extends AppCompatActivity {
                 // Signed in: book this phone's reminder alarms, and ask once to show notifications
                 if (url != null && url.startsWith(START_URL) && !url.contains("/login")) {
                     CookieManager.getInstance().flush();
+                    if (!deviceKeyFetched) { deviceKeyFetched = true; ReminderSync.refreshDeviceTokenAsync(MainActivity.this); }
                     ReminderSync.syncAsync(MainActivity.this);
                     askForNotifications();
                 }
@@ -229,6 +237,7 @@ public class MainActivity extends AppCompatActivity {
         ReminderSync.syncAsync(this);   // pick up anything added or changed while the app was open
     }
 
+    private boolean deviceKeyFetched = false;
     private boolean askedForNotifications = false;
     private void askForNotifications() {
         ReminderSync.ensureChannel(this);

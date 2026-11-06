@@ -1322,6 +1322,28 @@ function requireAuth(req, res, next) {
   // signing in, instead of always dropping back to the bare board list.
   return res.redirect("/login.html?next=" + encodeURIComponent(req.originalUrl));
 }
+// ---- Phone app reminders while signed out ----
+// The phone app signs out every time it's closed, but its reminder alarms still need
+// the upcoming reminders. After each sign-in the app gets a device key that can ONLY
+// read upcoming reminders and dismiss/snooze them — nothing else in the app.
+const DEVICE_TOKENS_FILE = path.join(DATA_DIR, "device-tokens.json");
+let deviceTokens = {};
+try { deviceTokens = JSON.parse(fs.readFileSync(DEVICE_TOKENS_FILE, "utf8")) || {}; } catch (e) { deviceTokens = {}; }
+function saveDeviceTokens() { try { fs.writeFileSync(DEVICE_TOKENS_FILE, JSON.stringify(deviceTokens)); } catch (e) { console.error("Could not save device keys:", e.message); } }
+function deviceUser(req) {
+  const t = String(req.headers["x-device-token"] || "");
+  const d = t && deviceTokens[t];
+  if (!d || !findUserById(d.userId)) return null;
+  if (Date.now() - (d.seen || d.created) > 90 * 24 * 3600 * 1000) { delete deviceTokens[t]; saveDeviceTokens(); return null; }   // unused for 90 days
+  if (Date.now() - (d.seen || 0) > 3600 * 1000) { d.seen = Date.now(); saveDeviceTokens(); }
+  return d.userId;
+}
+// reminders routes: a signed-in session, or the phone's reminder-only device key
+function requireAuthOrDevice(req, res, next) {
+  const uid = deviceUser(req);
+  if (uid) { req.deviceUserId = uid; return next(); }
+  return requireAuth(req, res, next);
+}
 function requireAdmin(req, res, next) {
   const u = req.session && findUserById(req.session.userId);
   if (u && u.role === "admin") return next();
@@ -2520,12 +2542,20 @@ app.post("/api/calendar/reminders/settings", requireAuth, (req, res) => {
   persistCalPrefs();
   res.json({ ok: true, minutes: m });
 });
-app.post("/api/calendar/reminders/dismiss", requireAuth, (req, res) => {
+app.post("/api/device-token", requireAuth, (req, res) => {
+  const old = String((req.body || {}).old || "");
+  if (old && deviceTokens[old]) delete deviceTokens[old];
+  const token = crypto.randomBytes(32).toString("hex");
+  deviceTokens[token] = { userId: req.session.userId, created: Date.now(), seen: Date.now(), ua: String(req.headers["user-agent"] || "").slice(0, 160) };
+  saveDeviceTokens();
+  res.json({ token });
+});
+app.post("/api/calendar/reminders/dismiss", requireAuthOrDevice, (req, res) => {
   const { keys, until } = req.body || {};
   if (!Array.isArray(keys) || !keys.length || keys.length > 200) return res.status(400).json({ error: "invalid_request" });
   const u = until === -1 || until == null ? -1 : Number(until);
   if (u !== -1 && !(u > Date.now() && u < Date.now() + 7 * 24 * 3600 * 1000)) return res.status(400).json({ error: "invalid_until" });
-  const p = reminderPrefs(req.session.userId);
+  const p = reminderPrefs(req.deviceUserId || req.session.userId);
   keys.forEach((k) => { if (typeof k === "string" && k.length < 600) p.reminderState[k] = { until: u, at: Date.now() }; });
   pruneReminderState(p);
   persistCalPrefs();
@@ -2602,8 +2632,8 @@ function reminderSchedule(userId, events, tz) {
 function userTz(userId, override) { return validTimeZone(override) ? override : (reminderPrefs(userId).reminderTz || "America/New_York"); }
 
 // The Android app reads this to schedule its own alarms (they fire even when the app is closed)
-app.get("/api/calendar/reminders/upcoming", requireAuth, async (req, res) => {
-  const uid = req.session.userId, tz = userTz(uid, req.query.tz);
+app.get("/api/calendar/reminders/upcoming", requireAuthOrDevice, async (req, res) => {
+  const uid = req.deviceUserId || req.session.userId, tz = userTz(uid, req.query.tz);
   if (validTimeZone(req.query.tz)) { const p = reminderPrefs(uid); if (p.reminderTz !== req.query.tz) { p.reminderTz = req.query.tz; persistCalPrefs(); } }
   const now = Date.now();
   const events = await gatherUserEvents(uid, new Date(now - 86400000).toISOString(), new Date(now + 4 * 86400000).toISOString());

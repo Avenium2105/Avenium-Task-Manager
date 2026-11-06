@@ -5,3 +5,4 @@ users.json
 .env
 sessions.json
 sessions.json.tmp
+device-tokens.json
