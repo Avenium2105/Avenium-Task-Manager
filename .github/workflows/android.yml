@@ -17,7 +17,7 @@ jobs:
         with: { distribution: temurin, java-version: "21" }
       - uses: actions/setup-node@v4
         with: { node-version: "20" }
-      - uses: android-actions/setup-android@v3
+      # the GitHub Ubuntu machines already have the Android SDK (ANDROID_HOME)
       - name: Install Capacitor (the Android project uses it from node_modules)
         run: npm ci --ignore-scripts
       - name: Build the APK
