@@ -62,7 +62,7 @@
   .topbar button.logout { background: var(--brick); }
   .topbar button.logout:hover { background: #9a3e32; }
   .nav-hamburger { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; border: none; background: #70B894; color: #fff; border-radius: 8px; cursor: pointer; font-size: 22px; line-height: 1; padding: 0; }
-  .nav-hamburger:hover { background: #4a6e57; }
+  .nav-hamburger:hover { background: #5FA583; }
   .topbar .dot { display: none; }
 
   .page { display: flex; align-items: flex-start; justify-content: center; gap: 28px; max-width: 1800px; margin: 0 auto; padding: 0 28px; }
@@ -155,17 +155,17 @@
   .board-head .quote-line { color: var(--ink-faint); font-size: 13px; font-style: italic; margin: 6px 0 0; }
 
   /* board tabs — a modern segmented control instead of underlined text tabs */
-  .board-tabs { display: flex; align-items: flex-end; gap: 3px; flex-wrap: wrap; margin: 0; background: #70B894; border-bottom: 2px solid #5FA583; padding: 10px 32px 0; position: sticky; top: var(--nav-h, 67px); z-index: 400; }
-  .board-tab-wrap { display: inline-flex; align-items: center; border-radius: 9px 9px 0 0; cursor: grab; position: relative; }
+  .board-tabs { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0; background: #70B894; border-bottom: none; padding: 8px 32px; position: sticky; top: var(--nav-h, 67px); z-index: 400; }
+  .board-tab-wrap { display: inline-flex; align-items: center; border-radius: 999px; cursor: grab; position: relative; }
   .board-tab-wrap:active { cursor: grabbing; }
   .board-tab-wrap.drag-over { box-shadow: inset 0 0 0 2px var(--slate); }
   .board-tab {
-    font-family: inherit; font-size: 13px; font-weight: 700; color: #fff; background: rgba(255,255,255,0.18); text-shadow: 0 1px 1px rgba(20,60,40,0.35); border: none;
-    padding: 8px 13px; cursor: pointer; border-radius: 9px 9px 0 0; transition: background 0.15s, color 0.15s; margin-bottom: -2px;
+    font-family: inherit; font-size: 13px; font-weight: 600; color: #fff; background: rgba(255,255,255,0.2); text-shadow: 0 1px 1px rgba(20,60,40,0.3); border: none;
+    padding: 6px 14px; cursor: pointer; border-radius: 999px; transition: background 0.15s, color 0.15s, box-shadow 0.15s;
   }
-  .board-tab:hover { color: #fff; background: rgba(255,255,255,0.25); }
-  .board-tab.active { text-shadow: none; color: var(--pine); background: var(--bg-raised); border: 1px solid var(--line); border-bottom: none; box-shadow: 0 -1px 4px rgba(34,38,31,0.06); position: relative; z-index: 2; }
-  .board-tab.add-board { color: rgba(255,255,255,0.7); font-weight: 700; background: transparent; border: none; }
+  .board-tab:hover { color: #fff; background: rgba(255,255,255,0.32); }
+  .board-tab.active { text-shadow: none; color: var(--pine); font-weight: 700; background: #fff; box-shadow: 0 1px 3px rgba(20,60,40,0.18); position: relative; z-index: 2; }
+  .board-tab.add-board { color: #fff; font-weight: 700; background: transparent; border: 1px dashed rgba(255,255,255,0.6); padding: 5px 11px; }
   .board-tab.add-board:hover { color: #fff; background: rgba(255,255,255,0.2); }
   .board-tab-rename { font-family: inherit; font-size: 14px; color: rgba(255,255,255,0.6); background: none; border: none; cursor: pointer; padding: 6px 6px; border-radius: 6px; }
   .board-tab-rename:hover { color: #fff; background: rgba(255,255,255,0.2); }
@@ -965,7 +965,7 @@
     .m-panes { display: flex; justify-content: center; position: fixed; left: 0; right: 0; bottom: 0; z-index: 450; gap: 6px; padding: 6px 8px; padding-bottom: calc(6px + env(safe-area-inset-bottom)); background: var(--bg-raised); border-top: 1px solid var(--line); box-shadow: 0 -2px 10px rgba(34,38,31,0.08); }
     .m-panes button { flex: 1 1 0; min-width: 0; max-width: 260px; font-family: inherit; font-size: 13px; font-weight: 600; padding: 11px 4px; border: none; border-radius: 9px; background: transparent; color: var(--ink-soft); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .m-panes button:hover { background: var(--line-soft); }
-    .m-panes button.active, .m-panes button.active:hover { background: var(--pine); color: var(--bg-raised); }
+    .m-panes button.active, .m-panes button.active:hover { background: #70B894; color: #fff; }   /* same logo green as the header buttons and tab bar */
     .m-badge { display: inline-block; min-width: 18px; margin-left: 5px; padding: 1px 5px; border-radius: 10px; font-size: 11px; font-weight: 700; line-height: 1.45; background: var(--line); color: var(--ink-soft); vertical-align: 1px; }
     .m-panes button.active .m-badge { background: rgba(255,255,255,0.25); color: var(--bg-raised); }
     .m-badge.alert { background: var(--brick); color: #fff; }
@@ -1386,18 +1386,17 @@
   .m-search-btn, .m-search { display: none; }
   @media (max-width: 760px) {
     /* boards as tabs (swipe sideways for more) instead of the board menu */
-    .board-tabs { display: block !important; padding: 6px 0 0 !important; }
+    .board-tabs { display: block !important; padding: 7px 0 !important; }
     .board-hamburger-bar { display: none !important; }
-    .board-tabs-row { display: flex !important; flex-wrap: nowrap; align-items: flex-end; gap: 3px; overflow-x: auto; overflow-y: hidden; padding: 0 8px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .board-tabs-row { display: flex !important; flex-wrap: nowrap; align-items: center; gap: 5px; overflow-x: auto; overflow-y: hidden; padding: 0 8px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
     .board-tabs-row::-webkit-scrollbar { display: none; }
     .board-tabs-row .board-tab-wrap { flex-shrink: 0; }
-    .board-tabs-row .board-tab { flex-shrink: 0; white-space: nowrap; font-size: 12.5px; padding: 7px 9px; }
-    .board-tabs-row { gap: 2px; }
+    .board-tabs-row .board-tab { flex-shrink: 0; white-space: nowrap; font-size: 12.5px; padding: 6px 11px; }
     .board-tabs-row .board-tab-rename, .board-tabs-row .board-tab-delete, .board-tabs-row .board-menu-btn { padding: 6px 5px; }
     /* All boards: no board titles between the groups, so it's more compact */
     .board-section-head { display: none !important; }
     .board-search-phone, #calSearchBtn { display: none !important; }       /* the old separate searches */
-    .m-search-btn { display: inline-flex; align-items: center; justify-content: center; position: fixed; z-index: 520; top: calc(8px + env(safe-area-inset-top)); right: 60px; width: 40px; height: 40px; border: none; border-radius: 10px; background: var(--pine-soft); color: var(--pine); cursor: pointer; }
+    .m-search-btn { display: inline-flex; align-items: center; justify-content: center; position: fixed; z-index: 520; top: calc(8px + env(safe-area-inset-top)); right: 60px; width: 40px; height: 40px; border: none; border-radius: 8px; background: #70B894; color: #fff; cursor: pointer; }
     body[data-view="admin"] .m-search-btn { display: none; }
     .m-search.open { display: flex; flex-direction: column; position: fixed; inset: 0; z-index: 900; background: var(--bg); }
     .m-search-head { display: flex; align-items: center; gap: 8px; padding: 10px 12px; padding-top: calc(10px + env(safe-area-inset-top)); background: var(--bg-raised); border-bottom: 1px solid var(--line); }
