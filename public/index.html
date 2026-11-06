@@ -638,6 +638,8 @@
   .cal-arrow-btn:hover { border-color: var(--pine); color: var(--pine); }
   .cal-arrow-sm { font-size: 14px; padding: 4px 7px; }
   #calMonthLabel { font-size: 18px; font-weight: 600; color: var(--ink); min-width: 190px; text-align: center; white-space: nowrap; }
+  #calHebrewMonthLabel { font-size: 12px; color: var(--ink-soft); font-weight: 500; text-align: center; display: block; direction: rtl; }
+  .cal-bottom-tabs { display: none; }
   /* ---- Day / Week / Month / Year switch ---- */
   .cal-view-seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--bg-raised); }
   .cal-view-seg button { font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 7px 15px; border: none; background: none; color: var(--ink-soft); cursor: pointer; }
@@ -1251,17 +1253,27 @@
     .cal-jump-drop { left: auto; right: 0; transform: none; min-width: 220px; max-width: calc(100vw - 24px); }
     .cal-jump-opt { padding: 11px 10px; font-size: 14.5px; }
     .cal-jump-pick .cal-filter-apply { padding: 9px 14px; }
-    /* view switch becomes a dropdown button next to Search Date */
+    /* view switch: hide hamburger and desktop seg, use bottom tab bar instead */
     .cal-nav-right { order: 3; flex: 0 0 auto; }
     .cal-view-seg { display: none; }
-    .cal-view-hamburger { display: flex !important; }
-    .cal-view-hamburger-menu { position: absolute; top: 100%; right: 0; background: var(--bg-raised); border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,0.18); z-index: 600; min-width: 140px; padding: 6px 0; margin-top: 4px; }
-    .cal-view-hamburger-menu button { display: block; width: 100%; text-align: left; padding: 12px 16px; font-size: 14.5px; font-weight: 500; border: none; background: none; color: var(--ink); cursor: pointer; font-family: inherit; }
-    .cal-view-hamburger-menu button:hover { background: var(--bg); }
-    .cal-view-hamburger-menu button.active { color: var(--pine); font-weight: 700; }
-    .cal-add-event-btn { position: fixed; bottom: 18px; right: 18px; width: 54px; height: 54px; padding: 0 !important; font-size: 26px !important; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,.22); z-index: 100; }
+    .cal-view-hamburger { display: none !important; }
+    .cal-view-hamburger-menu { display: none !important; }
+    /* divider under nav bar */
+    .calendar-nav-top { border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+    /* Hebrew month subtitle under the secular label */
+    #calHebrewMonthLabel { display: block; font-size: 11px; color: var(--ink-soft); font-weight: 500; text-align: center; margin-top: 1px; direction: rtl; }
+    /* bottom tab bar for view switching */
+    .cal-bottom-tabs { display: flex !important; position: fixed; bottom: 0; left: 0; right: 0; z-index: 95; background: var(--bg-raised); border-top: 1px solid var(--line); padding: 0 0 calc(env(safe-area-inset-bottom)); }
+    .cal-bottom-tabs button { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 8px 4px 7px; border: none; background: none; color: var(--ink-faint); font-family: inherit; font-size: 11px; font-weight: 500; cursor: pointer; }
+    .cal-bottom-tabs button.active { color: var(--pine); font-weight: 700; }
+    .cal-bottom-tabs button svg { width: 20px; height: 20px; }
+    /* adjust FAB and quick-toggle to sit above bottom tabs */
+    .cal-add-event-btn { position: fixed; bottom: 64px; right: 18px; width: 54px; height: 54px; padding: 0 !important; font-size: 26px !important; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; box-shadow: 0 4px 14px rgba(0,0,0,.22); z-index: 100; }
     .cal-quick-toggle-bar.visible ~ .cal-nav-left .cal-add-event-btn,
-    .calendar-wrap:has(.cal-quick-toggle-bar.visible) .cal-add-event-btn { bottom: 62px; }
+    .calendar-wrap:has(.cal-quick-toggle-bar.visible) .cal-add-event-btn { bottom: 64px; }
+    .cal-quick-toggle-bar { bottom: 52px !important; }
+    /* calendar body needs bottom padding for the tabs */
+    .calendar-wrap { padding-bottom: calc(56px + env(safe-area-inset-bottom)) !important; }
     .cal-search-events-btn { flex: 0 0 auto; width: 32px; height: 32px; padding: 0 !important; display: inline-flex; align-items: center; justify-content: center; border: none; background: transparent; }
     .cal-search-events-btn.active { background: var(--pine-soft); border-radius: 8px; }
     .cal-search-events-btn svg { width: 16px; height: 16px; }
@@ -1912,6 +1924,7 @@
         <button id="calPrevYear" type="button" class="cal-arrow-btn cal-arrow-sm" title="Previous year">&laquo;</button>
         <button id="calPrevBtn" type="button" class="cal-arrow-btn" title="Previous month">&lsaquo;</button>
         <span id="calMonthLabel"></span>
+        <span id="calHebrewMonthLabel" style="display:none;"></span>
         <button id="calNextBtn" type="button" class="cal-arrow-btn" title="Next month">&rsaquo;</button>
         <button id="calNextYear" type="button" class="cal-arrow-btn cal-arrow-sm" title="Next year">&raquo;</button>
       </div>
@@ -2141,6 +2154,13 @@
         <button id="calModalCancel" type="button">Cancel</button>
       </div>
     </div>
+  </div>
+  <!-- Bottom view-switcher tab bar (mobile only) -->
+  <div class="cal-bottom-tabs" id="calBottomTabs" style="display:none;">
+    <button type="button" data-view="day"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="14" height="13" rx="2"/><path d="M3 8h14"/><path d="M7 2v3M13 2v3"/></svg>Day</button>
+    <button type="button" data-view="week"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="16" height="13" rx="2"/><path d="M2 8h16"/><path d="M6.5 4v13M10 4v13M13.5 4v13"/></svg>Week</button>
+    <button type="button" data-view="month" class="active"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="16" height="14" rx="2"/><path d="M2 7h16"/><path d="M6 3v14M10 3v14M14 3v14"/><path d="M2 10.5h16M2 14h16"/></svg>Month</button>
+    <button type="button" data-view="year"><svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="7" height="6" rx="1"/><rect x="11" y="3" width="7" height="6" rx="1"/><rect x="2" y="11" width="7" height="6" rx="1"/><rect x="11" y="11" width="7" height="6" rx="1"/></svg>Year</button>
   </div>
 </div>
 
@@ -5133,6 +5153,20 @@
         });
         document.addEventListener("click", function () { closeMenu(); });
       })();
+      // Bottom tab bar (mobile): show when phone-sized, wire click handlers
+      (function () {
+        var tabs = document.getElementById("calBottomTabs");
+        if (!tabs) return;
+        function updateTabsVisibility() {
+          var phone = window.matchMedia("(max-width: 760px)").matches;
+          tabs.style.display = phone ? "flex" : "none";
+        }
+        updateTabsVisibility();
+        window.addEventListener("resize", updateTabsVisibility);
+        [].forEach.call(tabs.querySelectorAll("button"), function (b) {
+          b.addEventListener("click", function () { setCalView(b.dataset.view); });
+        });
+      })();
       // keep the "now" line in Day / Week moving
       setInterval(function () {
         var line = document.querySelector("#calAltView .cal-tg-now");
@@ -5974,6 +6008,35 @@
     }
     var stg = document.getElementById("calStage"); if (stg) stg.dataset.view = calView;
     document.getElementById("calMonthLabel").textContent = calViewLabel();
+    updateHebrewMonthLabel();
+  }
+
+  // Hebrew month subtitle in the nav bar (shows e.g. "חשון-כסלו ה׳תשפ״ז")
+  function updateHebrewMonthLabel() {
+    var el = document.getElementById("calHebrewMonthLabel");
+    if (!el) return;
+    if (!showHebrewDates || calView === "year") { el.style.display = "none"; return; }
+    // Get Hebrew months for the first and last visible day of the current view
+    var range = calGridRange();
+    var startKey = range.start.getFullYear() + "-" + String(range.start.getMonth() + 1).padStart(2, "0") + "-" + String(range.start.getDate()).padStart(2, "0");
+    var endD = new Date(range.end); endD.setDate(endD.getDate() - 1);
+    var endKey = endD.getFullYear() + "-" + String(endD.getMonth() + 1).padStart(2, "0") + "-" + String(endD.getDate()).padStart(2, "0");
+    var s = hebrewDateCache[startKey], e = hebrewDateCache[endKey];
+    if (!s || !e) { el.style.display = "none"; return; }
+    var hebrewYear = function (y) {
+      var digits = String(y);
+      return digits.slice(0, 1) + "׳" + digits.slice(1);
+    };
+    var label;
+    if (s.month === e.month && s.year === e.year) {
+      label = s.month + " " + hebrewYear(s.year);
+    } else if (s.year === e.year) {
+      label = s.month + "–" + e.month + " " + hebrewYear(s.year);
+    } else {
+      label = s.month + " " + hebrewYear(s.year) + " – " + e.month + " " + hebrewYear(e.year);
+    }
+    el.textContent = label;
+    el.style.display = "";
   }
 
   function renderCalendarLegend() {
@@ -6127,6 +6190,8 @@
   }
   function calSyncViewUi() {
     [].forEach.call(document.querySelectorAll("#calViewSeg button"), function (b) { b.classList.toggle("active", b.dataset.view === calView); });
+    // bottom tab bar (mobile)
+    [].forEach.call(document.querySelectorAll("#calBottomTabs button"), function (b) { b.classList.toggle("active", b.dataset.view === calView); });
     var big = { day: "week", week: "month", month: "year", year: "10 years" }[calView];
     var set = function (id, t) { var e = document.getElementById(id); if (e) e.title = t; };
     set("calPrevBtn", "Previous " + calView); set("calNextBtn", "Next " + calView);
