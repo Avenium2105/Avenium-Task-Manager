@@ -1924,6 +1924,10 @@ io.on("connection", (socket) => {
       item.notes = patch.notes.slice(0, 4000);
       changeDesc = `updated the notes on "${item.title}"`;
     }
+    if (typeof patch.folderLink === "string") {
+      item.folderLink = patch.folderLink.trim().slice(0, 2000);
+      // no changeDesc — silent save, no activity log for folder links
+    }
     if (Array.isArray(patch.assigneeIds)) {
       const validIds = new Set(users.map((u) => u.id));
       const next = [...new Set(patch.assigneeIds.filter((aid) => validIds.has(aid)))].slice(0, 20);
