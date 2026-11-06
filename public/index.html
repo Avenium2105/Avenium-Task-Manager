@@ -4277,7 +4277,7 @@
         var mid = el("span", "chat-list-mid");
         var top = el("span", "chat-list-top");
         top.appendChild(el("span", "chat-list-name", { text: b.name }));
-        if (c.last) top.appendChild(el("span", "chat-list-time", { text: relTime(c.last.at) }));
+        /* timestamp removed per user request */
         mid.appendChild(top);
         var bottom = el("span", "chat-list-bottom");
         bottom.appendChild(el("span", "chat-list-preview", { text: c.last ? ((c.last.byId === meId ? "You" : (c.last.byName || "").split(" ")[0]) + ": " + (c.last.text || "")) : "No messages yet" }));
