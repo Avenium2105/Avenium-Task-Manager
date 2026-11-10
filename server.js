@@ -2630,14 +2630,12 @@ function reminderSchedule(userId, events, tz) {
     if (isOcc) {
       const day = ev.allDay ? String(ev.start).slice(0, 10) : tzDayKey(eventMs(ev.start, validTimeZone(ev.timeZone) ? ev.timeZone : tz), tz);
       if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue;
-      for (const when of ["tomorrow", "today"]) {
-        const fireDay = when === "today" ? day : addDaysKey(day, -1);
-        const [y, m, d] = fireDay.split("-").map(Number);
-        const fireAt = tzWallToMs(y, m, d, REMIND_OCCASION_HOUR, tz);
-        const nd = addDaysKey(fireDay, 1).split("-").map(Number);
-        const expiresAt = tzWallToMs(nd[0], nd[1], nd[2], 0, tz);
-        out.push({ key: `o|${ev.id || ev.title}|${day}|${when}`, title: "🎂 " + (ev.title || "Occasion"), body: when === "today" ? "Today" : "Tomorrow", fireAt, expiresAt, occasion: true });
-      }
+      // same-day reminder only (no day-before)
+      const [y, m, d] = day.split("-").map(Number);
+      const fireAt = tzWallToMs(y, m, d, REMIND_OCCASION_HOUR, tz);
+      const nd = addDaysKey(day, 1).split("-").map(Number);
+      const expiresAt = tzWallToMs(nd[0], nd[1], nd[2], 0, tz);
+      out.push({ key: `o|${ev.id || ev.title}|${day}|today`, title: "🎂 " + (ev.title || "Occasion"), body: "Today", fireAt, expiresAt, occasion: true });
     } else {
       if (ev.allDay || !p.reminderMinutes) continue;
       const evTz = validTimeZone(ev.timeZone) ? ev.timeZone : tz;

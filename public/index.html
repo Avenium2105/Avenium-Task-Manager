@@ -7153,8 +7153,8 @@
       if (remindIsOccasion(ev)) {
         if (now < eightAm.getTime()) return;
         var day = calDayKey(ev);
-        var when = day === todayKey ? "today" : day === tomorrowKey ? "tomorrow" : null;
-        if (!when) return;
+        if (day !== todayKey) return;
+        var when = "today";
         key = "o|" + (ev.id || ev.title) + "|" + day + "|" + when;
         item = { key: key, ev: ev, occasion: when, sort: when === "today" ? 0 : 1 };
       } else {
