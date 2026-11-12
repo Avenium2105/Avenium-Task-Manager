@@ -6,3 +6,4 @@ users.json
 sessions.json
 sessions.json.tmp
 device-tokens.json
+voice-words.json

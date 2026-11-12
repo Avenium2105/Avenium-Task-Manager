@@ -160,6 +160,24 @@ public class MainActivity extends AppCompatActivity {
                 if (p == 10 || p == 50 || p == 100) log("Progress " + p + "%");
             }
 
+            // The website's mic records your voice (for the improved dictation): let it use the
+            // microphone, asking Android for permission the first time.
+            @Override
+            public void onPermissionRequest(final android.webkit.PermissionRequest request) {
+                runOnUiThread(() -> {
+                    boolean ours = request.getOrigin() != null && String.valueOf(request.getOrigin().getHost()).endsWith("avenium.com");
+                    boolean wantsMic = false;
+                    for (String r : request.getResources()) if (android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) wantsMic = true;
+                    if (!ours || !wantsMic) { request.deny(); return; }
+                    if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                        request.grant(new String[] { android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE });
+                    } else {
+                        pendingMic = request;
+                        requestPermissions(new String[] { Manifest.permission.RECORD_AUDIO }, MIC_PERMISSION);
+                    }
+                });
+            }
+
             @Override
             public boolean onConsoleMessage(android.webkit.ConsoleMessage m) {
                 if (m.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.ERROR)
@@ -235,6 +253,20 @@ public class MainActivity extends AppCompatActivity {
         super.onPause();
         CookieManager.getInstance().flush();
         ReminderSync.syncAsync(this);   // pick up anything added or changed while the app was open
+    }
+
+    private static final int MIC_PERMISSION = 8;
+    private android.webkit.PermissionRequest pendingMic;
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
+        super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == MIC_PERMISSION && pendingMic != null) {
+            if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED)
+                pendingMic.grant(new String[] { android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE });
+            else pendingMic.deny();
+            pendingMic = null;
+        }
     }
 
     private boolean deviceKeyFetched = false;

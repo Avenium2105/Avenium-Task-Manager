@@ -507,6 +507,13 @@
   .mic-btn.show { display: inline-flex; }
   .mic-field { padding-right: 40px !important; }
   .mic-btn:hover { border-color: var(--pine); }
+  .voice-words-box { background: var(--bg-raised); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 26px; display: flex; flex-direction: column; gap: 10px; }
+  .voice-words-note { font-size: 13px; color: var(--ink-soft); line-height: 1.45; }
+  .voice-words-box textarea { font-family: inherit; font-size: 14px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); resize: vertical; outline: none; }
+  .voice-words-box textarea:focus { border-color: var(--pine); }
+  .voice-words-foot { display: flex; align-items: center; gap: 10px; }
+  .voice-words-msg { font-size: 13px; color: var(--pine); }
+  .mic-btn.busy { background: var(--pine-soft); color: var(--pine); animation: micPulse 1.1s ease-in-out infinite; }
   .mic-btn.listening { background: var(--brick); border-color: var(--brick); color: #fff; animation: micPulse 1.1s ease-in-out infinite; }
   @keyframes micPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(178,74,60,.45); } 50% { box-shadow: 0 0 0 7px rgba(178,74,60,0); } }
   .mic-bubble { position: fixed; z-index: 2001; max-width: min(360px, calc(100vw - 24px)); background: var(--ink); color: var(--bg-raised); font-size: 13px; line-height: 1.4; padding: 7px 11px; border-radius: 9px; box-shadow: 0 4px 16px rgba(0,0,0,.25); pointer-events: none; }
@@ -1791,6 +1798,13 @@
     <div class="invite-link-box" id="inviteLinkBox" style="display:none;"></div>
   </div>
 
+  <h2 class="cal-settings-title">Voice Typing</h2>
+  <div class="voice-words-box">
+    <div class="voice-words-note" id="voiceStatusNote">The mic already learns the names and words used in your boards, tasks, notes, chats and calendar. Add any others it should know here: people, companies, properties, Hebrew words. One per line.</div>
+    <textarea id="voiceWordsInput" rows="5" placeholder="e.g.&#10;Garza&#10;Ashley Oaks&#10;Swiss Re&#10;Heritage"></textarea>
+    <div class="voice-words-foot"><button id="voiceWordsSave" type="button" class="add-user-btn">Save words</button><span id="voiceWordsMsg" class="voice-words-msg"></span></div>
+  </div>
+
   <h2 class="cal-settings-title">Calendar Settings</h2>
 
   <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
@@ -2598,7 +2612,13 @@
   (function () {
     var Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
     var nativeSpeech = !!(window.AveniumNative && window.AveniumNative.startSpeech);
-    if (!Rec && !nativeSpeech) return;            // nothing to listen with (e.g. Firefox): no button
+    // Cloud dictation (best): record the voice, the server writes it down with a
+    // speech model that knows this person's names and words. Used whenever the
+    // server has it switched on and the device can record.
+    var canRecord = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
+    var cloudOn = false;
+    if (canRecord) fetch("/api/voice/status").then(function (r) { return r.json(); }).then(function (d) { cloudOn = !!(d && d.enabled); }).catch(function () {});
+    if (!Rec && !nativeSpeech && !canRecord) return;   // nothing to listen with: no button
     var TEXT_TYPES = /^(text|search|url|email|tel|)$/;
     var btn = document.createElement("button");
     btn.type = "button"; btn.className = "mic-btn"; btn.title = "Talk instead of typing"; btn.setAttribute("aria-label", "Dictate");
@@ -2653,17 +2673,73 @@
       if (t) { field = t; place(); }
     };
 
+    // ---- cloud dictation: records until you tap the mic again (no cutting out on pauses) ----
+    var media = null, chunks = [], recTimer = null, recStart = 0, cloudBusy = false, meter = null;
+    function cloudStart() {
+      var t = field;
+      navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } }).then(function (stream) {
+        var type = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].filter(function (m) { return MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m); })[0] || "";
+        media = new MediaRecorder(stream, type ? { mimeType: type, audioBitsPerSecond: 64000 } : undefined);
+        chunks = [];
+        media.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+        media.onstop = function () {
+          stream.getTracks().forEach(function (tr) { tr.stop(); });
+          clearInterval(recTimer); if (meter) { try { meter.close(); } catch (e) {} meter = null; }
+          var blob = new Blob(chunks, { type: media.mimeType || type || "audio/webm" });
+          media = null;
+          if (blob.size < 1500) { stop(); return; }            // tapped by mistake
+          cloudSend(t, blob);
+        };
+        media.start(1000);
+        listening = true; btn.classList.add("listening"); recStart = Date.now();
+        // a little level bar so you can see it hears you
+        var level = 0;
+        try {
+          meter = new (window.AudioContext || window.webkitAudioContext)();
+          var an = meter.createAnalyser(); an.fftSize = 512; meter.createMediaStreamSource(stream).connect(an);
+          var buf = new Uint8Array(an.fftSize);
+          (function tick() { if (!meter) return; an.getByteTimeDomainData(buf); var m = 0; for (var i = 0; i < buf.length; i++) m = Math.max(m, Math.abs(buf[i] - 128)); level = Math.min(1, m / 60); requestAnimationFrame(tick); })();
+        } catch (e) {}
+        var show = function () {
+          var sec = Math.floor((Date.now() - recStart) / 1000);
+          var bars = "▁▂▃▄▅▆▇█".charAt(Math.min(7, Math.round(level * 7)));
+          say("● " + Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0") + " " + bars, "Listening — take your time. Tap the mic when you're done.");
+          if (sec >= 600 && media) media.stop();               // 10 minutes at most
+        };
+        show(); recTimer = setInterval(show, 250);
+      }).catch(function (err) {
+        // no microphone permission here: fall back to the older voice typing
+        if (nativeSpeech || Rec) { cloudOn = false; start(); return; }
+        say("", "The microphone is blocked. Allow it for this site / app and try again."); setTimeout(clearBubble, 4000);
+      });
+    }
+    function cloudSend(t, blob) {
+      cloudBusy = true; btn.classList.remove("listening"); btn.classList.add("busy");
+      say("", "Writing it down…");
+      var before = t ? t.value.slice(0, t.selectionStart != null ? t.selectionStart : t.value.length) : "";
+      fetch("/api/voice/transcribe?context=" + encodeURIComponent(before.slice(-400)), { method: "POST", headers: { "Content-Type": blob.type || "audio/webm" }, body: blob })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (x) {
+          cloudBusy = false; btn.classList.remove("busy"); listening = false; clearBubble();
+          if (!x.ok) { say("", "Couldn't write that down. Try again."); setTimeout(clearBubble, 3000); return; }
+          insert(t, x.j.text); if (t) { field = t; place(); }
+        })
+        .catch(function () { cloudBusy = false; btn.classList.remove("busy"); listening = false; say("", "No connection — couldn't write that down."); setTimeout(clearBubble, 3000); });
+    }
+
     function start() {
       if (!field) return;
       startedAt = field;
+      if (cloudOn && canRecord) { cloudStart(); return; }
       if (nativeSpeech) {
         listening = true; btn.classList.add("listening");
         try { window.AveniumNative.startSpeech(lang()); } catch (e) { stop(); }
         return;
       }
       rec = new Rec();
-      rec.lang = lang(); rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
-      var finalText = "";
+      rec.lang = lang(); rec.interimResults = true; rec.continuous = true; rec.maxAlternatives = 1;
+      var finalText = "", wantStop = false;
+      rec.__stop = function () { wantStop = true; try { rec.stop(); } catch (er) {} };
       rec.onresult = function (e) {
         var interim = "";
         for (var i = e.resultIndex; i < e.results.length; i++) {
@@ -2672,11 +2748,16 @@
         say(finalText + interim, interim ? "" : "");
       };
       rec.onerror = function (e) {
+        if (e.error === "no-speech" && !wantStop) return;     // a pause: keep listening
         var msg = e.error === "not-allowed" || e.error === "service-not-allowed" ? "Microphone is blocked. Allow it in the browser's site settings (the icon left of the address)."
                 : e.error === "no-speech" ? "Didn't hear anything. Tap the mic and try again." : e.error === "aborted" ? "" : "Couldn't listen (" + e.error + ").";
         stop(); if (msg) { say("", msg); setTimeout(clearBubble, 3500); }
       };
-      rec.onend = function () { var t = startedAt; var words = finalText; stop(); insert(t, words); if (t) { field = t; place(); } };
+      // the browser stops on its own after a pause: keep listening until the mic is tapped
+      rec.onend = function () {
+        if (!wantStop && listening) { try { rec.start(); return; } catch (er) {} }
+        var t = startedAt; var words = finalText; stop(); rec = null; insert(t, words); if (t) { field = t; place(); }
+      };
       try { rec.start(); listening = true; btn.classList.add("listening"); say("", "Listening… speak now"); } catch (e) { stop(); }
     }
 
@@ -2685,7 +2766,9 @@
     btn.addEventListener("touchstart", function (e) { e.preventDefault(); btn.click(); }, { passive: false });
     btn.addEventListener("click", function (e) {
       e.preventDefault(); e.stopPropagation();
-      if (listening) { if (rec) { try { rec.stop(); } catch (er) {} } else stop(); return; }
+      if (cloudBusy) return;
+      if (media) { media.stop(); return; }
+      if (listening) { if (rec) { rec.__stop ? rec.__stop() : rec.stop(); } else stop(); return; }
       start();
     });
     document.addEventListener("focusin", function (e) {
@@ -2704,6 +2787,25 @@
     window.addEventListener("resize", function () { if (field) place(); });
     // the box can move or vanish while it has focus (modals opening, lists re-drawing)
     setInterval(function () { if (field) place(); }, 400);
+  })();
+
+  // ---- Admin › Voice Typing: the person's own extra words for the mic ----
+  (function () {
+    var box = document.getElementById("voiceWordsInput"), save = document.getElementById("voiceWordsSave"), msg = document.getElementById("voiceWordsMsg");
+    if (!box || !save) return;
+    function load() {
+      fetch("/api/voice/words").then(function (r) { return r.json(); }).then(function (d) { if (document.activeElement !== box) box.value = (d.words || []).join("\n"); }).catch(function () {});
+      fetch("/api/voice/status").then(function (r) { return r.json(); }).then(function (d) {
+        if (!d.enabled) document.getElementById("voiceStatusNote").textContent = "The improved mic isn't switched on yet (the server needs its speech key). Until then the mic uses the device's own voice typing. You can still add words here now.";
+      }).catch(function () {});
+    }
+    load();
+    save.addEventListener("click", function () {
+      msg.textContent = "Saving…";
+      fetch("/api/voice/words", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ words: box.value }) })
+        .then(function (r) { return r.json(); }).then(function (d) { box.value = (d.words || []).join("\n"); msg.textContent = "Saved — " + (d.words || []).length + " words."; setTimeout(function () { msg.textContent = ""; }, 3000); })
+        .catch(function () { msg.textContent = "Couldn't save. Try again."; });
+    });
   })();
 
   // Phones: tapping anywhere on a date or time box opens the phone's picker.

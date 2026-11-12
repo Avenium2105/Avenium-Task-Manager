@@ -2573,6 +2573,97 @@ app.post("/api/calendar/reminders/settings", requireAuth, (req, res) => {
   persistCalPrefs();
   res.json({ ok: true, minutes: m });
 });
+// ================= Voice dictation (mic on every text box) =================
+// The recording goes to OpenAI's speech-to-text (gpt-4o-transcribe), the same kind
+// of model chat apps use. To get names and Avenium words right, every request carries
+// a word list built from what this person can see in the app — people, boards, groups,
+// task titles, notes, chats, calendar event titles — plus words they've added
+// themselves, plus the text already in the box (context). Needs OPENAI_API_KEY.
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+const TRANSCRIBE_MODEL = process.env.TRANSCRIBE_MODEL || "gpt-4o-transcribe";
+const VOICE_WORDS_FILE = path.join(DATA_DIR, "voice-words.json");
+let voiceWords = {};   // userId -> [words]
+try { voiceWords = JSON.parse(fs.readFileSync(VOICE_WORDS_FILE, "utf8")) || {}; } catch (e) { voiceWords = {}; }
+function saveVoiceWords() { saveJsonSafely(VOICE_WORDS_FILE, () => voiceWords); }
+const COMMON = new Set("The A An And Or But If Then So To Of In On At By For With From Up Out Is Are Was Were Be Been Am I You He She We They It This That These Those My Your Our Their His Her Its Me Us Them Do Does Did Done Have Has Had Will Would Can Could Should Not No Yes Please Thanks Thank Ok Okay Hi Hello Today Tomorrow Yesterday Monday Tuesday Wednesday Thursday Friday Saturday Sunday January February March April May June July August September October November December Call Email Send Get Check Follow Meeting Update New Add Done Re Fw Fwd".split(" "));
+// distinctive words: capitalised words, acronyms and words with digits, most frequent first
+function distinctiveWords(texts, limit) {
+  const count = new Map();
+  for (const t of texts) {
+    const words = String(t || "").match(/[A-Za-z֐-׿][A-Za-z0-9֐-׿'&.-]*[A-Za-z0-9֐-׿]|[A-Z]{2,}/g) || [];
+    for (const w of words) {
+      if (COMMON.has(w)) continue;
+      const hebrew = /[֐-׿]/.test(w), cap = /^[A-Z]/.test(w), digits = /\d/.test(w);
+      if (!hebrew && !cap && !digits) continue;
+      if (w.length < 3 && !/^[A-Z0-9]{2}$/.test(w)) continue;
+      count.set(w, (count.get(w) || 0) + 1);
+    }
+  }
+  return [...count.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([w]) => w);
+}
+async function voiceVocabulary(userId) {
+  const st = stateForUser(userId);
+  const people = users.filter((u) => u.status !== "pending").map((u) => u.displayName || u.username).filter(Boolean);
+  const names = [...st.boards.map((b) => b.name), ...st.groups.map((g) => g.name)];
+  const titles = st.items.map((i) => i.title);
+  const notes = st.items.flatMap((i) => (i.notesList || []).map((n) => n.text)).slice(-400);
+  const steps = st.items.flatMap((i) => (i.steps || []).map((x) => x.text));
+  const chats = st.messages.slice(-500).map((m) => m.text);
+  const todos = st.todos.map((t) => t.text || t.title);
+  let events = [];
+  try {
+    const now = Date.now();
+    const list = await Promise.race([
+      gatherUserEvents(userId, new Date(now - 60 * 86400000).toISOString(), new Date(now + 60 * 86400000).toISOString()),
+      new Promise((r) => setTimeout(() => r([]), 2500))
+    ]);
+    events = (list || []).map((e) => e.title || e.summary || "");
+  } catch (e) {}
+  const mine = (voiceWords[userId] || []).slice(0, 300);
+  const learned = distinctiveWords([...names, ...titles, ...steps, ...todos, ...events, ...notes, ...chats], 250);
+  const seen = new Set(), out = [];
+  for (const w of [...mine, ...people, ...names, ...learned]) {
+    const k = String(w || "").trim(); if (!k || seen.has(k.toLowerCase())) continue;
+    seen.add(k.toLowerCase()); out.push(k);
+  }
+  return out;
+}
+app.get("/api/voice/status", requireAuth, (req, res) => res.json({ enabled: !!OPENAI_API_KEY }));
+app.get("/api/voice/words", requireAuth, (req, res) => res.json({ words: voiceWords[req.session.userId] || [] }));
+app.post("/api/voice/words", requireAuth, (req, res) => {
+  const list = Array.isArray((req.body || {}).words) ? req.body.words : String((req.body || {}).words || "").split(/[\n,]+/);
+  voiceWords[req.session.userId] = [...new Set(list.map((w) => String(w).trim().slice(0, 60)).filter(Boolean))].slice(0, 500);
+  saveVoiceWords();
+  res.json({ ok: true, words: voiceWords[req.session.userId] });
+});
+app.post("/api/voice/transcribe", requireAuth, express.raw({ type: () => true, limit: "25mb" }), async (req, res) => {
+  if (!OPENAI_API_KEY) return res.status(503).json({ error: "not_configured" });
+  const audio = req.body;
+  if (!audio || !audio.length) return res.status(400).json({ error: "no_audio" });
+  try {
+    const vocab = await voiceVocabulary(req.session.userId);
+    const context = String(req.query.context || "").slice(-400);
+    // The prompt: the word list (names first) and what's already written in the box
+    let prompt = "Workplace notes, tasks and messages for Avenium (real estate and investments). Names and terms that may come up: " + vocab.join(", ");
+    if (prompt.length > 3200) prompt = prompt.slice(0, 3200).replace(/,[^,]*$/, "");
+    if (context) prompt += ". Text so far: " + context;
+    const type = String(req.headers["content-type"] || "audio/webm").split(";")[0];
+    const ext = /mp4|m4a|aac/.test(type) ? "m4a" : /ogg/.test(type) ? "ogg" : /wav/.test(type) ? "wav" : "webm";
+    const form = new FormData();
+    form.append("file", new Blob([audio], { type }), "speech." + ext);
+    form.append("model", TRANSCRIBE_MODEL);
+    form.append("prompt", prompt);
+    form.append("response_format", "json");
+    const r = await fetch("https://api.openai.com/v1/audio/transcriptions", { method: "POST", headers: { Authorization: "Bearer " + OPENAI_API_KEY }, body: form });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) { console.error("Transcription failed:", r.status, j && j.error && j.error.message); return res.status(502).json({ error: "transcribe_failed" }); }
+    res.json({ text: String(j.text || "").trim() });
+  } catch (e) {
+    console.error("Transcription error:", e.message);
+    res.status(502).json({ error: "transcribe_failed" });
+  }
+});
+
 app.post("/api/device-token", requireAuth, (req, res) => {
   const old = String((req.body || {}).old || "");
   if (old && deviceTokens[old]) delete deviceTokens[old];
