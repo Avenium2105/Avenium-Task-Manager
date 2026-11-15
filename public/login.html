@@ -10,11 +10,11 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Sora:wght@300;400;600&display=swap" rel="stylesheet">
 <style>
   /* Same sign-in look as the Avenium investor portal: navy chevron background,
-     the light Avenium logo with its shine, and the soft blue card. */
+     the light Avenium logo with its shine, and a white card. */
   :root { --navy: #0A142B; --green: #70B894; --ink-500: #5C6E76; --danger: #8C2F2F; --danger-100: #F1DEDC; --teal-100: #DCE7E3; --teal-600: #2F5D55; }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
-  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; color: var(--navy); font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; background: var(--navy); }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; color: var(--navy); font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; background: var(--navy); }
   .wrap { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; padding: 24px; padding-bottom: calc(24px + env(safe-area-inset-bottom));
     background: var(--navy) url('/assets/login-bg.jpg') center center / cover no-repeat; }
   .page-brand { flex: 1 1 0%; width: 100%; max-width: 900px; padding: 0 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; gap: 14px; }
@@ -32,18 +32,18 @@
     color: rgba(255,255,255,0.92); padding-bottom: .08em; }
   .product-rule { width: 44px; height: 2px; border-radius: 2px; background: rgba(112,184,148,0.6); margin-top: 8px; }
   .spacer { flex: 1 1 0%; min-height: 0; }
-  .card { width: 100%; max-width: 390px; background: #BECBE9; border-radius: 5px; box-shadow: 0 12px 40px rgba(17,32,44,.28); padding: 30px; }
+  .card { width: 100%; max-width: 390px; background: #fff; border-radius: 16px; box-shadow: 0 2px 6px rgba(16,24,40,0.06), 0 16px 40px rgba(16,24,40,0.18); padding: 32px; }
   .row { margin-bottom: 12px; }
-  .row input { width: 100%; padding: 10px 12px; font-family: inherit; font-size: 14px; color: var(--navy); background: #fff; border: 1px solid #D0D5E1; border-radius: 3px; outline: none; }
-  .row input:focus { border-color: var(--navy); }
+  .row input { width: 100%; padding: 10px 12px; font-family: inherit; font-size: 14px; color: var(--navy); background: #fff; border: 1px solid #D9DEE8; border-radius: 10px; outline: none; }
+  .row input:focus { border-color: var(--navy); box-shadow: 0 0 0 3px rgba(10,20,43,0.12); }
   .row input::placeholder { color: var(--ink-500); opacity: .75; }
-  .btn { width: 100%; display: flex; justify-content: center; align-items: center; padding: 10px 14px; font-family: inherit; font-size: 14px; font-weight: 600; color: #fff; background: var(--navy); border: none; border-radius: 3px; cursor: pointer; }
+  .btn { width: 100%; display: flex; justify-content: center; align-items: center; padding: 11px 14px; font-family: inherit; font-size: 14px; font-weight: 600; color: #fff; background: var(--navy); border: none; border-radius: 10px; cursor: pointer; }
   .btn:hover { background: #182643; }
   .btn:disabled { opacity: .7; cursor: default; }
   .foot { margin-top: 12px; font-size: 13px; text-align: center; }
   .foot a { color: var(--navy); text-decoration: none; font-weight: 500; }
   .foot a:hover { text-decoration: underline; }
-  .msg { display: none; border-radius: 3px; padding: 8px 11px; font-size: 12.5px; margin-bottom: 12px; }
+  .msg { display: none; border-radius: 10px; padding: 9px 12px; font-size: 12.5px; margin-bottom: 12px; }
   .msg.show { display: block; }
   .msg.error { background: var(--danger-100); color: var(--danger); }
   .msg.note { background: var(--teal-100); color: var(--teal-600); }
