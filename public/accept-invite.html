@@ -6,30 +6,31 @@
 <title>Set up your account · Avenium</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #F7F8FB; --bg-raised: #FFFFFF; --ink: #0A142B; --ink-soft: #5C6E76; --ink-faint: #8C97A8;
-    --line: #D8DDE8; --pine: #1B397E; --brick: #B24A3C; --brick-soft: #F5E1DC;
-    --shadow: 0 1px 2px rgba(10,20,43,0.06);
+    --bg: #F6F7F9; --bg-raised: #FFFFFF; --ink: #0A142B; --ink-soft: #5C6E76; --ink-faint: #8C97A8;
+    --line: #E6E9F0; --pine: #1B397E; --brick: #B24A3C; --brick-soft: #F5E1DC;
+    --shadow: 0 1px 2px rgba(16,24,40,0.04), 0 4px 16px rgba(16,24,40,0.05);
   }
   /* Always light — intentionally ignores the device's dark-mode setting so the app looks the same on mobile as on desktop. */
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); min-height: 100vh; }
-  body { font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-  .card { width: 100%; max-width: 380px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 12px; padding: 32px 28px; box-shadow: var(--shadow); }
+  body { font-family: "Inter", system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.55; -webkit-font-smoothing: antialiased; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+  .card { width: 100%; max-width: 380px; background: var(--bg-raised); border: 1px solid var(--line); border-radius: 16px; padding: 32px; box-shadow: var(--shadow); }
   .brand-mark { display: inline-flex; align-items: center; margin: 0 0 20px; }
   .brand-logo { height: 22px; width: auto; display: block; }
-  h1 { font-family: "Fraunces", Georgia, serif; font-weight: 500; font-size: 24px; margin: 0 0 8px; letter-spacing: -0.01em; }
+  h1 { font-family: "Inter", system-ui, sans-serif; font-weight: 600; font-size: 22px; margin: 0 0 8px; letter-spacing: -0.02em; }
   p.sub { color: var(--ink-soft); font-size: 13.5px; margin: 0 0 22px; }
   label { display: block; font-size: 12.5px; color: var(--ink-soft); margin: 0 0 6px; }
-  input { width: 100%; font-family: inherit; font-size: 14px; padding: 9px 11px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: 7px; background: var(--bg); color: var(--ink); outline: none; letter-spacing: 0; }
-  input:focus { border-color: var(--pine); }
+  input { width: 100%; font-family: inherit; font-size: 14px; padding: 10px 12px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg-raised); color: var(--ink); outline: none; letter-spacing: 0; }
+  input:focus { border-color: var(--pine); box-shadow: 0 0 0 3px rgba(27,57,126,0.14); }
   input#code { letter-spacing: 4px; font-size: 18px; text-align: center; }
-  button { width: 100%; font-family: inherit; font-size: 14px; font-weight: 500; padding: 10px; border: none; border-radius: 7px; background: var(--pine); color: var(--bg-raised); cursor: pointer; }
+  button { width: 100%; font-family: inherit; font-size: 14px; font-weight: 500; padding: 11px; border: none; border-radius: 10px; background: var(--pine); color: var(--bg-raised); cursor: pointer; }
+  button:hover:not(:disabled) { filter: brightness(1.08); }
   button:disabled { opacity: 0.6; cursor: default; }
   button.link { width: auto; background: none; color: var(--ink-soft); padding: 0; margin-top: 12px; font-weight: 400; font-size: 12.5px; text-decoration: underline; }
-  .error, .ok { display: none; font-size: 12.5px; padding: 8px 10px; border-radius: 7px; margin-bottom: 16px; }
+  .error, .ok { display: none; font-size: 12.5px; padding: 9px 12px; border-radius: 10px; margin-bottom: 16px; }
   .error { background: var(--brick-soft); color: var(--brick); }
   .ok { background: rgba(27, 57, 126,0.12); color: var(--pine); }
   .error.show, .ok.show { display: block; }
